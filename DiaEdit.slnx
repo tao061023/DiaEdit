@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="DiaEditApp.ViewModels.Tests/DiaEditApp.ViewModels.Tests.csproj" />
+  <Project Path="DiaEditApp.ViewModels/DiaEditApp.ViewModels.csproj" />
+  <Project Path="DiaEditApp/DiaEditApp.csproj" />
+  <Project Path="DiaEditCore.Tests/DiaEditCore.Tests.csproj" />
+  <Project Path="DiaEditCore/DiaEditCore.csproj" />
+</Solution>
