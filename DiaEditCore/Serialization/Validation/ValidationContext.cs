@@ -13,4 +13,8 @@ public sealed class ValidationContext
     public IReadOnlyList<Model.BoundaryPoint> BoundaryPoints { get; init; } = Array.Empty<Model.BoundaryPoint>();
     public IReadOnlyList<Model.Switcher> Switchers { get; init; } = Array.Empty<Model.Switcher>();
     public IReadOnlyList<Model.StationPath> StationPaths { get; init; } = Array.Empty<Model.StationPath>();
+    public IReadOnlyList<Model.StationConnectionSegment> StationConnectionSegments { get; init; } = Array.Empty<Model.StationConnectionSegment>();
+    public IReadOnlyList<Model.MainRoute> MainRoutes { get; init; } = Array.Empty<Model.MainRoute>();
+    public IReadOnlyList<Model.StationConnection> StationConnections { get; init; } = Array.Empty<Model.StationConnection>();
+
 }
