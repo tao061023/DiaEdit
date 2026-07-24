@@ -16,5 +16,10 @@ public sealed class ValidationContext
     public IReadOnlyList<Model.StationConnectionSegment> StationConnectionSegments { get; init; } = Array.Empty<Model.StationConnectionSegment>();
     public IReadOnlyList<Model.MainRoute> MainRoutes { get; init; } = Array.Empty<Model.MainRoute>();
     public IReadOnlyList<Model.StationConnection> StationConnections { get; init; } = Array.Empty<Model.StationConnection>();
-
+    public IReadOnlyList<Model.ServiceRoute> ServiceRoutes { get; init; } = Array.Empty<Model.ServiceRoute>();
+    public IReadOnlyList<Model.Car> Cars { get; init; } = Array.Empty<Model.Car>();
+    public IReadOnlyList<Model.CarConsist> CarConsists { get; init; } = Array.Empty<Model.CarConsist>();
+    public IReadOnlyList<Model.VehicleType> VehicleTypes { get; init; } = Array.Empty<Model.VehicleType>();
+    public IReadOnlyList<Model.TrainType> TrainTypes { get; init; } = Array.Empty<Model.TrainType>();
+    public IReadOnlyList<Model.Train> Trains { get; init; } = Array.Empty<Model.Train>();
 }
