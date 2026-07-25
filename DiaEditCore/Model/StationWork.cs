@@ -7,25 +7,19 @@ public enum StationWorkType
 
 public enum NextTrainType { Other, TypeChange, InfoChange, SameTrain }
 
-/// <summary>
-/// StartOp専用：出区時点のconsistSequenceを表す1要素。
-/// trainIdは意味を持たない（5.11.5節）ため、そもそもフィールドとして持たせない。
-/// </summary>
 public sealed class StartOpCarSlot
 {
-    public required int Position { get; set; }              // consistSequence内のインデックス
-    public required CarConsistId CarConsistId { get; set; } // そのpositionの編成
+    public required int Position { get; set; }
+    public required CarConsistId CarConsistId { get; set; }
+    public string OperationNumber { get; set; } = string.Empty; // 追加：空文字列ならStationWork.TrainOperationId（StartOp本体の運用）を継承
 }
 
-/// <summary>
-/// Coupling/Decoupling専用：分割・併合の相手Trainを特定する必要があるためtrainIdを保持する。
-/// </summary>
 public sealed class TrainCutPoint
 {
     public required TrainId TrainId { get; set; }
-    public required int Position { get; set; }               // consistSequence内のインデックス
-    public required CarConsistId CarConsistId { get; set; }  // Decoupling: 分割後にこの列車が持つ編成
-                                                               // Coupling:   併合前にこの列車が持っていた編成
+    public required int Position { get; set; }
+    public required CarConsistId CarConsistId { get; set; }
+    public string OperationNumber { get; set; } = string.Empty; // 追加：Decoupling=空文字列なら分割元Trainの運用番号を継承／Coupling=併合前の運用番号（自由記述の履歴）
 }
 
 public sealed class StationWork

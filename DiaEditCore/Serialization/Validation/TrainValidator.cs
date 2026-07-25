@@ -5,6 +5,7 @@ namespace DiaEditCore.Serialization.Validation;
 public sealed class TrainValidator : IValidator<Train>
 {
     private readonly StopTimeValidator _stopTimeValidator = new();
+    private readonly TrainOperationValidator _trainOperationValidator = new();
 
     public IReadOnlyList<IValidationIssue> Validate(Train target, ValidationContext context)
     {
@@ -53,12 +54,16 @@ public sealed class TrainValidator : IValidator<Train>
                 issues.Add(new ValidationIssue($"Train({target.Id}).RunSegments[{i}]: StationConnectionId({seg.StationConnectionId})が存在しない"));
         }
 
-        // StopTimes：各StopTime単体の検証（Rule1・Rule4、型別必須フィールド等）を委譲
+        // StopTimes：各StopTime単体の検証を委譲
         foreach (var (key, stopTime) in target.StopTimes)
         {
             foreach (var issue in _stopTimeValidator.Validate(stopTime, context))
                 issues.Add(new ValidationIssue($"Train({target.Id}).StopTimes[{key}]: {issue.Message}"));
         }
+
+        // TrainOperation関連（Rule 2、StartOp起点のローカル検証）：追加
+        foreach (var issue in _trainOperationValidator.Validate(target, context))
+            issues.Add(issue); // TrainOperationValidator側で既にTrain/StopTimeのコンテキストをメッセージに含めているため二重prefixしない
 
         return issues;
     }

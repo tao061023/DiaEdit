@@ -22,3 +22,6 @@ public readonly record struct InsertionConfigId(int Value);
 public readonly record struct TrainTypeId(int Value);
 public readonly record struct TrainId(int Value);
 public readonly record struct TrainOperationId(int Value);
+public readonly record struct TimeTableSetId(int Value);
+public readonly record struct DiagramRevisionId(int Value);
+public readonly record struct TemporaryRestrictionId(int Value);
