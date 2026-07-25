@@ -6,6 +6,7 @@ public readonly record struct RailId(int Value);
 public readonly record struct BoundaryPointId(int Value);
 public readonly record struct EntryPointId(int Value);
 public readonly record struct BufferStopId(int Value);
+public readonly record struct PlatformId(int Value);
 public readonly record struct SwitcherId(int Value);
 public readonly record struct StationPathId(int Value);
 public readonly record struct VirtualConflictObjectId(int Value);
