@@ -2,7 +2,6 @@ namespace DiaEditCore.Serialization.Validation;
 
 /// <summary>
 /// 他オブジェクトを跨いだ検証に必要な参照一式。
-/// TimeTableSet実装時（5.13節）に本格的な形へ差し替える想定。
 /// </summary>
 public sealed class ValidationContext
 {
@@ -22,4 +21,8 @@ public sealed class ValidationContext
     public IReadOnlyList<Model.VehicleType> VehicleTypes { get; init; } = Array.Empty<Model.VehicleType>();
     public IReadOnlyList<Model.TrainType> TrainTypes { get; init; } = Array.Empty<Model.TrainType>();
     public IReadOnlyList<Model.Train> Trains { get; init; } = Array.Empty<Model.Train>();
+    public IReadOnlyList<Model.TimeTableSet> TimeTableSets { get; init; } = Array.Empty<Model.TimeTableSet>();
+    public IReadOnlyList<Model.DiagramRevision> DiagramRevisions { get; init; } = Array.Empty<Model.DiagramRevision>();
+    public IReadOnlyList<Model.TemporaryRestriction> TemporaryRestrictions { get; init; } = Array.Empty<Model.TemporaryRestriction>();
+    public IReadOnlyList<Model.DisplayContext> DisplayContexts { get; init; } = Array.Empty<Model.DisplayContext>();
 }

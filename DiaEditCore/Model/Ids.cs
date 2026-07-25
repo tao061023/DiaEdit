@@ -25,3 +25,4 @@ public readonly record struct TrainOperationId(int Value);
 public readonly record struct TimeTableSetId(int Value);
 public readonly record struct DiagramRevisionId(int Value);
 public readonly record struct TemporaryRestrictionId(int Value);
+public readonly record struct DisplayContextId(int Value);
