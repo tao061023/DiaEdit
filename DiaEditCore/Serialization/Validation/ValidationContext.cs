@@ -1,28 +1,40 @@
 namespace DiaEditCore.Serialization.Validation;
 
+using DiaEditCore.Model;
+using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Routes;
+using DiaEditCore.Model.Cars;
+using DiaEditCore.Model.TimeTable;
+
 /// <summary>
 /// 他オブジェクトを跨いだ検証に必要な参照一式。
 /// </summary>
 public sealed class ValidationContext
 {
-    public IReadOnlyList<Model.FloorUnit> FloorUnits { get; init; } = Array.Empty<Model.FloorUnit>();
-    public IReadOnlyList<Model.Station> Stations { get; init; } = Array.Empty<Model.Station>();
-    public IReadOnlyList<Model.Rail> Rails { get; init; } = Array.Empty<Model.Rail>();
-    public IReadOnlyList<Model.EntryPoint> EntryPoints { get; init; } = Array.Empty<Model.EntryPoint>();
-    public IReadOnlyList<Model.BoundaryPoint> BoundaryPoints { get; init; } = Array.Empty<Model.BoundaryPoint>();
-    public IReadOnlyList<Model.Switcher> Switchers { get; init; } = Array.Empty<Model.Switcher>();
-    public IReadOnlyList<Model.StationPath> StationPaths { get; init; } = Array.Empty<Model.StationPath>();
-    public IReadOnlyList<Model.StationConnectionSegment> StationConnectionSegments { get; init; } = Array.Empty<Model.StationConnectionSegment>();
-    public IReadOnlyList<Model.MainRoute> MainRoutes { get; init; } = Array.Empty<Model.MainRoute>();
-    public IReadOnlyList<Model.StationConnection> StationConnections { get; init; } = Array.Empty<Model.StationConnection>();
-    public IReadOnlyList<Model.ServiceRoute> ServiceRoutes { get; init; } = Array.Empty<Model.ServiceRoute>();
-    public IReadOnlyList<Model.Car> Cars { get; init; } = Array.Empty<Model.Car>();
-    public IReadOnlyList<Model.CarConsist> CarConsists { get; init; } = Array.Empty<Model.CarConsist>();
-    public IReadOnlyList<Model.VehicleType> VehicleTypes { get; init; } = Array.Empty<Model.VehicleType>();
-    public IReadOnlyList<Model.TrainType> TrainTypes { get; init; } = Array.Empty<Model.TrainType>();
-    public IReadOnlyList<Model.Train> Trains { get; init; } = Array.Empty<Model.Train>();
-    public IReadOnlyList<Model.TimeTableSet> TimeTableSets { get; init; } = Array.Empty<Model.TimeTableSet>();
-    public IReadOnlyList<Model.DiagramRevision> DiagramRevisions { get; init; } = Array.Empty<Model.DiagramRevision>();
-    public IReadOnlyList<Model.TemporaryRestriction> TemporaryRestrictions { get; init; } = Array.Empty<Model.TemporaryRestriction>();
-    public IReadOnlyList<Model.DisplayContext> DisplayContexts { get; init; } = Array.Empty<Model.DisplayContext>();
+    public IReadOnlyList<FloorUnit> FloorUnits { get; init; } = Array.Empty<FloorUnit>();
+    public IReadOnlyList<Station> Stations { get; init; } = Array.Empty<Station>();
+    public IReadOnlyList<Rail> Rails { get; init; } = Array.Empty<Rail>();
+    public IReadOnlyList<EntryPoint> EntryPoints { get; init; } = Array.Empty<EntryPoint>();
+    public IReadOnlyList<BoundaryPoint> BoundaryPoints { get; init; } = Array.Empty<BoundaryPoint>();
+    public IReadOnlyList<Switcher> Switchers { get; init; } = Array.Empty<Switcher>();
+    public IReadOnlyList<BufferStop> BufferStops { get; init; } = Array.Empty<BufferStop>();
+    public IReadOnlyList<StationPath> StationPaths { get; init; } = Array.Empty<StationPath>();
+
+    public IReadOnlyList<StationConnectionSegment> StationConnectionSegments { get; init; } = Array.Empty<StationConnectionSegment>();
+    public IReadOnlyList<MainRoute> MainRoutes { get; init; } = Array.Empty<MainRoute>();
+    public IReadOnlyList<StationConnection> StationConnections { get; init; } = Array.Empty<StationConnection>();
+    public IReadOnlyList<ServiceRoute> ServiceRoutes { get; init; } = Array.Empty<ServiceRoute>();
+ 
+    public IReadOnlyList<Car> Cars { get; init; } = Array.Empty<Car>();
+    public IReadOnlyList<CarConsist> CarConsists { get; init; } = Array.Empty<CarConsist>();
+    public IReadOnlyList<VehicleType> VehicleTypes { get; init; } = Array.Empty<VehicleType>();
+    public IReadOnlyList<InsertionConfig> InsertionConfigs { get; init; } = Array.Empty<InsertionConfig>();
+ 
+    public IReadOnlyList<TrainType> TrainTypes { get; init; } = Array.Empty<TrainType>();
+    public IReadOnlyList<Train> Trains { get; init; } = Array.Empty<Train>();
+    public IReadOnlyList<TimeTableSet> TimeTableSets { get; init; } = Array.Empty<TimeTableSet>();
+    public IReadOnlyList<DiagramRevision> DiagramRevisions { get; init; } = Array.Empty<DiagramRevision>();
+    public IReadOnlyList<TemporaryRestriction> TemporaryRestrictions { get; init; } = Array.Empty<TemporaryRestriction>();
+    public IReadOnlyList<DisplayContext> DisplayContexts { get; init; } = Array.Empty<DisplayContext>();
+    public IReadOnlyList<TrainOperation> TrainOperations { get; init; } = Array.Empty<TrainOperation>();
 }
