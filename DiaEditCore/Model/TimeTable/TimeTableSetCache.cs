@@ -1,5 +1,6 @@
 namespace DiaEditCore.Model.TimeTable;
 
+using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.Routes;
 
@@ -17,6 +18,10 @@ public sealed class TimeTableSetCache
     public Dictionary<StationConnectionSegmentId, List<StationConnectionId>> ScsUsedByIndex { get; } = new();
     public Dictionary<StationConnectionSegmentId, List<TemporaryRestrictionId>> TemporaryRestrictionBySegmentIndex { get; } = new();
     public Dictionary<TrainId, List<TrainId>> DerivedTrainsBySourceId { get; } = new();
+
+    // 駅×番線をキーに、発車時刻昇順のTrainを引けるようにするインデックス（6.4節TrainConnectionResolverが使用）。
+    // 構築はTrainConnectionResolver.BuildDepartureIndex()側の責務とする（TrainOperationIndex等と同じ責務分離）。
+    public Dictionary<(StationId StationId, RailId RailId), List<(int DepartureSeconds, TrainId TrainId)>> DepartureByStationTrackIndex { get; } = new();
 
     // -----------------------------
     // (b) 重量キャッシュ系（遅延再構築）
@@ -74,6 +79,7 @@ public sealed class TimeTableSetCache
         ScsUsedByIndex.Clear();
         TemporaryRestrictionBySegmentIndex.Clear();
         DerivedTrainsBySourceId.Clear();
+        DepartureByStationTrackIndex.Clear();
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
 
@@ -86,6 +92,7 @@ public sealed class TimeTableSetCache
         }
 
         // TrainOperationIndex は TrainOperationChainResolver が構築する
+        // DepartureByStationTrackIndex は TrainConnectionResolver.BuildDepartureIndex() が構築する
         // 他のインデックスも同様に Builder が構築する
     }
 }

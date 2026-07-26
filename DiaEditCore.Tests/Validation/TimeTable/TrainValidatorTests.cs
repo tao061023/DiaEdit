@@ -47,13 +47,40 @@ public class TrainValidatorTests
         DefaultVehicleTypeId = new VehicleTypeId(1),
     };
 
-    private static ValidationContext MakeBaseContext(params Train[] trains) => new()
+    private static StationConnectionSegment MakeSegment(int id, StationId from, StationId to, int mainRouteId = 1) => new()
+    {
+        Id = new StationConnectionSegmentId(id),
+        FromStationId = from,
+        ToStationId = to,
+        FromEntryPointId = new EntryPointId(id * 10 + 1),
+        ToEntryPointId = new EntryPointId(id * 10 + 2),
+        MainRouteId = new MainRouteId(mainRouteId),
+        BaseRunTimeSec = 60,
+    };
+
+    private static StationConnection MakeConnection(int id, int mainRouteId, StationConnectionDirection direction, params StationConnectionSegmentId[] segmentIds) => new()
+    {
+        Id = new StationConnectionId(id),
+        Name = "test-sc",
+        MainRouteId = new MainRouteId(mainRouteId),
+        Direction = direction,
+        Segments = segmentIds.ToList(),
+    };
+
+    private static ValidationContext MakeBaseContext(
+        Train[] trains,
+        StationConnection[]? stationConnections = null,
+        StationConnectionSegment[]? stationConnectionSegments = null) => new()
     {
         ServiceRoutes = [MakeServiceRoute(1)],
         TrainTypes = [MakeTrainType(1)],
         VehicleTypes = [MakeVehicleType(1)],
         Trains = trains,
+        StationConnections = stationConnections ?? [],
+        StationConnectionSegments = stationConnectionSegments ?? [],
     };
+
+    private static ValidationContext MakeBaseContext(params Train[] trains) => MakeBaseContext(trains, null, null);
 
     [Fact]
     public void 必須参照が全て揃っていれば合格()
@@ -207,5 +234,98 @@ public class TrainValidatorTests
         var issues = new TrainValidator().Validate(train, context);
 
         Assert.Contains(issues, i => i.Message.Contains("StopTimes[") && i.Message.Contains("None"));
+    }
+
+    // --- 8.2節項目8：RunSegmentsの深い整合性検証（EntryPointSequenceResolver経由） ---
+
+    [Fact]
+    public void RunSegmentsのホップが参照先StationConnectionの実際の駅間と一致すれば合格()
+    {
+        var stA = new StationId(1);
+        var stB = new StationId(2);
+        var seg = MakeSegment(1, stA, stB);
+        var sc = MakeConnection(1, 1, StationConnectionDirection.Down, seg.Id);
+
+        var train = MakeValidTrain(1);
+        train.RunSegments.Add(new TrainRunSegment
+        {
+            FromStationId = stA,
+            ToStationId = stB,
+            StationConnectionId = sc.Id,
+        });
+        var context = MakeBaseContext([train], [sc], [seg]);
+
+        var issues = new TrainValidator().Validate(train, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void RunSegmentsのホップが参照先StationConnectionの実際の駅間と一致しなければ不合格()
+    {
+        var stA = new StationId(1);
+        var stB = new StationId(2);
+        var stX = new StationId(99); // StationConnectionがカバーしない駅
+        var seg = MakeSegment(1, stA, stB);
+        var sc = MakeConnection(1, 1, StationConnectionDirection.Down, seg.Id);
+
+        var train = MakeValidTrain(1);
+        train.RunSegments.Add(new TrainRunSegment
+        {
+            FromStationId = stA,
+            ToStationId = stX, // 実際のSCのホップ（A→B）と食い違う
+            StationConnectionId = sc.Id,
+        });
+        var context = MakeBaseContext([train], [sc], [seg]);
+
+        var issues = new TrainValidator().Validate(train, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("RunSegments[0]") && i.Message.Contains("一致しない"));
+    }
+
+    [Fact]
+    public void 複数ホップで構成されるStationConnectionでも内部の1ホップに一致すれば合格()
+    {
+        var stA = new StationId(1);
+        var stB = new StationId(2);
+        var stC = new StationId(3);
+        var seg1 = MakeSegment(1, stA, stB);
+        var seg2 = MakeSegment(2, stB, stC);
+        var sc = MakeConnection(1, 1, StationConnectionDirection.Down, seg1.Id, seg2.Id);
+
+        var train = MakeValidTrain(1);
+        // B→CというホップはSC全体の一部（2番目のsegment）としてのみ存在する
+        train.RunSegments.Add(new TrainRunSegment
+        {
+            FromStationId = stB,
+            ToStationId = stC,
+            StationConnectionId = sc.Id,
+        });
+        var context = MakeBaseContext([train], [sc], [seg1, seg2]);
+
+        var issues = new TrainValidator().Validate(train, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void StationConnectionは存在するがSegmentsが空なら不合格()
+    {
+        var stA = new StationId(1);
+        var stB = new StationId(2);
+        var sc = MakeConnection(1, 1, StationConnectionDirection.Down); // segments空
+
+        var train = MakeValidTrain(1);
+        train.RunSegments.Add(new TrainRunSegment
+        {
+            FromStationId = stA,
+            ToStationId = stB,
+            StationConnectionId = sc.Id,
+        });
+        var context = MakeBaseContext([train], [sc], []);
+
+        var issues = new TrainValidator().Validate(train, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("RunSegments[0]") && i.Message.Contains("一致しない"));
     }
 }

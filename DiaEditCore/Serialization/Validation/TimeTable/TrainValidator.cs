@@ -1,3 +1,4 @@
+using DiaEditCore.Algorithm;
 using DiaEditCore.Model.TimeTable;
 
 namespace DiaEditCore.Serialization.Validation.Timetable;
@@ -46,12 +47,28 @@ public sealed class TrainValidator : IValidator<Train>
             }
         }
 
-        // RunSegments：参照StationConnectionの実在確認
+        // RunSegments：参照StationConnectionの実在確認、および
+        // fromStationId/toStationIdが参照先StationConnectionの実際の駅間ホップとして
+        // 存在するかの深い整合性検証（8.2節項目8）
         for (var i = 0; i < target.RunSegments.Count; i++)
         {
             var seg = target.RunSegments[i];
-            if (!context.StationConnections.Any(sc => sc.Id == seg.StationConnectionId))
+            var sc = context.StationConnections.FirstOrDefault(sc => sc.Id == seg.StationConnectionId);
+            if (sc is null)
+            {
                 issues.Add(new ValidationIssue($"Train({target.Id}).RunSegments[{i}]: StationConnectionId({seg.StationConnectionId})が存在しない"));
+                continue;
+            }
+
+            var resolvedSequence = EntryPointSequenceResolver.Resolve(sc, context.StationConnectionSegments);
+            var hopExists = resolvedSequence.Any(e =>
+                e.FromStationId == seg.FromStationId && e.ToStationId == seg.ToStationId);
+            if (!hopExists)
+            {
+                issues.Add(new ValidationIssue(
+                    $"Train({target.Id}).RunSegments[{i}]: fromStationId({seg.FromStationId})→toStationId({seg.ToStationId})が、" +
+                    $"StationConnectionId({seg.StationConnectionId})が実際にカバーする駅間ホップと一致しない"));
+            }
         }
 
         // StopTimes：各StopTime単体の検証を委譲
