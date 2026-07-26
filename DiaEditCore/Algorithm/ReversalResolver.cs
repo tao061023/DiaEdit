@@ -6,49 +6,59 @@ namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// 6.10節：編成前後反転の自動導出。単一MainRoute内のスイッチバック判定（ResolveDirectionReversalStations）と、
-/// 境界駅（MainRoute間）での折り返し判定（ResolveReversesAtBoundary）を、同一の判定基準
-/// （EntryPoint.Type＋接続トポロジー。座標・表示用回転角は一切使わない）で扱う。
+/// 境界駅（MainRoute間）での折り返し判定（ResolveReversesAtBoundary）を、同一の判定基準で扱う。
 ///
-/// 判定基準：ある駅において、進入側で使用するEntryPointIdと進出側で使用するEntryPointIdが
-/// 同一であれば、その駅は進入・進出を単一の物理的な出入口で行っている（＝デッドエンド構造であり、
-/// 折り返しが必須）と判定する。異なるEntryPointIdであれば別々の出入口を持つ通過構造であり、
-/// 折り返しは不要と判定する。
+/// 判定基準：SCSから得た進入側EntryPointId・進出側EntryPointIdそれぞれについて、それを含む
+/// StationPath（Direction=Arrival／Departure）を列挙し、そのStationPathが経由するRailRoll.Track
+/// のRail群（EndpointA/EndpointBの RailEndpointRef）を集合として取り出す。進入側・進出側の集合に
+/// 重複するRailEndpointRefが存在すれば、進入と進出で同一の物理番線を使用している＝折り返しが必須と
+/// 判定する（デルタ線は必ずMainRouteとして登録される制約があるため、使用する番線による向きの差異は
+/// 発生せず、複数StationPath候補間の判定はORでよい）。
 ///
-/// 両メソッドとも、EP引き当ての下請けとしてBoundaryEntryPointResolver（6.1節）を共有する。
-/// 出力（directionReversalStations／ServiceRouteSegment.reversesAtBoundary）は
+/// 両メソッドとも、EP引き当ての下請けとしてBoundaryEntryPointResolver（6.1節）・EntryPointSequenceResolver・
+/// RailSequenceResolverを共有する。出力（directionReversalStations／ServiceRouteSegment.reversesAtBoundary）は
 /// あくまで保存時のデフォルト値提示の候補であり、確定はユーザーが行う。
+///
+/// 注：Shunting時に使用Trackが変わるケース（RailRoll.Shunting側のRailEndpointRef一致）は
+/// 本メソッドの対象外（Arrival/Departure StationPathのみを扱う）。必要になった場合は別途対応する。
 /// </summary>
 public static class ReversalResolver
 {
     /// <summary>
     /// mainRoute内の各中間駅（先頭・末尾を除く）について、スイッチバック判定を行う。
     /// 戻り値はStationId→判定結果（true=反転が必要と推定／false=不要と推定）。
-    /// 前後いずれかの区間に対応するStationConnectionが存在しない駅は結果に含めない
-    /// （判定不能。呼び出し側でdirectionReversalStationsへの自動登録候補から除外する）。
+    /// 判定不能（対応するStationConnectionが無い／該当駅のStationPathが渡されていない）駅は結果に含めない。
     /// </summary>
+    /// <param name="stationPathsByStation">駅ごとのStationPath一覧（呼び出し側でFloorUnitId→StationId対応により絞り込み済みのもの）</param>
     public static Dictionary<StationId, bool> ResolveDirectionReversalStations(
         MainRoute mainRoute,
         IReadOnlyList<MainRoute> allMainRoutes,
         IReadOnlyList<StationConnection> allStationConnections,
-        IReadOnlyList<StationConnectionSegment> allSegments)
+        IReadOnlyList<StationConnectionSegment> allSegments,
+        IReadOnlyList<Rail> allRails,
+        IReadOnlyDictionary<StationId, IReadOnlyList<StationPath>> stationPathsByStation)
     {
         var result = new Dictionary<StationId, bool>();
         var stationOrder = mainRoute.StationOrder;
+        var railResolver = new RailSequenceResolver(allRails);
 
         for (var i = 1; i < stationOrder.Count - 1; i++)
         {
-            // 進入側：i-1 → i 方向で駅iに進入する際に使用するEP
-            var arrivingEps = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
+            var stationId = stationOrder[i];
+            if (!stationPathsByStation.TryGetValue(stationId, out var pathsAtStation) || pathsAtStation.Count == 0)
+            {
+                continue; // 判定不能
+            }
+
+            // 進入側：SCS[i-1→i]（Down方向）の到着EP（末尾要素のToEntryPointId）
+            var arrivingCandidates = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
                 mainRoute.Id, i - 1, i, allMainRoutes, allStationConnections, allSegments);
 
-            // 進出側：i+1 → i 方向（＝Up方向）で駅iに進入する際に使用するEP。
-            // 単一線路のSCSはUp/Down双方のSCで共有されるため、i→i+1方向で駅iから進出する際に
-            // 使用する物理的なEPと同一のもの（またはその判定に必要な同値性）が得られる。
-            var departingEps = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
-                mainRoute.Id, i + 1, i, allMainRoutes, allStationConnections, allSegments);
+            // 進出側：SCS[i→i+1]（Down方向）の出発EP（先頭要素のFromEntryPointId）
+            var departingCandidates = ResolveDepartureEntryPointCandidates(
+                mainRoute.Id, i, i + 1, allMainRoutes, allStationConnections, allSegments);
 
-            var stationId = stationOrder[i];
-            var reversal = JudgeReversal(arrivingEps, departingEps);
+            var reversal = JudgeReversalByTrack(arrivingCandidates, departingCandidates, pathsAtStation, railResolver, allRails);
             if (reversal is not null)
             {
                 result[stationId] = reversal.Value;
@@ -63,12 +73,15 @@ public static class ReversalResolver
     /// prevSegmentの終端駅とnextSegmentの起点駅が同一駅であることを前提とする
     /// （異なる場合はnullを返し、判定不能として扱う）。
     /// </summary>
+    /// <param name="pathsAtBoundaryStation">境界駅のStationPath一覧</param>
     public static bool? ResolveReversesAtBoundary(
         ServiceRouteSegment prevSegment,
         ServiceRouteSegment nextSegment,
         IReadOnlyList<MainRoute> allMainRoutes,
         IReadOnlyList<StationConnection> allStationConnections,
-        IReadOnlyList<StationConnectionSegment> allSegments)
+        IReadOnlyList<StationConnectionSegment> allSegments,
+        IReadOnlyList<Rail> allRails,
+        IReadOnlyList<StationPath> pathsAtBoundaryStation)
     {
         var prevMainRoute = allMainRoutes.FirstOrDefault(mr => mr.Id == prevSegment.MainRouteId);
         var nextMainRoute = allMainRoutes.FirstOrDefault(mr => mr.Id == nextSegment.MainRouteId);
@@ -81,43 +94,57 @@ public static class ReversalResolver
             return null;
         }
 
-        // prevSegment内で境界駅の1つ手前の駅（進入方向）
+        if (pathsAtBoundaryStation.Count == 0) return null;
+
         var prevStep = Math.Sign(prevSegment.ToStationIndex - prevSegment.FromStationIndex);
         if (prevStep == 0) return null;
         var prevPenultimateIndex = prevSegment.ToStationIndex - prevStep;
 
-        // nextSegment内で境界駅の1つ先の駅（進出方向）
         var nextStep = Math.Sign(nextSegment.ToStationIndex - nextSegment.FromStationIndex);
         if (nextStep == 0) return null;
         var nextFollowingIndex = nextSegment.FromStationIndex + nextStep;
 
-        var arrivingEps = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
+        var arrivingCandidates = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
             prevSegment.MainRouteId, prevPenultimateIndex, prevSegment.ToStationIndex,
             allMainRoutes, allStationConnections, allSegments);
 
-        var departingEps = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
-            nextSegment.MainRouteId, nextFollowingIndex, nextSegment.FromStationIndex,
+        var departingCandidates = ResolveDepartureEntryPointCandidates(
+            nextSegment.MainRouteId, nextSegment.FromStationIndex, nextFollowingIndex,
             allMainRoutes, allStationConnections, allSegments);
 
-        return JudgeReversal(arrivingEps, departingEps);
+        var railResolver = new RailSequenceResolver(allRails);
+        return JudgeReversalByTrack(arrivingCandidates, departingCandidates, pathsAtBoundaryStation, railResolver, allRails);
     }
 
     /// <summary>
-    /// 進入側候補群・進出側候補群のいずれかの組み合わせで同一EntryPointIdが使われていれば
-    /// 折り返し必須（true）、いずれの組み合わせも一致しなければ不要（false）と判定する。
-    /// 複々線等でどちらかの候補群が空の場合は判定不能（null）。
+    /// 進入側候補（ToEntryPointId基準）・進出側候補（FromEntryPointId基準）の全組み合わせについて、
+    /// それぞれが経由するRailRoll.Track Railの端点集合（RailEndpointRef）に重複があるかを判定する。
+    /// いずれかの組み合わせで重複があればtrue（OR）。候補やStationPathが無ければnull（判定不能）。
     /// </summary>
-    private static bool? JudgeReversal(
-        IReadOnlyList<EntryPointSequenceElement> arrivingEps,
-        IReadOnlyList<EntryPointSequenceElement> departingEps)
+    private static bool? JudgeReversalByTrack(
+        IReadOnlyList<EntryPointSequenceElement> arrivingCandidates,
+        IReadOnlyList<EntryPointSequenceElement> departingCandidates,
+        IReadOnlyList<StationPath> pathsAtStation,
+        RailSequenceResolver railResolver,
+        IReadOnlyList<Rail> allRails)
     {
-        if (arrivingEps.Count == 0 || departingEps.Count == 0) return null;
-
-        foreach (var arriving in arrivingEps)
+        if (arrivingCandidates.Count == 0 || departingCandidates.Count == 0 || pathsAtStation.Count == 0)
         {
-            foreach (var departing in departingEps)
+            return null;
+        }
+
+        foreach (var arriving in arrivingCandidates)
+        {
+            var arrivalTrackKeys = ResolveTrackEndpointKeys(
+                pathsAtStation, arriving.ToEntryPointId, StationPathDirection.Arrival, railResolver, allRails);
+            if (arrivalTrackKeys.Count == 0) continue;
+
+            foreach (var departing in departingCandidates)
             {
-                if (arriving.ToEntryPointId == departing.ToEntryPointId)
+                var departureTrackKeys = ResolveTrackEndpointKeys(
+                    pathsAtStation, departing.FromEntryPointId, StationPathDirection.Departure, railResolver, allRails);
+
+                if (departureTrackKeys.Overlaps(arrivalTrackKeys))
                 {
                     return true;
                 }
@@ -125,6 +152,122 @@ public static class ReversalResolver
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// entryPointIdをWaypointsに含み、指定方向を持つStationPathを列挙し、
+    /// それらが経由するRailRoll.Track RailのEndpointA/EndpointB（RailEndpointRef）のKey集合を返す。
+    /// </summary>
+    private static HashSet<(string Kind, int Id)> ResolveTrackEndpointKeys(
+        IReadOnlyList<StationPath> pathsAtStation,
+        EntryPointId entryPointId,
+        StationPathDirection direction,
+        RailSequenceResolver railResolver,
+        IReadOnlyList<Rail> allRails)
+    {
+        var keys = new HashSet<(string, int)>();
+
+        var matchingPaths = pathsAtStation.Where(p =>
+            p.Direction == direction &&
+            p.Waypoints.Any(w => w is EntryPointWaypoint ep && ep.Id == entryPointId));
+
+        foreach (var path in matchingPaths)
+        {
+            IReadOnlyList<RailId> railIds;
+            try
+            {
+                railIds = railResolver.Resolve(path);
+            }
+            catch (InvalidOperationException)
+            {
+                // waypoint間のRailが存在しない不整合データは別途保存時検証で検出する想定のため、ここではスキップする
+                continue;
+            }
+
+            foreach (var railId in railIds)
+            {
+                var rail = allRails.FirstOrDefault(r => r.Id == railId);
+                if (rail is null || rail.Roll != RailRoll.Track) continue;
+
+                keys.Add(rail.EndpointA.Key());
+                keys.Add(rail.EndpointB.Key());
+            }
+        }
+
+        return keys;
+    }
+
+    /// <summary>
+    /// BoundaryEntryPointResolver.ResolveBoundaryEntryPointと同じ絞り込み条件で一致するStationConnectionを探索し、
+    /// fromIndex側（出発側）の要素（EntryPointSequenceElement列の先頭要素）を返す。
+    /// BoundaryEntryPointResolverは到着側（末尾要素）しか返さないため、出発側取得用に複製している。
+    /// </summary>
+    private static IReadOnlyList<EntryPointSequenceElement> ResolveDepartureEntryPointCandidates(
+        MainRouteId mainRouteId,
+        int fromIndex,
+        int toIndex,
+        IReadOnlyList<MainRoute> allMainRoutes,
+        IReadOnlyList<StationConnection> allStationConnections,
+        IReadOnlyList<StationConnectionSegment> allSegments)
+    {
+        var mainRoute = allMainRoutes.FirstOrDefault(mr => mr.Id == mainRouteId);
+        if (mainRoute is null) return Array.Empty<EntryPointSequenceElement>();
+
+        var stationOrder = mainRoute.StationOrder;
+        if (fromIndex < 0 || fromIndex >= stationOrder.Count ||
+            toIndex < 0 || toIndex >= stationOrder.Count ||
+            fromIndex == toIndex)
+        {
+            return Array.Empty<EntryPointSequenceElement>();
+        }
+
+        var direction = fromIndex < toIndex ? StationConnectionDirection.Down : StationConnectionDirection.Up;
+        var expectedStations = BuildExpectedStations(stationOrder, fromIndex, toIndex);
+
+        var result = new List<EntryPointSequenceElement>();
+        foreach (var sc in allStationConnections)
+        {
+            if (sc.MainRouteId != mainRouteId || sc.Direction != direction) continue;
+
+            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments);
+            if (!MatchesExpectedStations(seq, expectedStations)) continue;
+
+            result.Add(seq[0]); // fromIndex側（出発側）の要素
+        }
+
+        return result;
+    }
+
+    private static List<StationId> BuildExpectedStations(IReadOnlyList<StationId> stationOrder, int fromIndex, int toIndex)
+    {
+        var stations = new List<StationId>();
+        if (fromIndex < toIndex)
+        {
+            for (var i = fromIndex; i <= toIndex; i++) stations.Add(stationOrder[i]);
+        }
+        else
+        {
+            for (var i = fromIndex; i >= toIndex; i--) stations.Add(stationOrder[i]);
+        }
+        return stations;
+    }
+
+    private static bool MatchesExpectedStations(
+        IReadOnlyList<EntryPointSequenceElement> seq,
+        IReadOnlyList<StationId> expectedStations)
+    {
+        if (seq.Count != expectedStations.Count - 1) return false;
+        if (seq.Count == 0) return false;
+
+        if (seq[0].FromStationId != expectedStations[0]) return false;
+
+        for (var i = 0; i < seq.Count; i++)
+        {
+            if (seq[i].ToStationId != expectedStations[i + 1]) return false;
+            if (i > 0 && seq[i].FromStationId != seq[i - 1].ToStationId) return false;
+        }
+
+        return true;
     }
 
     private static StationId? SafeStationAt(MainRoute mainRoute, int index)
