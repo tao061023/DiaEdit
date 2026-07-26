@@ -1,3 +1,5 @@
+using DiaEditCore.Model.Routes;
+
 namespace DiaEditCore.Algorithm;
 
 public sealed record EntryPointSequenceElement(
@@ -13,8 +15,8 @@ public static class EntryPointSequenceResolver
     /// 都度導出・非保存。
     /// </summary>
     public static IReadOnlyList<EntryPointSequenceElement> Resolve(
-        Model.StationConnection sc,
-        IReadOnlyList<Model.StationConnectionSegment> allSegments)
+        StationConnection sc,
+        IReadOnlyList<StationConnectionSegment> allSegments)
     {
         var result = new List<EntryPointSequenceElement>(sc.Segments.Count);
         foreach (var segId in sc.Segments)

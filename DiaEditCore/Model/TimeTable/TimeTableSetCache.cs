@@ -1,7 +1,7 @@
 namespace DiaEditCore.Model.TimeTable;
 
-using DiaEditCore.Model.Station;
-using DiaEditCore.Model.Route;
+using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Routes;
 
 public sealed class TimeTableSetCache
 {
