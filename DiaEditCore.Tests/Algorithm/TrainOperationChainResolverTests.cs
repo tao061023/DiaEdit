@@ -202,6 +202,30 @@ public class TrainOperationChainResolverTests
     }
 
     [Fact]
+    public void NextTrainCandidateがResolveに渡されたTrain集合に存在しなければチェーンはそこで終了する()
+    {
+        // departureIndexはtrain1・train2の双方から構築するが、Resolve自体にはtrain1しか渡さない。
+        // これにより「参照整合性エラー（NextTrain候補が実在しない）」を人為的に再現する。
+        // 実際の保存データでは発生しないはずだが、発生した場合でも例外を投げず静かにチェーンを
+        // 打ち切ることを保証する（参照整合性そのものの検証はSaveValidationRunner側の責務）。
+        var rail = new RailId(1);
+        var train1 = NewTrain(1, "1001M");
+        AddRunSegment(train1, 1, 2);
+        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+
+        var train2 = NewTrain(2, "1002M");
+        AddRunSegment(train2, 2, 3);
+        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
+
+        var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
+        var result = TrainOperationChainResolver.Resolve([train1], index, MakeSettings());
+
+        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
+        Assert.Single(result); // train2は起点集合(allTrains)に含まれないため、参照整合性エラーとして無視される
+    }
+
+    [Fact]
     public void 複数のStartOpから独立したチェーンがそれぞれ登録される()
     {
         var train1 = NewTrain(1, "1001M");

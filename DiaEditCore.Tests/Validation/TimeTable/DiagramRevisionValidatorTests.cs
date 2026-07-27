@@ -22,7 +22,7 @@ public class DiagramRevisionValidatorTests
             Id = new DiagramRevisionId(1),
             Name = "2026年ダイヤ改正",
             TimeTableSetIds = [set1.Id],
-            baseTimeTableSetId = set1.Id,
+            BaseTimeTableSetId = set1.Id,
         };
         var context = new ValidationContext { TimeTableSets = [set1] };
 
@@ -40,7 +40,7 @@ public class DiagramRevisionValidatorTests
             Id = new DiagramRevisionId(1),
             Name = "2026年ダイヤ改正",
             TimeTableSetIds = [],
-            baseTimeTableSetId = null,
+            BaseTimeTableSetId = null,
         };
         var context = new ValidationContext();
 
@@ -83,7 +83,7 @@ public class DiagramRevisionValidatorTests
     }
 
     [Fact]
-    public void baseTimeTableSetIdがTimeTableSetIdsに含まれないと不合格()
+    public void BaseTimeTableSetIdがTimeTableSetIdsに含まれないと不合格()
     {
         var set1 = MakeTimeTableSet(1);
         var set2 = MakeTimeTableSet(2, "休日");
@@ -92,12 +92,12 @@ public class DiagramRevisionValidatorTests
             Id = new DiagramRevisionId(1),
             Name = "2026年ダイヤ改正",
             TimeTableSetIds = [set1.Id], // set2は含まれない
-            baseTimeTableSetId = set2.Id,
+            BaseTimeTableSetId = set2.Id,
         };
         var context = new ValidationContext { TimeTableSets = [set1, set2] };
 
         var issues = new DiagramRevisionValidator().Validate(revision, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("baseTimeTableSetId"));
+        Assert.Contains(issues, i => i.Message.Contains("BaseTimeTableSetId"));
     }
 }

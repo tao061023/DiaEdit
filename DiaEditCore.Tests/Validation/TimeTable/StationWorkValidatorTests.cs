@@ -1,4 +1,5 @@
 using DiaEditCore.Model;
+using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable;
 
 using DiaEditCore.Serialization.Validation;
@@ -129,6 +130,124 @@ public class StationWorkValidatorTests
         var issues = Validator.Validate(work, EmptyContext); // CarConsistsが空なので999は存在しない
 
         Assert.Contains(issues, i => i.Message.Contains("CarConsistId"));
+    }
+
+    [Fact]
+    public void Decoupling_CutPointsが空でエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Decoupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+        };
+
+        var issues = Validator.Validate(work, EmptyContext);
+
+        Assert.Contains(issues, i => i.Message.Contains("CutPoints"));
+    }
+
+    [Fact]
+    public void OpNumberChange_TrainOperationId未設定でエラー()
+    {
+        var work = new StationWork { Type = StationWorkType.OpNumberChange };
+
+        var issues = Validator.Validate(work, EmptyContext);
+
+        Assert.Contains(issues, i => i.Message.Contains("TrainOperationId"));
+    }
+
+    [Fact]
+    public void OpNumberChange_TrainOperationId設定済みならエラーなし()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.OpNumberChange,
+            TrainOperationId = new TrainOperationId(1),
+        };
+
+        var issues = Validator.Validate(work, EmptyContext);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void Shunting_StartOpSecondsとEndOpSecondsが両方未設定でエラー()
+    {
+        var stationPath = new StationPath
+        {
+            Id = new StationPathId(1),
+            FloorUnitId = new FloorUnitId(1),
+            Name = "入換経路A",
+            Direction = StationPathDirection.Shunting,
+            Waypoints = [],
+        };
+        var work = new StationWork
+        {
+            Type = StationWorkType.Shunting,
+            StationPathId = stationPath.Id, // 実在するIDにして、秒未設定のエラーのみを単独発生させる
+        };
+        var context = new ValidationContext { StationPaths = [stationPath] };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Single(issues);
+        Assert.Contains(issues, i => i.Message.Contains("StartOpSeconds/EndOpSeconds"));
+    }
+
+    [Fact]
+    public void Shunting_存在しないStationPathIdを参照するとエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Shunting,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            StationPathId = new StationPathId(999),
+        };
+
+        var issues = Validator.Validate(work, EmptyContext); // StationPathsが空なので999は存在しない
+
+        Assert.Contains(issues, i => i.Message.Contains("StationPathId") && i.Message.Contains("存在しない"));
+    }
+
+    [Fact]
+    public void StartOpConsistのPositionが0始まり連番でなければエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.StartOp,
+            StartOpSeconds = 3600,
+            TrainOperationId = new TrainOperationId(1),
+            StartOpConsist =
+            [
+                new StartOpCarSlot { Position = 0, CarConsistId = new CarConsistId(1) },
+                new StartOpCarSlot { Position = 2, CarConsistId = new CarConsistId(2) }, // 1が抜けている
+            ],
+        };
+
+        var issues = Validator.Validate(work, EmptyContext);
+
+        Assert.Contains(issues, i => i.Message.Contains("Position"));
+    }
+
+    [Fact]
+    public void StartOpConsist内のCarConsistIdが存在しなければエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.StartOp,
+            StartOpSeconds = 3600,
+            TrainOperationId = new TrainOperationId(1),
+            StartOpConsist =
+            [
+                new StartOpCarSlot { Position = 0, CarConsistId = new CarConsistId(999) },
+            ],
+        };
+
+        var issues = Validator.Validate(work, EmptyContext); // CarConsistsが空なので999は存在しない
+
+        Assert.Contains(issues, i => i.Message.Contains("StartOpConsist") && i.Message.Contains("CarConsistId"));
     }
 
     [Fact]
