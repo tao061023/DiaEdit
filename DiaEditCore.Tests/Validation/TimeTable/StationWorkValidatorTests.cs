@@ -148,30 +148,6 @@ public class StationWorkValidatorTests
     }
 
     [Fact]
-    public void OpNumberChange_TrainOperationId未設定でエラー()
-    {
-        var work = new StationWork { Type = StationWorkType.OpNumberChange };
-
-        var issues = Validator.Validate(work, EmptyContext);
-
-        Assert.Contains(issues, i => i.Message.Contains("TrainOperationId"));
-    }
-
-    [Fact]
-    public void OpNumberChange_TrainOperationId設定済みならエラーなし()
-    {
-        var work = new StationWork
-        {
-            Type = StationWorkType.OpNumberChange,
-            TrainOperationId = new TrainOperationId(1),
-        };
-
-        var issues = Validator.Validate(work, EmptyContext);
-
-        Assert.Empty(issues);
-    }
-
-    [Fact]
     public void Shunting_StartOpSecondsとEndOpSecondsが両方未設定でエラー()
     {
         var stationPath = new StationPath
@@ -254,6 +230,22 @@ public class StationWorkValidatorTests
     public void PrevTrain_追加フィールド不要でエラーなし()
     {
         var work = new StationWork { Type = StationWorkType.PrevTrain };
+
+        var issues = Validator.Validate(work, EmptyContext);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void PrevTrain_TrainOperationIdを設定しても運用番号変更としてエラーなし()
+    {
+        // PrevTrain.TrainOperationIdは運用番号変更（旧OpNumberChange相当）を表す任意フィールド。
+        // 設定してもStationWorkValidator単体では（Rule 2等の横断検証を伴わないため）エラーにならない。
+        var work = new StationWork
+        {
+            Type = StationWorkType.PrevTrain,
+            TrainOperationId = new TrainOperationId(1),
+        };
 
         var issues = Validator.Validate(work, EmptyContext);
 

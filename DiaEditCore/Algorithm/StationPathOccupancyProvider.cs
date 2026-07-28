@@ -61,17 +61,36 @@ public static class StationPathOccupancyProvider
 /// StationPathOccupancyProvider・TrackOccupancyProviderの双方から同一インスタンスを
 /// 共有する必要はなく、都度Buildして良い(TimeTableSetCache側の責務ではない、6.5節用途限定の
 /// 呼び出し内ローカルキャッシュ)。
+/// 追記：StopVisitOccupancyResolverTests.csで外部呼出しが行われるためpublicとした。
 /// </summary>
-internal static class EntryPointSequenceCache
+public static class EntryPointSequenceCache
 {
     public static Func<StationConnectionId, IReadOnlyList<EntryPointSequenceElement>> Build(
         IReadOnlyList<StationConnection> stationConnections,
         IReadOnlyList<StationConnectionSegment> allSegments)
     {
+        // 事前に Id から要素を引ける辞書を作っておく（First() のループを無くして高速化）
+        var connectionMap = stationConnections.ToDictionary(s => s.Id);
+        
+        // シングルスレッド前提のため、通常の Dictionary でOK
         var cache = new Dictionary<StationConnectionId, IReadOnlyList<EntryPointSequenceElement>>();
-        return scId => cache.TryGetValue(scId, out var cached)
-            ? cached
-            : cache[scId] = EntryPointSequenceResolver.Resolve(
-                stationConnections.First(s => s.Id == scId), allSegments);
+
+        return scId =>
+        {
+            // すでにキャッシュにあればそれを返す
+            if (cache.TryGetValue(scId, out var cached))
+            {
+                return cached;
+            }
+
+            // キャッシュにない場合、事前作成した辞書から O(1) で高速に取得して解決
+            if (connectionMap.TryGetValue(scId, out var connection))
+            {
+                return cache[scId] = EntryPointSequenceResolver.Resolve(connection, allSegments);
+            }
+
+            // 元の First() と同様に、見つからない場合は例外を投げる
+            throw new KeyNotFoundException($"StationConnection with ID '{scId}' was not found.");
+        };
     }
 }

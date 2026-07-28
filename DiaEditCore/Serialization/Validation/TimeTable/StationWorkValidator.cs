@@ -51,12 +51,6 @@ public sealed class StationWorkValidator : IValidator<StationWork>
                     issues.Add(new ValidationIssue("StationWork(EndOp): EndOpSecondsが未設定"));
                 break;
 
-            case StationWorkType.OpNumberChange:
-                if (target.TrainOperationId is null)
-                    issues.Add(new ValidationIssue("StationWork(OpNumberChange): TrainOperationIdが未設定"));
-                // 「終着駅のStopTimeでのみ選択可能」の制約はStopKey・Train側の文脈が必要なため、
-                // ここでは検証不可（Train単位の検証、または将来のSaveValidationRunnerで対応）
-                break;
 
             case StationWorkType.Shunting:
                 if (target.StationPathId is null)

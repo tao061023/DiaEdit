@@ -4,7 +4,7 @@ using DiaEditCore.Model;
 
 public enum StationWorkType
 {
-    None, PrevTrain, StartOp, EndOp, Shunting, NextTrain, Coupling, Decoupling, OpNumberChange,
+    None, PrevTrain, StartOp, EndOp, Shunting, NextTrain, Coupling, Decoupling,
 }
 
 public enum NextTrainType { Other, TypeChange, InfoChange, SameTrain }

@@ -33,164 +33,160 @@ public class TrainOperationValidatorTests
         StartOpSeconds = startOpSeconds,
     };
 
-    private static StationWork MakeOpNumberChange(int operationId) => new()
+    /// <summary>PrevTrain。TrainOperationIdを設定すると運用番号変更（旧OpNumberChange相当）を表す。省略時は継承のみ。</summary>
+    private static StationWork MakePrevTrain(int? trainOperationId = null) => new()
     {
-        Type = StationWorkType.OpNumberChange,
-        TrainOperationId = new TrainOperationId(operationId),
+        Type = StationWorkType.PrevTrain,
+        TrainOperationId = trainOperationId is { } id ? new TrainOperationId(id) : null,
     };
 
     [Fact]
-    public void StartOpから異なる運用番号へのOpNumberChangeは合格()
+    public void PrevTrainの運用番号変更が直前Trainと異なれば合格()
     {
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        var target = MakeValidTrain(2);
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
         {
-            Works = [MakeStartOp(101)],
+            Works = [MakePrevTrain(102)],
         };
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData
         {
-            Works = [MakeOpNumberChange(102)],
+            PrevTrainMap = new Dictionary<TrainId, TrainId> { [target.Id] = new TrainId(1) },
+            TrainOperationIndex = new Dictionary<TrainId, TrainOperationId> { [new TrainId(1)] = new TrainOperationId(101) },
         };
-        var context = MakeBaseContext(train);
 
-        var issues = new TrainOperationValidator().Validate(train, context);
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
 
         Assert.Empty(issues);
     }
 
     [Fact]
-    public void StartOpと同一運用番号へのOpNumberChangeは不合格()
+    public void PrevTrainの運用番号変更が直前Trainと同一なら不合格()
     {
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        var target = MakeValidTrain(2);
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
         {
-            Works = [MakeStartOp(101)],
+            Works = [MakePrevTrain(101)],
         };
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData
         {
-            Works = [MakeOpNumberChange(101)],
+            PrevTrainMap = new Dictionary<TrainId, TrainId> { [target.Id] = new TrainId(1) },
+            TrainOperationIndex = new Dictionary<TrainId, TrainOperationId> { [new TrainId(1)] = new TrainOperationId(101) },
         };
-        var context = MakeBaseContext(train);
 
-        var issues = new TrainOperationValidator().Validate(train, context);
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
 
         Assert.Contains(issues, i => i.Message.Contains("Rule 2違反"));
     }
 
     [Fact]
-    public void 直前のOpNumberChangeと同一運用番号への再変更は不合格()
+    public void PrevTrainのTrainOperationId省略なら継承のみのためRule2の対象外()
     {
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        var target = MakeValidTrain(2);
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
         {
-            Works = [MakeStartOp(101)],
+            Works = [MakePrevTrain(trainOperationId: null)],
         };
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData
         {
-            Works = [MakeOpNumberChange(102)], // 101→102：正当な変更
+            PrevTrainMap = new Dictionary<TrainId, TrainId> { [target.Id] = new TrainId(1) },
+            TrainOperationIndex = new Dictionary<TrainId, TrainOperationId> { [new TrainId(1)] = new TrainOperationId(101) },
         };
-        train.StopTimes[new StopKey(new StationId(3), 2)] = new StopTime
-        {
-            Works = [MakeOpNumberChange(102)], // 102→102：無意味な変更
-        };
-        var context = MakeBaseContext(train);
 
-        var issues = new TrainOperationValidator().Validate(train, context);
-
-        Assert.Contains(issues, i => i.Message.Contains("Rule 2違反"));
-    }
-
-    [Fact]
-    public void StartOpを持たないTrainのOpNumberChangeは判定不能のためスキップされる()
-    {
-        // PrevTrain経由で運用を継承したTrainを想定。TrainConnectionResolver/TrainOperationChainResolverが
-        // 未実装のため「現在の運用番号」が確定できず、誤検知を避けるためエラーにしない（8.2節項目6・10）。
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
-        {
-            Works = [new StationWork { Type = StationWorkType.PrevTrain }],
-        };
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
-        {
-            Works = [MakeOpNumberChange(999)],
-        };
-        var context = MakeBaseContext(train);
-
-        var issues = new TrainOperationValidator().Validate(train, context);
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
 
         Assert.Empty(issues);
     }
 
     [Fact]
-    public void TrainOperationId未設定のOpNumberChangeは重複報告しない()
+    public void StartOpのみでPrevTrainWorkが無ければRule2の対象外()
     {
-        // TrainOperationIdの必須チェック自体はStationWorkValidatorの責務。
-        // TrainOperationValidatorはここでエラーを追加しない（クラッシュしないことも確認）。
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        var target = MakeValidTrain(1);
+        target.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
         {
-            Works = [MakeStartOp(101)],
+            Works = [MakeStartOp(100)],
         };
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
-        {
-            Works = [new StationWork { Type = StationWorkType.OpNumberChange, TrainOperationId = null }],
-        };
-        var context = MakeBaseContext(train);
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData();
 
-        var issues = new TrainOperationValidator().Validate(train, context);
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
 
         Assert.Empty(issues);
     }
 
     [Fact]
-    public void StopTimesの辞書登録順に関わらずVisitSequence順で判定される()
+    public void crossDataがnullなら判定不能のためスキップされる()
     {
-        // Dictionaryへの追加順をあえてVisitSequenceの昇順と逆にし、
-        // OrderBy(VisitSequence)によるソートが正しく機能することを確認する。
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
+        // IValidator<Train>契約を満たす2引数版（SaveValidationRunner未対応の文脈からの呼び出しを想定）。
+        var target = MakeValidTrain(2);
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
         {
-            Works = [MakeOpNumberChange(101)], // 101→101（StartOpと同一）：本来は不合格になるべき
+            Works = [MakePrevTrain(101)],
         };
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
-        {
-            Works = [MakeStartOp(101)],
-        };
-        var context = MakeBaseContext(train);
+        var context = MakeBaseContext(target);
 
-        var issues = new TrainOperationValidator().Validate(train, context);
+        var issues = new TrainOperationValidator().Validate(target, context); // crossDataなし
 
-        Assert.Contains(issues, i => i.Message.Contains("Rule 2違反"));
+        Assert.Empty(issues);
     }
 
     [Fact]
-    public void PrevTrainやShunting等はcurrentOpIdに影響しない()
+    public void PrevTrainMapに直前Trainのエントリが無ければ判定不能としてスキップされる()
     {
-        var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        var target = MakeValidTrain(2);
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
         {
-            Works = [MakeStartOp(101)],
+            Works = [MakePrevTrain(101)],
         };
-        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
-        {
-            Works =
-            [
-                new StationWork
-                {
-                    Type = StationWorkType.Shunting,
-                    StationPathId = new StationPathId(1),
-                    StartOpSeconds = 0,
-                    EndOpSeconds = 10,
-                },
-            ],
-        };
-        train.StopTimes[new StopKey(new StationId(3), 2)] = new StopTime
-        {
-            Works = [MakeOpNumberChange(101)], // Shuntingを挟んでも直前の実運用番号は101のまま→同一なので不合格
-        };
-        var context = MakeBaseContext(train);
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData(); // PrevTrainMapが空
 
-        var issues = new TrainOperationValidator().Validate(train, context);
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void TrainOperationIndexに直前Trainのエントリが無ければ判定不能としてスキップされる()
+    {
+        var target = MakeValidTrain(2);
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            Works = [MakePrevTrain(101)],
+        };
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData
+        {
+            PrevTrainMap = new Dictionary<TrainId, TrainId> { [target.Id] = new TrainId(1) },
+            // TrainOperationIndexにTrainId(1)のエントリが無い
+        };
+
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void StopTimesの辞書登録順に関わらずPrevTrainWorkが検出される()
+    {
+        var target = MakeValidTrain(2);
+        // Dictionaryへの追加順をVisitSequence昇順と逆にしても、
+        // Works走査自体はVisitSequence順に依存しない（PrevTrainは起点駅にのみ現れる想定のため）ことを確認する。
+        target.StopTimes[new StopKey(new StationId(3), 1)] = new StopTime();
+        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            Works = [MakePrevTrain(101)],
+        };
+        var context = MakeBaseContext(target);
+        var crossData = new TrainCrossValidationData
+        {
+            PrevTrainMap = new Dictionary<TrainId, TrainId> { [target.Id] = new TrainId(1) },
+            TrainOperationIndex = new Dictionary<TrainId, TrainOperationId> { [new TrainId(1)] = new TrainOperationId(101) },
+        };
+
+        var issues = new TrainOperationValidator().Validate(target, context, crossData);
 
         Assert.Contains(issues, i => i.Message.Contains("Rule 2違反"));
     }

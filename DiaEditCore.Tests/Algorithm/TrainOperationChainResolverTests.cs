@@ -51,8 +51,9 @@ public class TrainOperationChainResolverTests
             TrainOperationId = trainOperationId is { } id ? new TrainOperationId(id) : null,
         };
 
-    private static StationWork OpNumberChange(int trainOperationId)
-        => new() { Type = StationWorkType.OpNumberChange, TrainOperationId = new TrainOperationId(trainOperationId) };
+    /// <summary>PrevTrain。TrainOperationIdを設定すると運用番号変更（旧OpNumberChange相当）を表す。</summary>
+    private static StationWork PrevTrain(int? trainOperationId = null)
+        => new() { Type = StationWorkType.PrevTrain, TrainOperationId = trainOperationId is { } id ? new TrainOperationId(id) : null };
 
     // -----------------------------
     // テスト
@@ -99,7 +100,7 @@ public class TrainOperationChainResolverTests
     }
 
     [Fact]
-    public void NextTrainに接続されればOpNumberChangeが無い限り同一運用番号を引き継ぐ()
+    public void NextTrainに接続されればPrevTrainの運用番号変更が無い限り同一運用番号を引き継ぐ()
     {
         var rail = new RailId(1);
         var train1 = NewTrain(1, "1001M");
@@ -120,24 +121,24 @@ public class TrainOperationChainResolverTests
     }
 
     [Fact]
-    public void 終着駅StopTimeにOpNumberChangeがあれば以降の運用番号が切り替わる()
+    public void NextTrainの起点StopTimeにPrevTrainの運用番号変更があれば以降の運用番号が切り替わる()
     {
         var rail = new RailId(1);
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        // 終着訪問(VisitSequence=1)にOpNumberChangeを持たせる
-        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
-        {
-            ArrivalSeconds = 1000,
-            DepartureSeconds = -1,
-            TrackRailId = rail,
-            Works = [OpNumberChange(200)],
-        };
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
+        // train2自身の起点StopTimeにPrevTrain(運用番号変更あり)を持たせる
+        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            ArrivalSeconds = -1,
+            DepartureSeconds = 1300,
+            TrackRailId = rail,
+            Works = [PrevTrain(200)],
+        };
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1, train2], index, MakeSettings());
@@ -147,7 +148,7 @@ public class TrainOperationChainResolverTests
     }
 
     [Fact]
-    public void 連鎖3本以上でも複数回のOpNumberChangeが正しく反映される()
+    public void 連鎖3本以上でも複数回のPrevTrain運用番号変更が正しく反映される()
     {
         var rail = new RailId(1);
 
@@ -160,17 +161,18 @@ public class TrainOperationChainResolverTests
         AddRunSegment(train2, 2, 3);
         train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
         // train2の終着訪問もVisitSequence=1(RunSegments.Count=1)
-        train2.StopTimes[new StopKey(new StationId(3), 1)] = new StopTime
-        {
-            ArrivalSeconds = 2000,
-            DepartureSeconds = -1,
-            TrackRailId = rail,
-            Works = [OpNumberChange(200)],
-        };
+        train2.StopTimes[new StopKey(new StationId(3), 1)] = new StopTime { ArrivalSeconds = 2000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train3 = NewTrain(3, "1003M");
         AddRunSegment(train3, 3, 4);
-        train3.StopTimes[new StopKey(new StationId(3), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 2300, TrackRailId = rail };
+        // train3自身の起点StopTimeにPrevTrain(運用番号変更あり)を持たせる
+        train3.StopTimes[new StopKey(new StationId(3), 0)] = new StopTime
+        {
+            ArrivalSeconds = -1,
+            DepartureSeconds = 2300,
+            TrackRailId = rail,
+            Works = [PrevTrain(200)],
+        };
 
         var trains = new[] { train1, train2, train3 };
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);

@@ -9,8 +9,15 @@ public sealed class TrainValidator : IValidator<Train>
     private readonly TrainOperationValidator _trainOperationValidator = new();
 
     public IReadOnlyList<IValidationIssue> Validate(Train target, ValidationContext context)
+        => Validate(target, context, crossData: null);
+
+    public IReadOnlyList<IValidationIssue> Validate(
+        Train target,
+        ValidationContext context,
+        TrainCrossValidationData? crossData)
     {
         var issues = new List<IValidationIssue>();
+
 
         if (string.IsNullOrWhiteSpace(target.TrainNumber))
             issues.Add(new ValidationIssue($"Train({target.Id}): TrainNumberが空"));
@@ -79,8 +86,8 @@ public sealed class TrainValidator : IValidator<Train>
         }
 
         // TrainOperation関連（Rule 2、StartOp起点のローカル検証）：追加
-        foreach (var issue in _trainOperationValidator.Validate(target, context))
-            issues.Add(issue); // TrainOperationValidator側で既にTrain/StopTimeのコンテキストをメッセージに含めているため二重prefixしない
+        foreach (var issue in _trainOperationValidator.Validate(target, context, crossData))
+            issues.Add(issue);
 
         return issues;
     }
