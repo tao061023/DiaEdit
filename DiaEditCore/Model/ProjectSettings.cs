@@ -16,5 +16,10 @@ public record ValidationRules(
 );
 
 public record ProjectSettings(
-    ValidationRules ValidationRules
+    ValidationRules ValidationRules,
+    // ダイヤグラム描画の始端（秒、始発時刻の基準・例：4:00=14400）。
+    // Track用途ConflictChecker（6.5節）において、PrevTrainが存在しない真の始発列車について、
+    // 占有区間の開始をこの値で打ち切る（TrackEntryMarginSecのような発車時刻起点の見込み値ではなく、
+    // 「ダイヤグラム自体がここから始まる」という固定境界として扱う。v11.23で新設）。
+    int DiagramBasedTimeSec = 14400
 );

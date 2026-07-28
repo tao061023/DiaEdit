@@ -22,7 +22,7 @@ public class TrainConnectionResolverTests
             TrackEntryMarginSec: 60,
             TrackPassMarginSec: 10,
             EnableConflictDetection: true,
-            EnableCarLengthCheck: true));
+            EnableCarLengthCheck: true), 14400);
 
     private static Train NewTrain(int id, string trainNumber) => new()
     {
@@ -38,6 +38,8 @@ public class TrainConnectionResolverTests
     /// <summary>
     /// 到着駅(stationId)にArrivalSeconds/TrackRailIdを持つ「終着列車」を1本作る。
     /// RunSegmentsは [dummyFrom -> stationId] の1本のみ。
+    /// 終着訪問のVisitSequenceはRunSegments.Count(=1)であるため、StopTimeはStopKey(stationId, 1)に登録する
+    /// （StopKey(stationId, 0)は始発訪問用のキーであり、終着訪問のキーとして流用してはならない）。
     /// </summary>
     private static Train MakeArrivingTrain(int id, StationId stationId, int arrivalSeconds, RailId? trackRailId, string trainNumber = "")
     {
@@ -49,7 +51,7 @@ public class TrainConnectionResolverTests
             ToStationId = stationId,
             StationConnectionId = new StationConnectionId(1),
         });
-        train.StopTimes[new StopKey(stationId, 0)] = new StopTime
+        train.StopTimes[new StopKey(stationId, train.RunSegments.Count)] = new StopTime
         {
             ArrivalSeconds = arrivalSeconds,
             DepartureSeconds = -1,
@@ -60,7 +62,7 @@ public class TrainConnectionResolverTests
 
     /// <summary>
     /// 始発駅(stationId)にDepartureSeconds/TrackRailIdを持つ「始発列車」を1本作る。
-    /// RunSegmentsは [stationId -> dummyTo] の1本のみ。
+    /// RunSegmentsは [stationId -> dummyTo] の1本のみ。始発訪問のVisitSequenceは常に0。
     /// </summary>
     private static Train MakeDepartingTrain(int id, StationId stationId, int departureSeconds, RailId? trackRailId, string trainNumber = "")
     {
@@ -77,6 +79,39 @@ public class TrainConnectionResolverTests
             ArrivalSeconds = -1,
             DepartureSeconds = departureSeconds,
             TrackRailId = trackRailId,
+        };
+        return train;
+    }
+
+    /// <summary>
+    /// 中間駅を挟まず、station(始発)からstation2(終着)まで直接つながる1区間のTrainを作る
+    /// （ResolveUniqueNextTrainMap用：同一Trainが「到着列車」にも「出発列車」にもなり得る
+    /// 折返し連鎖シナリオの構築に使う）。
+    /// </summary>
+    private static Train MakeThroughTrain(
+        int id, StationId fromStationId, StationId toStationId,
+        int departureSeconds, RailId departureRail,
+        int arrivalSeconds, RailId arrivalRail,
+        string trainNumber = "")
+    {
+        var train = NewTrain(id, trainNumber);
+        train.RunSegments.Add(new TrainRunSegment
+        {
+            FromStationId = fromStationId,
+            ToStationId = toStationId,
+            StationConnectionId = new StationConnectionId(1),
+        });
+        train.StopTimes[new StopKey(fromStationId, 0)] = new StopTime
+        {
+            ArrivalSeconds = -1,
+            DepartureSeconds = departureSeconds,
+            TrackRailId = departureRail,
+        };
+        train.StopTimes[new StopKey(toStationId, 1)] = new StopTime
+        {
+            ArrivalSeconds = arrivalSeconds,
+            DepartureSeconds = -1,
+            TrackRailId = arrivalRail,
         };
         return train;
     }
@@ -208,10 +243,6 @@ public class TrainConnectionResolverTests
         var station = new StationId(1);
         var rail = new RailId(1);
 
-        // 1本のTrainが「到着駅」と「同一番線からの発車」の両方を持つ折返しケースを想定し、
-        // 起点となるarrivingTrainのIdがdepartureIndex内の候補と一致するケースを個別に検証する。
-        // ここでは同一Trainを到着列車としても発車列車としても扱えるよう、
-        // RunSegmentsとStopTimesを両方持たせる。
         var train = NewTrain(1, "1000M");
         train.RunSegments.Add(new TrainRunSegment
         {
@@ -219,14 +250,18 @@ public class TrainConnectionResolverTests
             ToStationId = station,
             StationConnectionId = new StationConnectionId(1),
         });
-        train.StopTimes[new StopKey(station, 0)] = new StopTime
+        // 終着訪問(VisitSequence=1)として登録する
+        train.StopTimes[new StopKey(station, 1)] = new StopTime
         {
             ArrivalSeconds = 1000,
-            DepartureSeconds = 1300, // 折返し発車
+            DepartureSeconds = 1300, // 折返し発車（このStopTime自体はTrain自身の終着訪問データであり、
+                                      // BuildDepartureIndexが参照する「始発訪問(VisitSequence=0)」の
+                                      // FromStationId=9999には対応するStopTimeが無いため、
+                                      // このTrainは発車インデックスに一切登録されない）
             TrackRailId = rail,
         };
 
-        var index = BuildIndex(train); // 自分自身が発車列車としてインデックスに入る
+        var index = BuildIndex(train);
         var settings = MakeSettings(minTurnaroundSec: 0);
 
         var candidates = TrainConnectionResolver.ResolveNextTrainCandidates(train, index, settings);
@@ -327,4 +362,102 @@ public class TrainConnectionResolverTests
         Assert.Equal(earlier.Id, list[0].TrainId);
         Assert.Equal(later.Id, list[1].TrainId);
     }
+
+    // -----------------------------
+    // ResolveUniqueNextTrainMap / ResolveUniquePrevTrainMap
+    // -----------------------------
+
+    [Fact]
+    public void 候補が1本のみなら通常のNextTrainと同じ結果になる()
+    {
+        var station = new StationId(1);
+        var rail = new RailId(1);
+        var arriving = MakeArrivingTrain(1, station, arrivalSeconds: 1000, rail);
+        var departing = MakeDepartingTrain(2, station, departureSeconds: 1300, rail);
+        var trains = new[] { arriving, departing };
+        var index = BuildIndex(departing);
+        var settings = MakeSettings(minTurnaroundSec: 0);
+
+        var nextMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, index, settings);
+        var prevMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(trains, index, settings);
+
+        Assert.Equal(departing.Id, nextMap[arriving.Id]);
+        Assert.Equal(arriving.Id, prevMap[departing.Id]);
+    }
+
+    [Fact]
+    public void 複数の到着列車が同じ出発列車を候補としても乗継時間最短の1本だけが採用される()
+    {
+        // 同一(終着駅, 番線)に異なる時刻で到着する2本の到着列車が、
+        // 同じ出発列車(departing)を候補として選ぶケース。
+        // arrivingLater(到着1500)の方が乗継時間が短い(300秒) -> こちらが唯一のPrevTrainとして採用される
+        // arrivingEarlier(到着1000)は乗継時間800秒で敗れ、departingをNextTrainとして採用しない
+        var station = new StationId(1);
+        var rail = new RailId(1);
+        var arrivingEarlier = MakeArrivingTrain(1, station, arrivalSeconds: 1000, rail, "arr-early");
+        var arrivingLater = MakeArrivingTrain(2, station, arrivalSeconds: 1500, rail, "arr-late");
+        var departing = MakeDepartingTrain(3, station, departureSeconds: 1800, rail, "dep");
+        var trains = new[] { arrivingEarlier, arrivingLater, departing };
+        var index = BuildIndex(departing);
+        var settings = MakeSettings(minTurnaroundSec: 0);
+
+        var nextMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, index, settings);
+        var prevMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(trains, index, settings);
+
+        Assert.Equal(departing.Id, nextMap[arrivingLater.Id]);
+        Assert.False(nextMap.ContainsKey(arrivingEarlier.Id));
+        Assert.Equal(arrivingLater.Id, prevMap[departing.Id]);
+
+        // NextTrainマップの値(departure側)に重複がないこと＝単射であることを直接検証する
+        Assert.Single(nextMap.Values.Distinct());
+    }
+
+    [Fact]
+    public void 同着の場合はTrainIdの値が小さい方が決定的に優先される()
+    {
+        var station = new StationId(1);
+        var rail = new RailId(1);
+        var arrivingA = MakeArrivingTrain(5, station, arrivalSeconds: 1000, rail, "A"); // TrainId=5
+        var arrivingB = MakeArrivingTrain(2, station, arrivalSeconds: 1000, rail, "B"); // TrainId=2（同着）
+        var departing = MakeDepartingTrain(9, station, departureSeconds: 1300, rail, "dep");
+        var trains = new[] { arrivingA, arrivingB, departing };
+        var index = BuildIndex(departing);
+        var settings = MakeSettings(minTurnaroundSec: 0);
+
+        // 走査順（trains配列の順序）を変えても結果が変わらないことを合わせて確認する
+        var nextMap1 = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, index, settings);
+        var nextMap2 = TrainConnectionResolver.ResolveUniqueNextTrainMap([departing, arrivingB, arrivingA], index, settings);
+
+        Assert.Equal(arrivingB.Id, GetKeyForValue(nextMap1, departing.Id));
+        Assert.Equal(arrivingB.Id, GetKeyForValue(nextMap2, departing.Id));
+    }
+
+    [Fact]
+    public void 折返し連鎖で同一Trainが到着列車にも出発列車にもなるケースでもマップは単射を保つ()
+    {
+        // A: station1(発)->station2(着,visit1) / B: station2(発)->station3(着,visit1)
+        // という2本の直行列車が、station2で折り返し接続する典型ケース。
+        var rail = new RailId(1);
+        var trainA = MakeThroughTrain(
+            1, new StationId(1), new StationId(2),
+            departureSeconds: 500, departureRail: new RailId(99), // 出発駅の番線はstation2の番線と無関係
+            arrivalSeconds: 1000, arrivalRail: rail);
+        var trainB = MakeThroughTrain(
+            2, new StationId(2), new StationId(3),
+            departureSeconds: 1300, departureRail: rail,
+            arrivalSeconds: 1800, arrivalRail: new RailId(88));
+
+        var trains = new[] { trainA, trainB };
+        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var settings = MakeSettings(minTurnaroundSec: 0);
+
+        var nextMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, index, settings);
+        var prevMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(trains, index, settings);
+
+        Assert.Equal(trainB.Id, nextMap[trainA.Id]);
+        Assert.Equal(trainA.Id, prevMap[trainB.Id]);
+    }
+
+    private static TrainId GetKeyForValue(Dictionary<TrainId, TrainId> map, TrainId value)
+        => map.Single(kv => kv.Value.Equals(value)).Key;
 }

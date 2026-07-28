@@ -42,7 +42,7 @@ public class TrainOperationChainResolverTests
             TrackEntryMarginSec: 60,
             TrackPassMarginSec: 10,
             EnableConflictDetection: true,
-            EnableCarLengthCheck: true));
+            EnableCarLengthCheck: true), 14400);
 
     private static StationWork StartOp(int? trainOperationId)
         => new()
@@ -64,7 +64,8 @@ public class TrainOperationChainResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime(); // 到着情報なし＝NextTrainは見つからない
+        // 終着訪問(VisitSequence=1)。到着情報なし＝NextTrainは見つからない
+        train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime();
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
@@ -104,7 +105,8 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        // 終着訪問(VisitSequence=1)
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
@@ -124,7 +126,8 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        // 終着訪問(VisitSequence=1)にOpNumberChangeを持たせる
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime
         {
             ArrivalSeconds = 1000,
             DepartureSeconds = -1,
@@ -151,12 +154,13 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
         train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
-        train2.StopTimes[new StopKey(new StationId(3), 0)] = new StopTime
+        // train2の終着訪問もVisitSequence=1(RunSegments.Count=1)
+        train2.StopTimes[new StopKey(new StationId(3), 1)] = new StopTime
         {
             ArrivalSeconds = 2000,
             DepartureSeconds = -1,
@@ -186,7 +190,7 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         // train2は番線が異なるため接続候補にならない
         var train2 = NewTrain(2, "1002M");
@@ -212,7 +216,7 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
@@ -231,12 +235,12 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime();
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime();
 
         var train2 = NewTrain(2, "2001M");
         AddRunSegment(train2, 5, 6);
         train2.StopTimes[new StopKey(new StationId(5), 0)] = new StopTime { Works = [StartOp(300)] };
-        train2.StopTimes[new StopKey(new StationId(6), 0)] = new StopTime();
+        train2.StopTimes[new StopKey(new StationId(6), 1)] = new StopTime();
 
         var trains = new[] { train1, train2 };
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
@@ -244,5 +248,38 @@ public class TrainOperationChainResolverTests
 
         Assert.Equal(new TrainOperationId(100), result[train1.Id]);
         Assert.Equal(new TrainOperationId(300), result[train2.Id]);
+    }
+
+    [Fact]
+    public void 複数の到着列車が同じ出発列車に接続候補となっても運用チェーンは一意マッチングにより破綻しない()
+    {
+        // train1(station2に1000着)・train3(station2に1500着)がともにtrain2(station2から1800発)を
+        // NextTrain候補として持つ場合、旧実装(ResolveNextTrain個別呼び出し)ではtrainsの走査順に
+        // 依存してresult[train2.Id]が不定になっていた（train1のOpId=100かtrain3のOpId=999のどちらで
+        // 上書きされるか未定義）。ResolveUniqueNextTrainMapにより、乗継時間最短(train3)のみが
+        // train2に接続し、train1は単独チェーンとして終端する。
+        var rail = new RailId(1);
+
+        var train1 = NewTrain(1, "1001M");
+        AddRunSegment(train1, 1, 2);
+        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+
+        var train3 = NewTrain(3, "1003M");
+        AddRunSegment(train3, 4, 2);
+        train3.StopTimes[new StopKey(new StationId(4), 0)] = new StopTime { Works = [StartOp(999)] };
+        train3.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1500, DepartureSeconds = -1, TrackRailId = rail };
+
+        var train2 = NewTrain(2, "1002M");
+        AddRunSegment(train2, 2, 3);
+        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1800, TrackRailId = rail };
+
+        var trains = new[] { train1, train3, train2 };
+        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
+
+        Assert.Equal(new TrainOperationId(100), result[train1.Id]);   // train1は単独チェーンのまま
+        Assert.Equal(new TrainOperationId(999), result[train3.Id]);   // train3がtrain2に接続
+        Assert.Equal(new TrainOperationId(999), result[train2.Id]);   // train2はtrain3の運用番号を引き継ぐ（100ではない）
     }
 }

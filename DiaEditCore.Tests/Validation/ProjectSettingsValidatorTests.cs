@@ -18,7 +18,7 @@ public class ProjectSettingsValidatorTests
     [Fact]
     public void 全フィールドが非負なら合格()
     {
-        var settings = new ProjectSettings(MakeValidRules());
+        var settings = new ProjectSettings(MakeValidRules(), 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -37,7 +37,7 @@ public class ProjectSettingsValidatorTests
             TrackPassMarginSec: null,
             EnableConflictDetection: false,
             EnableCarLengthCheck: false);
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -49,7 +49,7 @@ public class ProjectSettingsValidatorTests
     public void MinDwellTimeSecが負だと不合格()
     {
         var rules = MakeValidRules() with { MinDwellTimeSec = -1 };
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -61,7 +61,7 @@ public class ProjectSettingsValidatorTests
     public void MinHeadwaySecが負だと不合格()
     {
         var rules = MakeValidRules() with { MinHeadwaySec = -1 };
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -73,7 +73,7 @@ public class ProjectSettingsValidatorTests
     public void MinTurnaroundSecが負だと不合格()
     {
         var rules = MakeValidRules() with { MinTurnaroundSec = -1 };
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -85,7 +85,7 @@ public class ProjectSettingsValidatorTests
     public void TrackEntryMarginSecが負だと不合格()
     {
         var rules = MakeValidRules() with { TrackEntryMarginSec = -1 };
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -97,7 +97,7 @@ public class ProjectSettingsValidatorTests
     public void TrackPassMarginSecが負だと不合格()
     {
         var rules = MakeValidRules() with { TrackPassMarginSec = -1 };
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);
@@ -109,7 +109,7 @@ public class ProjectSettingsValidatorTests
     public void 複数フィールドが同時に負だと該当分の不合格が積まれる()
     {
         var rules = MakeValidRules() with { MinDwellTimeSec = -1, MinHeadwaySec = -5 };
-        var settings = new ProjectSettings(rules);
+        var settings = new ProjectSettings(rules, 14400);
         var context = new ValidationContext();
 
         var issues = new ProjectSettingsValidator().Validate(settings, context);

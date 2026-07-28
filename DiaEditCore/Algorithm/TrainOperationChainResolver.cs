@@ -13,6 +13,10 @@ namespace DiaEditCore.Algorithm;
 /// に登録されない（＝運用番号としては空欄）。折り返し（接続）自体の可視化はTrainConnectionResolver.
 /// ResolveNextTrain/ResolveNextTrainCandidatesを直接使えばよく、OpNumberの有無を問わない
 /// （trainOperationIndexを経由する必要はない）。
+///
+/// チェーン走査には TrainConnectionResolver.ResolveUniqueNextTrainMap（一意マッチング版）を使う
+/// （v11.24）。単一列車視点のResolveNextTrainを個別呼び出しすると非単射になりうり、複数の
+/// 起点チェーンが同一Trainに収束した場合に走査順依存でresultが上書きされる不具合があったため。
 /// </summary>
 public static class TrainOperationChainResolver
 {
@@ -28,6 +32,7 @@ public static class TrainOperationChainResolver
         ProjectSettings settings)
     {
         var trainsById = allTrains.ToDictionary(t => t.Id);
+        var nextTrainMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(allTrains, departureIndex, settings);
         var result = new Dictionary<TrainId, TrainOperationId>();
         var visited = new HashSet<TrainId>();
 
@@ -44,16 +49,15 @@ public static class TrainOperationChainResolver
 
                 result[current.Id] = currentOpId;
 
-                var nextTrainId = TrainConnectionResolver.ResolveNextTrain(current, departureIndex, settings);
-                if (nextTrainId is null) break; // EndOpで終端。運用引き継ぎなし
+                if (!nextTrainMap.TryGetValue(current.Id, out var nextTrainId)) break; // EndOpで終端。運用引き継ぎなし
 
-                if (!trainsById.TryGetValue(nextTrainId.Value, out var nextTrain)) break; // 参照整合性エラーは別途保存時検証で検出
+                if (!trainsById.TryGetValue(nextTrainId, out var nextTrain)) break; // 参照整合性エラーは別途保存時検証で検出
 
                 // 現在のTrainの終着駅StopTimeにOpNumberChangeがあれば運用番号を切り替える
                 if (current.RunSegments.Count > 0)
                 {
                     var terminalStationId = current.RunSegments[^1].ToStationId;
-                    var terminalStopTime = FindStopTimeForStation(current, terminalStationId);
+                    var terminalStopTime = FindStopTimeForStation(current, terminalStationId, current.RunSegments.Count);
                     var opNumberChange = terminalStopTime?.Works.FirstOrDefault(w => w.Type == StationWorkType.OpNumberChange);
                     if (opNumberChange?.TrainOperationId is { } newOpId)
                     {
@@ -73,9 +77,6 @@ public static class TrainOperationChainResolver
             .SelectMany(st => st.Works)
             .FirstOrDefault(w => w.Type == type);
 
-    private static StopTime? FindStopTimeForStation(Train train, StationId stationId)
-        => train.StopTimes
-            .Where(kv => kv.Key.StationId == stationId)
-            .Select(kv => kv.Value)
-            .FirstOrDefault();
+    private static StopTime? FindStopTimeForStation(Train train, StationId stationId, int visitSequence)
+        => train.StopTimes.TryGetValue(new StopKey(stationId, visitSequence), out var st) ? st : null;
 }
