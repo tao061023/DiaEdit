@@ -96,8 +96,10 @@ public static class CarConsistResolver
     /// <summary>
     /// Train.RunSegments（先頭のFromStationId＋各要素のToStationId）から訪問駅列を作り、
     /// 同一駅の再訪をVisitSequenceのインクリメントで区別したStopKey列を構築する（ループ線対応）。
+    /// internal化（8.2節項目7、v11.25）：TrainValidatorの「終着駅かどうか」判定でも同一ロジックを
+    /// 再利用するため、単一の真実の源として本メソッドをAlgorithm層の公開APIとする。
     /// </summary>
-    private static List<StopKey> BuildVisitedStopKeys(Train train)
+    internal static List<StopKey> BuildVisitedStopKeys(Train train)
     {
         var stations = new List<StationId>();
         if (train.RunSegments.Count > 0)

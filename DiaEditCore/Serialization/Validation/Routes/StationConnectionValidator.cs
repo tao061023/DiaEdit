@@ -1,3 +1,6 @@
+using DiaEditCore.Algorithm;
+
+using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.Routes;
 
@@ -68,6 +71,28 @@ public sealed class StationConnectionValidator : IValidator<StationConnection>
                         $"StationConnection({target.Id}): Segments[{i}]（SCS {seg.Id}）は駅({seg.FromStationId}→{seg.ToStationId})だが、" +
                         $"StationOrder上のDirection={target.Direction}での期待値は({expectedFrom}→{expectedTo})"));
                 }
+            }
+        }
+        // --- MainRoute整合性検証（5.7節・8.2節項目5関連） ---
+        if (resolvedSegs.Count > 0)
+        {
+            var epSequence = new List<EntryPointId>(resolvedSegs.Count * 2);
+            foreach (var seg in resolvedSegs)
+            {
+                epSequence.Add(seg.FromEntryPointId);
+                epSequence.Add(seg.ToEntryPointId);
+            }
+
+            var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+                context.StationPaths, context.Rails);
+                
+            var boundaryResults = MainRouteChecker.CheckBoundaryConnectivity(
+                epSequence, mainRoute.IsLoop, arrivalIndex, departureIndex);
+
+            foreach (var r in boundaryResults.Where(r => !r.IsSatisfied))
+            {
+                issues.Add(new ValidationIssue(
+                    $"StationConnection({target.Id}): 境界{r.BoundaryIndex}でTrack集合が重複するArrival/Departure StationPathが存在しない（MainRoute整合性違反）"));
             }
         }
 

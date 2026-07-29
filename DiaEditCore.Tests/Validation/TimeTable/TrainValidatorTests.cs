@@ -70,7 +70,9 @@ public class TrainValidatorTests
     private static ValidationContext MakeBaseContext(
         Train[] trains,
         StationConnection[]? stationConnections = null,
-        StationConnectionSegment[]? stationConnectionSegments = null) => new()
+        StationConnectionSegment[]? stationConnectionSegments = null,
+        TimeTableSet[]? timeTableSets = null,
+        DiagramRevision[]? diagramRevisions = null) => new()
     {
         ServiceRoutes = [MakeServiceRoute(1)],
         TrainTypes = [MakeTrainType(1)],
@@ -78,6 +80,8 @@ public class TrainValidatorTests
         Trains = trains,
         StationConnections = stationConnections ?? [],
         StationConnectionSegments = stationConnectionSegments ?? [],
+        TimeTableSets = timeTableSets ?? [],
+        DiagramRevisions = diagramRevisions ?? [],
     };
 
     private static ValidationContext MakeBaseContext(params Train[] trains) => MakeBaseContext(trains, null, null);
@@ -198,6 +202,96 @@ public class TrainValidatorTests
         var child = MakeValidTrain(2, "0002M");
         child.SourceTrainId = parent.Id;
         var context = MakeBaseContext(parent, child);
+
+        var issues = new TrainValidator().Validate(child, context);
+
+        Assert.Empty(issues);
+    }
+
+    // --- 8.2節項目6：baseTimeTableSet内はSourceTrainId=null必須 ---
+
+    [Fact]
+    public void baseTimeTableSet所属でSourceTrainIdを持つと不合格()
+    {
+        var parent = MakeValidTrain(1, "0001M");
+        var child = MakeValidTrain(2, "0002M");
+        child.SourceTrainId = parent.Id;
+
+        var timeTableSet = new TimeTableSet { Id = new TimeTableSetId(1), Name = "base", TrainIds = [child.Id] };
+        var diagramRevision = new DiagramRevision
+        {
+            Id = new DiagramRevisionId(1),
+            Name = "リビジョンA",
+            TimeTableSetIds = [timeTableSet.Id],
+            BaseTimeTableSetId = timeTableSet.Id,
+        };
+        var context = MakeBaseContext([parent, child], timeTableSets: [timeTableSet], diagramRevisions: [diagramRevision]);
+
+        var issues = new TrainValidator().Validate(child, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("baseTimeTableSet") && i.Message.Contains("SourceTrainId"));
+    }
+
+    [Fact]
+    public void baseTimeTableSet所属でもSourceTrainIdが無ければ合格()
+    {
+        var train = MakeValidTrain(1);
+
+        var timeTableSet = new TimeTableSet { Id = new TimeTableSetId(1), Name = "base", TrainIds = [train.Id] };
+        var diagramRevision = new DiagramRevision
+        {
+            Id = new DiagramRevisionId(1),
+            Name = "リビジョンA",
+            TimeTableSetIds = [timeTableSet.Id],
+            BaseTimeTableSetId = timeTableSet.Id,
+        };
+        var context = MakeBaseContext([train], timeTableSets: [timeTableSet], diagramRevisions: [diagramRevision]);
+
+        var issues = new TrainValidator().Validate(train, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void 非baseTimeTableSet所属でSourceTrainIdを持っていてもエラーなし()
+    {
+        var parent = MakeValidTrain(1, "0001M");
+        var child = MakeValidTrain(2, "0002M");
+        child.SourceTrainId = parent.Id;
+
+        // TimeTableSetは存在するが、どのDiagramRevisionからもBaseTimeTableSetIdとして参照されていない
+        var timeTableSet = new TimeTableSet { Id = new TimeTableSetId(1), Name = "非base", TrainIds = [child.Id] };
+        var diagramRevision = new DiagramRevision
+        {
+            Id = new DiagramRevisionId(1),
+            Name = "リビジョンA",
+            TimeTableSetIds = [timeTableSet.Id],
+            BaseTimeTableSetId = null,
+        };
+        var context = MakeBaseContext([parent, child], timeTableSets: [timeTableSet], diagramRevisions: [diagramRevision]);
+
+        var issues = new TrainValidator().Validate(child, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void どのTimeTableSetにも属さないTrainはSourceTrainIdを持っていても判定不能としてスキップされる()
+    {
+        var parent = MakeValidTrain(1, "0001M");
+        var child = MakeValidTrain(2, "0002M");
+        child.SourceTrainId = parent.Id;
+
+        // TimeTableSets自体は存在するが、childはどのTrainIdsにも含まれていない
+        var timeTableSet = new TimeTableSet { Id = new TimeTableSetId(1), Name = "base", TrainIds = [] };
+        var diagramRevision = new DiagramRevision
+        {
+            Id = new DiagramRevisionId(1),
+            Name = "リビジョンA",
+            TimeTableSetIds = [timeTableSet.Id],
+            BaseTimeTableSetId = timeTableSet.Id,
+        };
+        var context = MakeBaseContext([parent, child], timeTableSets: [timeTableSet], diagramRevisions: [diagramRevision]);
 
         var issues = new TrainValidator().Validate(child, context);
 

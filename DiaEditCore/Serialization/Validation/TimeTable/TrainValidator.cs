@@ -9,15 +9,8 @@ public sealed class TrainValidator : IValidator<Train>
     private readonly TrainOperationValidator _trainOperationValidator = new();
 
     public IReadOnlyList<IValidationIssue> Validate(Train target, ValidationContext context)
-        => Validate(target, context, crossData: null);
-
-    public IReadOnlyList<IValidationIssue> Validate(
-        Train target,
-        ValidationContext context,
-        TrainCrossValidationData? crossData)
     {
         var issues = new List<IValidationIssue>();
-
 
         if (string.IsNullOrWhiteSpace(target.TrainNumber))
             issues.Add(new ValidationIssue($"Train({target.Id}): TrainNumberが空"));
@@ -37,7 +30,6 @@ public sealed class TrainValidator : IValidator<Train>
             issues.Add(new ValidationIssue($"Train({target.Id}): DefaultVehicleTypeId({target.DefaultVehicleTypeId})が存在しない"));
 
         // sourceTrainId：自己参照禁止・多段参照禁止（5.11.2節バリデーションルール）
-        // 「baseTimeTableSet内のTrainは必ずsourceTrainId=null」はTimeTableSet未実装のため検証不可（8.2節参照）
         if (target.SourceTrainId is { } sourceId)
         {
             if (sourceId == target.Id)
@@ -51,6 +43,18 @@ public sealed class TrainValidator : IValidator<Train>
                     issues.Add(new ValidationIssue($"Train({target.Id}): SourceTrainId({sourceId})が存在しない"));
                 else if (sourceTrain.SourceTrainId is not null)
                     issues.Add(new ValidationIssue($"Train({target.Id}): SourceTrainId({sourceId})がさらにSourceTrainIdを持っている（多段参照禁止）"));
+            }
+
+            // baseTimeTableSet内のTrainはSourceTrainId=null必須（8.2節項目6、v11.24でDiagramRevision.BaseTimeTableSetId確定に伴い実装）。
+            // 所属TimeTableSetを逆引きし、いずれかのDiagramRevisionがそれをBaseTimeTableSetIdとして指していればbase扱い。
+            var owningSetId = context.TimeTableSets
+                .FirstOrDefault(ts => ts.TrainIds.Contains(target.Id))?.Id;
+
+            if (owningSetId is { } setId &&
+                context.DiagramRevisions.Any(dr => dr.BaseTimeTableSetId == setId))
+            {
+                issues.Add(new ValidationIssue(
+                    $"Train({target.Id}): baseTimeTableSet（TimeTableSetId={setId}）所属のTrainはSourceTrainIdを持てない"));
             }
         }
 
@@ -85,9 +89,26 @@ public sealed class TrainValidator : IValidator<Train>
                 issues.Add(new ValidationIssue($"Train({target.Id}).StopTimes[{key}]: {issue.Message}"));
         }
 
+        // departureSeconds：「終着駅を除き必須」検証（8.2節項目7、v11.25）。
+        // isStop==falseの場合はStopTimeValidator側でローカルに検証済みのため、ここではisStop==trueのみを対象とする。
+        // 「終着駅かどうか」はTrain内の走行順を要するため、CarConsistResolver.BuildVisitedStopKeysが復元する
+        // 訪問StopKey列の末尾要素と一致するかで判定する（単一の真実の源、6.7節参照）。
+        var visitedKeys = CarConsistResolver.BuildVisitedStopKeys(target);
+        var terminalKey = visitedKeys.Count > 0 ? visitedKeys[^1] : (StopKey?)null;
+
+        foreach (var (key, stopTime) in target.StopTimes)
+        {
+            if (!stopTime.IsStop) continue; // 通過はStopTimeValidator側で検証済み
+            if (stopTime.DepartureSeconds >= 0) continue;
+            if (terminalKey is { } tk && key.Equals(tk)) continue; // 終着駅は許容
+
+            issues.Add(new ValidationIssue(
+                $"Train({target.Id}).StopTimes[{key}]: DepartureSecondsが未設定（終着駅以外では必須）"));
+        }
+
         // TrainOperation関連（Rule 2、StartOp起点のローカル検証）：追加
-        foreach (var issue in _trainOperationValidator.Validate(target, context, crossData))
-            issues.Add(issue);
+        foreach (var issue in _trainOperationValidator.Validate(target, context))
+            issues.Add(issue); // TrainOperationValidator側で既にTrain/StopTimeのコンテキストをメッセージに含めているため二重prefixしない
 
         return issues;
     }

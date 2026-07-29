@@ -146,4 +146,117 @@ public class StationPathTrackIndexBuilderTests
         Assert.Empty(arrivalIndex);
         Assert.Empty(departureIndex);
     }
+    [Fact]
+    public void BuildWithBoundaryTerminals_通常駅パターン_EntryPointId暗黙変換でアクセスできる()
+    {
+        var bp1 = new BoundaryPointId(1);
+        var bp2 = new BoundaryPointId(2);
+        var epArrival = new EntryPointId(1);
+        var epDeparture = new EntryPointId(2);
+
+        var track = TrackRail(10, new BoundaryPointEndpointRef(bp1), new BoundaryPointEndpointRef(bp2));
+
+        var arrivalPath = Path(1, StationPathDirection.Arrival,
+            new EntryPointWaypoint(epArrival), new BoundaryPointWaypoint(bp1));
+        var departurePath = Path(2, StationPathDirection.Departure,
+            new BoundaryPointWaypoint(bp2), new EntryPointWaypoint(epDeparture));
+
+        var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            new[] { arrivalPath, departurePath }, new[] { track });
+
+        // EntryPointIdからBoundaryTerminalへの暗黙変換により、既存Buildと同じ書き方でアクセスできる
+        Assert.Equal(new StationPathId(1), arrivalIndex[(epArrival, track.Id)]);
+        Assert.Equal(new StationPathId(2), departureIndex[(track.Id, epDeparture)]);
+    }
+
+    [Fact]
+    public void BuildWithBoundaryTerminals_Shunting両端BoundaryPointで片方のみTrack直結_その端が到着側候補として登録される()
+    {
+        // head(bp1)は非Track端点、tail(bp2)はTrackに直結 →
+        // 「tail側がTrackに直結」＝head側の境界端子をArrival候補として登録
+        var bp1 = new BoundaryPointId(1); // 折返し側（引き上げ線奥）
+        var bp2 = new BoundaryPointId(2); // Track直結側
+        var track = TrackRail(10, new BoundaryPointEndpointRef(bp2), new BoundaryPointEndpointRef(new BoundaryPointId(99)));
+
+        var shuntingPath = Path(1, StationPathDirection.Shunting,
+            new BoundaryPointWaypoint(bp1), new BoundaryPointWaypoint(bp2));
+
+        var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            new[] { shuntingPath }, new[] { track });
+
+        var headTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BoundaryPoint", bp1.Value);
+        Assert.Equal(new StationPathId(1), arrivalIndex[(headTerminal, track.Id)]);
+        Assert.Empty(departureIndex); // head(bp1)側はTrackに直結していないため出発側には登録されない
+    }
+
+    [Fact]
+    public void BuildWithBoundaryTerminals_Shunting両端ともTrack直結の場合_双方向に登録される()
+    {
+        var bp1 = new BoundaryPointId(1);
+        var bp2 = new BoundaryPointId(2);
+        var trackHead = TrackRail(10, new BoundaryPointEndpointRef(bp1), new BoundaryPointEndpointRef(new BoundaryPointId(97)));
+        var trackTail = TrackRail(11, new BoundaryPointEndpointRef(bp2), new BoundaryPointEndpointRef(new BoundaryPointId(98)));
+
+        var shuntingPath = Path(1, StationPathDirection.Shunting,
+            new BoundaryPointWaypoint(bp1), new BoundaryPointWaypoint(bp2));
+
+        var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            new[] { shuntingPath }, new[] { trackHead, trackTail });
+
+        var headTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BoundaryPoint", bp1.Value);
+        var tailTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BoundaryPoint", bp2.Value);
+
+        // tail側(bp2)がTrack直結 → head側をArrival候補として登録
+        Assert.Equal(new StationPathId(1), arrivalIndex[(headTerminal, trackTail.Id)]);
+        // head側(bp1)がTrack直結 → tail側をDeparture候補として登録
+        Assert.Equal(new StationPathId(1), departureIndex[(trackHead.Id, tailTerminal)]);
+    }
+
+    [Fact]
+    public void BuildWithBoundaryTerminals_Shunting端点がBufferStopの場合でも汎用キーで登録される()
+    {
+        var bs = new BufferStopId(1);
+        var bp = new BoundaryPointId(2);
+        var track = TrackRail(10, new BoundaryPointEndpointRef(bp), new BoundaryPointEndpointRef(new BoundaryPointId(99)));
+
+        var shuntingPath = Path(1, StationPathDirection.Shunting,
+            new BufferStopWaypoint(bs), new BoundaryPointWaypoint(bp));
+
+        var (arrivalIndex, _) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            new[] { shuntingPath }, new[] { track });
+
+        var bsTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BufferStop", bs.Value);
+        Assert.Equal(new StationPathId(1), arrivalIndex[(bsTerminal, track.Id)]);
+    }
+
+    [Fact]
+    public void BuildWithBoundaryTerminals_Shunting端点がEntryPointの場合でも汎用キーで登録される()
+    {
+        // 本線上の引き上げ線：Shunting経路の片端がEntryPointになるケース
+        var ep = new EntryPointId(5);
+        var bp = new BoundaryPointId(2);
+        var track = TrackRail(10, new BoundaryPointEndpointRef(bp), new BoundaryPointEndpointRef(new BoundaryPointId(99)));
+
+        var shuntingPath = Path(1, StationPathDirection.Shunting,
+            new EntryPointWaypoint(ep), new BoundaryPointWaypoint(bp));
+
+        var (arrivalIndex, _) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            new[] { shuntingPath }, new[] { track });
+
+        Assert.Equal(new StationPathId(1), arrivalIndex[(StationPathTrackIndexBuilder.BoundaryTerminal.FromEntryPoint(ep), track.Id)]);
+    }
+
+    [Fact]
+    public void BuildWithBoundaryTerminals_Shuntingでwaypointが1つ以下なら無視される()
+    {
+        var bp = new BoundaryPointId(1);
+        var track = TrackRail(10, new BoundaryPointEndpointRef(bp), new BoundaryPointEndpointRef(new BoundaryPointId(99)));
+        var degeneratePath = Path(1, StationPathDirection.Shunting, new BoundaryPointWaypoint(bp));
+
+        var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            new[] { degeneratePath }, new[] { track });
+
+        Assert.Empty(arrivalIndex);
+        Assert.Empty(departureIndex);
+    }
 }

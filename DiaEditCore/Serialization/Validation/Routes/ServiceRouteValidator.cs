@@ -1,3 +1,5 @@
+using DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 
@@ -146,7 +148,135 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
             // 5. 境界駅の整合性条件（ServiceRoutePathResolver / EntryPointSequenceベースの検証）は
             //    6.2節ServiceRoutePathResolver実装時に対応予定（意図的に未実装。8.2節参照）
         }
- 
+        // 5. 境界駅の整合性条件（ServiceRoute整合性）：mainRouteId側
+        ValidateBoundaryConnectivity(
+            target, context, issues,
+            side: "主方向",
+            mainRouteIdOf: s => s.MainRouteId,
+            fromIndexOf: s => s.FromStationIndex,
+            toIndexOf: s => s.ToStationIndex,
+            selectedScIdOf: s => s.SelectedStationConnectionId);
+
+        // 5. 境界駅の整合性条件（ServiceRoute整合性）：pairedMainRouteId側
+        //    全segmentがpairedの場合のみ検証する（IsPaired()が1つでもfalseならpairedSeq自体を生成しない、という
+        //    ServiceRoutePathResolverと同じ前提を踏襲）
+        if (target.Segments.Count > 0 && target.Segments.All(s => s.IsPaired()))
+        {
+            ValidateBoundaryConnectivity(
+                target, context, issues,
+                side: "Paired方向",
+                mainRouteIdOf: s => s.PairedMainRouteId!.Value,
+                fromIndexOf: s => s.PairedFromStationIndex!.Value,
+                toIndexOf: s => s.PairedToStationIndex!.Value,
+                selectedScIdOf: s => s.PairedSelectedStationConnectionId);
+        }
+
         return issues;
+    }
+
+
+    /// <summary>
+    /// ルール5：境界駅の整合性条件。mainRouteId側・pairedMainRouteId側で共通のロジック。
+    /// 各segmentについて対応するStationConnectionを解決し（複数候補ならSelectedStationConnectionId必須）、
+    /// EntryPointSequenceResolverの結果をStationOrder上の位置でスライスして結合、
+    /// MainRouteCheckerで境界ごとのTrack集合重複を検証する。
+    /// </summary>
+    private static void ValidateBoundaryConnectivity(
+        ServiceRoute target,
+        ValidationContext context,
+        List<IValidationIssue> issues,
+        string side,
+        Func<ServiceRouteSegment, MainRouteId> mainRouteIdOf,
+        Func<ServiceRouteSegment, int> fromIndexOf,
+        Func<ServiceRouteSegment, int> toIndexOf,
+        Func<ServiceRouteSegment, StationConnectionId?> selectedScIdOf)
+    {
+        var combinedEps = new List<EntryPointId>();
+
+        for (var i = 0; i < target.Segments.Count; i++)
+        {
+            var s = target.Segments[i];
+            var mainRouteId = mainRouteIdOf(s);
+            var fromIdx = fromIndexOf(s);
+            var toIdx = toIndexOf(s);
+
+            var route = context.MainRoutes.FirstOrDefault(m => m.Id == mainRouteId);
+            if (route is null)
+                return; // 参照整合性エラーは他ルールで既に報告済み。ここでは検証不能として打ち切る
+
+            var expectedDir = DirectionOf(fromIdx, toIdx);
+            var candidates = context.StationConnections
+                .Where(sc => sc.MainRouteId == mainRouteId && sc.Direction == expectedDir)
+                .ToList();
+
+            StationConnection selectedSc;
+            if (candidates.Count == 0)
+            {
+                return; // ルール2で既にエラー報告済み。重複報告を避けるため打ち切る
+            }
+            else if (candidates.Count == 1)
+            {
+                selectedSc = candidates[0];
+            }
+            else
+            {
+                var selId = selectedScIdOf(s);
+                if (selId is null)
+                {
+                    issues.Add(new ValidationIssue(
+                        $"ServiceRoute({target.Id}).Segments[{i}]（{side}）: StationConnection候補が複数存在するため選択指定が必須"));
+                    return;
+                }
+
+                var found = candidates.FirstOrDefault(sc => sc.Id == selId.Value);
+                if (found is null)
+                {
+                    issues.Add(new ValidationIssue(
+                        $"ServiceRoute({target.Id}).Segments[{i}]（{side}）: 選択されたStationConnection({selId.Value})が候補集合に含まれない"));
+                    return;
+                }
+                selectedSc = found;
+            }
+
+            var fullSeq = EntryPointSequenceResolver.Resolve(selectedSc, context.StationConnectionSegments);
+            var stationCount = route.StationOrder.Count;
+
+            int ToPosition(int rawIndex) =>
+                selectedSc.Direction == StationConnectionDirection.Down ? rawIndex : stationCount - 1 - rawIndex;
+
+            var posFrom = ToPosition(fromIdx);
+            var posTo = ToPosition(toIdx);
+            var lo = Math.Min(posFrom, posTo);
+            var hi = Math.Max(posFrom, posTo);
+
+            if (lo < 0 || hi > fullSeq.Count)
+            {
+                return; // 範囲外は他ルール（StationIndex範囲チェック等）で既に報告済みのはず
+            }
+
+            for (var h = lo; h < hi; h++)
+            {
+                combinedEps.Add(fullSeq[h].FromEntryPointId);
+                combinedEps.Add(fullSeq[h].ToEntryPointId);
+            }
+        }
+
+        if (combinedEps.Count < 2)
+            return;
+
+        var stationOrder = ServiceRouteStationOrderResolver.ResolveServiceRouteStationOrder(target, context.MainRoutes);
+        var isLoop = stationOrder.Count >= 2 && stationOrder[0] == stationOrder[^1];
+
+        var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
+            context.StationPaths, context.Rails);
+
+        var boundaryResults = MainRouteChecker.CheckBoundaryConnectivity(
+            combinedEps, isLoop, arrivalIndex, departureIndex);
+
+        foreach (var r in boundaryResults.Where(r => !r.IsSatisfied))
+        {
+            issues.Add(new ValidationIssue(
+                $"ServiceRoute({target.Id})（{side}）: 境界{r.BoundaryIndex}でTrack集合が重複するArrival/Departure StationPathが存在しない（境界駅の整合性条件違反）"));
+        }
     }
 }
