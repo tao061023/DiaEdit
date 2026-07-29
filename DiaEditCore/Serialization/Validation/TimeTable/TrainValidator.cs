@@ -106,9 +106,10 @@ public sealed class TrainValidator : IValidator<Train>
                 $"Train({target.Id}).StopTimes[{key}]: DepartureSecondsが未設定（終着駅以外では必須）"));
         }
 
+        // 削除
         // TrainOperation関連（Rule 2、StartOp起点のローカル検証）：追加
-        foreach (var issue in _trainOperationValidator.Validate(target, context))
-            issues.Add(issue); // TrainOperationValidator側で既にTrain/StopTimeのコンテキストをメッセージに含めているため二重prefixしない
+        // foreach (var issue in _trainOperationValidator.Validate(target, context))
+            // issues.Add(issue); // TrainOperationValidator側で既にTrain/StopTimeのコンテキストをメッセージに含めているため二重prefixしない
 
         return issues;
     }
