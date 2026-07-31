@@ -40,7 +40,7 @@ public class StationPathValidatorTests
             Id = new RailId(1),
             LengthM = 100,
             SpeedLimitKph = 60,
-            Roll = RailRoll.Normal,
+            Role = RailRole.Normal,
             EndpointA = new EntryPointEndpointRef(new EntryPointId(1)),
             EndpointB = new BoundaryPointEndpointRef(new BoundaryPointId(2)),
         };

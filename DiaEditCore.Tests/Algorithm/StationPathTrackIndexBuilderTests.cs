@@ -12,7 +12,7 @@ public class StationPathTrackIndexBuilderTests
         Id = new RailId(id),
         LengthM = 100,
         SpeedLimitKph = 60,
-        Roll = RailRoll.Track,
+        Role = RailRole.Track,
         EndpointA = a,
         EndpointB = b,
     };
@@ -184,7 +184,7 @@ public class StationPathTrackIndexBuilderTests
         var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
             new[] { shuntingPath }, new[] { track });
 
-        var headTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BoundaryPoint", bp1.Value);
+        var headTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal(bp1);
         Assert.Equal(new StationPathId(1), arrivalIndex[(headTerminal, track.Id)]);
         Assert.Empty(departureIndex); // head(bp1)側はTrackに直結していないため出発側には登録されない
     }
@@ -203,8 +203,8 @@ public class StationPathTrackIndexBuilderTests
         var (arrivalIndex, departureIndex) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
             new[] { shuntingPath }, new[] { trackHead, trackTail });
 
-        var headTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BoundaryPoint", bp1.Value);
-        var tailTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BoundaryPoint", bp2.Value);
+        var headTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal(bp1.Value);
+        var tailTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal(bp2.Value);
 
         // tail側(bp2)がTrack直結 → head側をArrival候補として登録
         Assert.Equal(new StationPathId(1), arrivalIndex[(headTerminal, trackTail.Id)]);
@@ -225,7 +225,7 @@ public class StationPathTrackIndexBuilderTests
         var (arrivalIndex, _) = StationPathTrackIndexBuilder.BuildWithBoundaryTerminals(
             new[] { shuntingPath }, new[] { track });
 
-        var bsTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal("BufferStop", bs.Value);
+        var bsTerminal = new StationPathTrackIndexBuilder.BoundaryTerminal(bs.Value);
         Assert.Equal(new StationPathId(1), arrivalIndex[(bsTerminal, track.Id)]);
     }
 

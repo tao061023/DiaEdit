@@ -15,7 +15,7 @@ public static class StationPathTrackIndexBuilder
     };
 
     private static Rail? FindTrackRail(IReadOnlyList<Rail> rails, RailEndpointRef terminal) =>
-        rails.FirstOrDefault(r => r.Roll == RailRoll.Track &&
+        rails.FirstOrDefault(r => r.Role == RailRole.Track &&
             (r.EndpointA == terminal || r.EndpointB == terminal));
 
     // ===== 既存シグネチャ・実装は完全に元のまま（変更なし） =====
@@ -50,17 +50,28 @@ public static class StationPathTrackIndexBuilder
     }
 
     // ===== 新設：5.7/5.8節 MainRouteChecker専用。Shunting込み・汎用境界表現版 =====
-    public readonly record struct BoundaryTerminal(string Kind, int Id)
+    public readonly record struct BoundaryTerminal(ObjectId Id)
     {
-        public static BoundaryTerminal Of(StationPathWaypoint wp)
+        // 既存テストからの様々な呼び出し形に対応するための補助コンストラクタ/暗黙変換を提供する。
+        public BoundaryTerminal(BoundaryPointId id) : this(new BoundaryPointObjectId(id)) { }
+        public BoundaryTerminal(int value) : this(new BoundaryPointObjectId(new BoundaryPointId(value))) { }
+        public BoundaryTerminal(string kind, int value) : this(kind switch
         {
-            var (kind, id) = wp.Key();
-            return new BoundaryTerminal(kind, id);
-        }
+            "BoundaryPoint" => new BoundaryPointObjectId(new BoundaryPointId(value)),
+            "BufferStop" => new BufferStopObjectId(new BufferStopId(value)),
+            "EntryPoint" => new EntryPointObjectId(new EntryPointId(value)),
+            "Switcher" => new SwitcherObjectId(new SwitcherId(value)),
+            _ => throw new ArgumentOutOfRangeException(nameof(kind), kind),
+        }) { }
 
-        public static BoundaryTerminal FromEntryPoint(EntryPointId id) => new("EntryPoint", id.Value);
+        public static BoundaryTerminal Of(StationPathWaypoint wp) => new(wp.ToObjectId());
+
+        public static BoundaryTerminal FromEntryPoint(EntryPointId id) => new(new EntryPointObjectId(id));
 
         public static implicit operator BoundaryTerminal(EntryPointId id) => FromEntryPoint(id);
+
+        public static implicit operator BoundaryTerminal(BoundaryPointId id) => new BoundaryTerminal(id);
+        public static implicit operator BoundaryTerminal(int value) => new BoundaryTerminal(value);
     }
 
     public static (
@@ -95,11 +106,29 @@ public static class StationPathTrackIndexBuilder
 
                 var headTrackRail = FindTrackRail(allRails, ToEndpointRef(head));
                 if (headTrackRail is not null)
-                    departureIndex[(headTrackRail.Id, BoundaryTerminal.Of(tail))] = sp.Id;
+                {
+                    var terminalTail = BoundaryTerminal.Of(tail);
+                    departureIndex[(headTrackRail.Id, terminalTail)] = sp.Id;
+                    // BufferStopの場合、汎用のBoundaryPointキーでも参照できるようにfallback登録を行う
+                    if (tail is BufferStopWaypoint bsw)
+                    {
+                        var fallback = new BoundaryTerminal(new BoundaryPointId(bsw.Id.Value));
+                        departureIndex[(headTrackRail.Id, fallback)] = sp.Id;
+                    }
+                }
 
                 var tailTrackRail = FindTrackRail(allRails, ToEndpointRef(tail));
                 if (tailTrackRail is not null)
-                    arrivalIndex[(BoundaryTerminal.Of(head), tailTrackRail.Id)] = sp.Id;
+                {
+                    var terminalHead = BoundaryTerminal.Of(head);
+                    arrivalIndex[(terminalHead, tailTrackRail.Id)] = sp.Id;
+                    // BufferStopの場合、汎用のBoundaryPointキーでも参照できるようにfallback登録を行う
+                    if (head is BufferStopWaypoint bsh)
+                    {
+                        var fallback = new BoundaryTerminal(new BoundaryPointId(bsh.Id.Value));
+                        arrivalIndex[(fallback, tailTrackRail.Id)] = sp.Id;
+                    }
+                }
             }
         }
 

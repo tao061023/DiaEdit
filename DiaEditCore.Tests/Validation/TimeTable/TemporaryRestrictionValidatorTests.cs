@@ -109,7 +109,7 @@ public class TemporaryRestrictionValidatorTests
             Id = new RailId(1),
             LengthM = 200,
             SpeedLimitKph = 95,
-            Roll = RailRoll.Normal,
+            Role = RailRole.Normal,
             EndpointA = new NoneEndpointRef(),
             EndpointB = new NoneEndpointRef(),
         };

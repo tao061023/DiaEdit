@@ -92,7 +92,7 @@ public class StopVisitOccupancyResolverTests
         {
             new()
             {
-                Id = TrackB, LengthM = 200, SpeedLimitKph = 25, Roll = RailRoll.Track,
+                Id = TrackB, LengthM = 200, SpeedLimitKph = 25, Role = RailRole.Track,
                 EndpointA = new EntryPointEndpointRef(EpB), EndpointB = new BoundaryPointEndpointRef(BpB),
             },
         };

@@ -17,9 +17,9 @@ public class StationPathConflictObjectResolverTests
     /// <summary>EntryPoint - Rail1 - Switcher - Rail2 - BoundaryPoint という単純な経路のRail定義一式を作る。</summary>
     private static List<Rail> BuildRails() =>
     [
-        new() { Id = Rail1, LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+        new() { Id = Rail1, LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
                 EndpointA = new EntryPointEndpointRef(Ep), EndpointB = new SwitcherEndpointRef(Sw, 0) },
-        new() { Id = Rail2, LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+        new() { Id = Rail2, LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
                 EndpointA = new SwitcherEndpointRef(Sw, 1), EndpointB = new BoundaryPointEndpointRef(Bp) },
     ];
 
@@ -87,7 +87,7 @@ public class StationPathConflictObjectResolverTests
     {
         var rails = new List<Rail>
         {
-            new() { Id = Rail1, LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            new() { Id = Rail1, LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
                     EndpointA = new EntryPointEndpointRef(Ep), EndpointB = new BoundaryPointEndpointRef(Bp) },
         };
         var resolver = new RailSequenceResolver(rails);
@@ -123,9 +123,9 @@ public class StationPathConflictObjectResolverTests
 
         var rails = new List<Rail>
         {
-            new() { Id = Rail1, LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            new() { Id = Rail1, LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
                     EndpointA = new EntryPointEndpointRef(Ep), EndpointB = new BoundaryPointEndpointRef(Bp) },
-            new() { Id = railOther, LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            new() { Id = railOther, LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
                     EndpointA = new EntryPointEndpointRef(epOther), EndpointB = new BoundaryPointEndpointRef(bpOther) },
         };
         var resolver = new RailSequenceResolver(rails);

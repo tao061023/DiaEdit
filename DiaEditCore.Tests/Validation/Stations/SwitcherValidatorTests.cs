@@ -52,7 +52,41 @@ public class SwitcherValidatorTests
 
         var issues = new SwitcherValidator().Validate(s, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("同一"));
+        Assert.Contains(issues, i => i.Message.Contains("重複している"));
+    }
+
+    [Fact]
+    public void PortCount3でRootとReverseが同一だと不合格()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 0 },
+        };
+        var context = new ValidationContext();
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("重複している"));
+    }
+
+    [Fact]
+    public void PortCount3でNormalとReverseが同一だと不合格()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 1 },
+        };
+        var context = new ValidationContext();
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("重複している"));
     }
 
     [Fact]
@@ -92,6 +126,28 @@ public class SwitcherValidatorTests
         var issues = new SwitcherValidator().Validate(s, context);
 
         Assert.Contains(issues, i => i.Message.Contains("PortA≠PortB"));
+    }
+
+    [Fact]
+    public void PortCount4でValidRoutesに完全同一のPortPairが重複していると不合格()
+    {
+        var s = new Switcher { Id = new SwitcherId(1), Base = MakeBase(), PortCount = 4, ValidRoutes = [new PortPair(0, 1), new PortPair(0, 1)] };
+        var context = new ValidationContext();
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("重複登録"));
+    }
+
+    [Fact]
+    public void PortCount4でValidRoutesに順序違いのPortPairが重複していると不合格()
+    {
+        var s = new Switcher { Id = new SwitcherId(1), Base = MakeBase(), PortCount = 4, ValidRoutes = [new PortPair(0, 1), new PortPair(1, 0)] };
+        var context = new ValidationContext();
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("重複登録"));
     }
 
     [Fact]

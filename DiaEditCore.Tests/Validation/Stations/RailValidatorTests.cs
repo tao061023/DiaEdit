@@ -13,13 +13,13 @@ public class RailValidatorTests
     private static readonly BoundaryPointId Bp1 = new(1);
     private static readonly BoundaryPointId Bp2 = new(2);
 
-    private static Rail MakeRail(RailRoll roll, string name) => new()
+    private static Rail MakeRail(RailRole Role, string name) => new()
     {
         Id = new RailId(1),
         Name = name,
         LengthM = 100,
         SpeedLimitKph = 25,
-        Roll = roll,
+        Role = Role,
         EndpointA = new BoundaryPointEndpointRef(Bp1),
         EndpointB = new BoundaryPointEndpointRef(Bp2),
     };
@@ -27,9 +27,9 @@ public class RailValidatorTests
     private static ValidationContext EmptyContext() => new();
 
     [Fact]
-    public void RollがTrackで名前ありなら合格()
+    public void RoleがTrackで名前ありなら合格()
     {
-        var target = MakeRail(RailRoll.Track, "1番線");
+        var target = MakeRail(RailRole.Track, "1番線");
 
         var issues = new RailValidator().Validate(target, EmptyContext());
 
@@ -37,9 +37,9 @@ public class RailValidatorTests
     }
 
     [Fact]
-    public void RollがTrackで名前が空文字列だと不合格()
+    public void RoleがTrackで名前が空文字列だと不合格()
     {
-        var target = MakeRail(RailRoll.Track, "");
+        var target = MakeRail(RailRole.Track, "");
 
         var issues = new RailValidator().Validate(target, EmptyContext());
 
@@ -47,9 +47,9 @@ public class RailValidatorTests
     }
 
     [Fact]
-    public void RollがNormalで名前が空文字列でも合格()
+    public void RoleがNormalで名前が空文字列でも合格()
     {
-        var target = MakeRail(RailRoll.Normal, "");
+        var target = MakeRail(RailRole.Normal, "");
 
         var issues = new RailValidator().Validate(target, EmptyContext());
 
@@ -57,9 +57,9 @@ public class RailValidatorTests
     }
 
     [Fact]
-    public void RollがShuntingで名前が空文字列でも合格()
+    public void RoleがShuntingで名前が空文字列でも合格()
     {
-        var target = MakeRail(RailRoll.Shunting, "");
+        var target = MakeRail(RailRole.Shunting, "");
 
         var issues = new RailValidator().Validate(target, EmptyContext());
 
@@ -67,9 +67,9 @@ public class RailValidatorTests
     }
 
     [Fact]
-    public void RollがNormalで名前ありでも合格()
+    public void RoleがNormalで名前ありでも合格()
     {
-        var target = MakeRail(RailRoll.Normal, "引上線");
+        var target = MakeRail(RailRole.Normal, "引上線");
 
         var issues = new RailValidator().Validate(target, EmptyContext());
 
@@ -77,11 +77,11 @@ public class RailValidatorTests
     }
 
     [Fact]
-    public void RollがTrackで名前が空白のみの場合は現状の実装では合格扱いになる()
+    public void RoleがTrackで名前が空白のみの場合は現状の実装では合格扱いになる()
     {
         // IsNullOrEmpty判定のため、空白文字だけの名前は「空ではない」とみなされ通過する。
         // 実運用上の名前として不適切な可能性はあるが、現行実装の挙動として明示的に記録する。
-        var target = MakeRail(RailRoll.Track, "   ");
+        var target = MakeRail(RailRole.Track, "   ");
 
         var issues = new RailValidator().Validate(target, EmptyContext());
 

@@ -24,7 +24,7 @@ public sealed class RailSequenceResolverTests
                 EndpointB = new SwitcherEndpointRef(new SwitcherId(5), 0),
                 LengthM = 100,
                 SpeedLimitKph = 45,
-                Roll = RailRoll.Normal
+                Role = RailRole.Normal
             }
         };
 
@@ -61,14 +61,14 @@ public sealed class RailSequenceResolverTests
                 Id = new RailId(1),
                 EndpointA = new EntryPointEndpointRef(new EntryPointId(10)),
                 EndpointB = new SwitcherEndpointRef(new SwitcherId(5), 0),
-                LengthM = 100, SpeedLimitKph = 45, Roll = RailRoll.Normal
+                LengthM = 100, SpeedLimitKph = 45, Role = RailRole.Normal
             },
             new Rail
             {
                 Id = new RailId(2),
                 EndpointA = new SwitcherEndpointRef(new SwitcherId(5), 0),
                 EndpointB = new BoundaryPointEndpointRef(new BoundaryPointId(3)),
-                LengthM = 80, SpeedLimitKph = 45, Roll = RailRoll.Normal
+                LengthM = 80, SpeedLimitKph = 45, Role = RailRole.Normal
             }
         };
 
@@ -105,7 +105,7 @@ public sealed class RailSequenceResolverTests
                 Id = new RailId(1),
                 EndpointA = new SwitcherEndpointRef(new SwitcherId(5), 0),
                 EndpointB = new EntryPointEndpointRef(new EntryPointId(10)),
-                LengthM = 100, SpeedLimitKph = 45, Roll = RailRoll.Normal
+                LengthM = 100, SpeedLimitKph = 45, Role = RailRole.Normal
             }
         };
 

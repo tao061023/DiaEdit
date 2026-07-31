@@ -24,8 +24,9 @@ public sealed class SwitcherValidator : IValidator<Switcher>
             }
             else
             {
-                if (m.RootPortIndex == m.NormalPortIndex)
-                    issues.Add(new ValidationIssue($"Switcher({target.Id}): RootPortIndex と NormalPortIndex が同一"));
+                var portIndices = new[] { m.RootPortIndex, m.NormalPortIndex, m.ReversePortIndex };
+                if (portIndices.Distinct().Count() != portIndices.Length)
+                    issues.Add(new ValidationIssue($"Switcher({target.Id}): RootPortIndex/NormalPortIndex/ReversePortIndex が重複している"));
                 foreach (var (label, v) in new[] { (nameof(m.RootPortIndex), m.RootPortIndex), (nameof(m.NormalPortIndex), m.NormalPortIndex), (nameof(m.ReversePortIndex), m.ReversePortIndex) })
                 {
                     if (v < 0 || v >= n)
@@ -44,12 +45,17 @@ public sealed class SwitcherValidator : IValidator<Switcher>
             if (target.ValidRoutes.Count == 0)
                 issues.Add(new ValidationIssue($"Switcher({target.Id}): PortCount=4はValidRoutesが1件以上必須"));
 
+            var seenRoutes = new HashSet<PortPair>();
             foreach (var pair in target.ValidRoutes)
             {
                 if (pair.PortA == pair.PortB)
                     issues.Add(new ValidationIssue($"Switcher({target.Id}): PortPair({pair.PortA},{pair.PortB}) はPortA≠PortB制約に違反"));
                 if (pair.PortA < 0 || pair.PortA >= n || pair.PortB < 0 || pair.PortB >= n)
                     issues.Add(new ValidationIssue($"Switcher({target.Id}): PortPair({pair.PortA},{pair.PortB}) が0〜{n - 1}の範囲外"));
+
+                var key = SwitcherRoutingExtensions.Normalize(pair.PortA, pair.PortB);
+                if (!seenRoutes.Add(key))
+                    issues.Add(new ValidationIssue($"Switcher({target.Id}): PortPair({pair.PortA},{pair.PortB}) が重複登録"));
             }
         }
         else

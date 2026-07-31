@@ -121,7 +121,7 @@ public static class TrackOccupancyProvider
 
     /// <summary>
     /// StationWork.Type == Shunting について、参照先StationPathをRailSequenceResolverで
-    /// Rail列に展開し、うちRailRoll.Trackのものを対象オブジェクトとしてTrack占有に加える
+    /// Rail列に展開し、うちRailRole.Trackのものを対象オブジェクトとしてTrack占有に加える
     /// （入換作業中に誤ってその番線へ進入する列車との支障を検知するため。8.2節候補から復帰・スコープ内化）。
     ///
     /// 前提：StationWork.StationPathId・StartOpSeconds・EndOpSeconds（Shuntingでは両方必須、5.11.5節）。
@@ -133,7 +133,7 @@ public static class TrackOccupancyProvider
         Action<RailId, ConflictChecker.Occupancy> add)
     {
         var railSequenceResolver = new RailSequenceResolver(rails);
-        var trackRailIds = rails.Where(r => r.Roll == RailRoll.Track).Select(r => r.Id).ToHashSet();
+        var trackRailIds = rails.Where(r => r.Role == RailRole.Track).Select(r => r.Id).ToHashSet();
 
         // StationPathId単位でRail列をメモ化（同じStationPathが複数のShunting作業から参照されうるため）
         var railSequenceCache = new Dictionary<StationPathId, IReadOnlyList<RailId>>();

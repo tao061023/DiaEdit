@@ -8,8 +8,8 @@ public sealed class RailValidator : IValidator<Rail>
     {
         var issues = new List<IValidationIssue>();
 
-        if (target.Roll == RailRoll.Track && string.IsNullOrEmpty(target.Name))
-            issues.Add(new ValidationIssue($"Rail({target.Id}) はRoll=Trackのため名前が必須"));
+        if (target.Role == RailRole.Track && string.IsNullOrEmpty(target.Name))
+            issues.Add(new ValidationIssue($"Rail({target.Id}) はRole=Trackのため名前が必須"));
 
         return issues;
     }

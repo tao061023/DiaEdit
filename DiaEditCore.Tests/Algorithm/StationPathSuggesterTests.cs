@@ -36,7 +36,7 @@ public class StationPathSuggesterTests
         var bp = new BoundaryPointId(1);
         var rail = new Rail
         {
-            Id = new RailId(1), LengthM = 100, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(1), LengthM = 100, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new EntryPointEndpointRef(ep), EndpointB = new BoundaryPointEndpointRef(bp),
         };
 
@@ -81,7 +81,7 @@ public class StationPathSuggesterTests
         var bpOther = new BoundaryPointId(2); // 隣駅（FuOther）
         var railToOther = new Rail
         {
-            Id = new RailId(1), LengthM = 100, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(1), LengthM = 100, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new EntryPointEndpointRef(ep), EndpointB = new BoundaryPointEndpointRef(bpOther),
         };
 
@@ -108,12 +108,12 @@ public class StationPathSuggesterTests
 
         var rail1 = new Rail
         {
-            Id = new RailId(1), LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(1), LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new EntryPointEndpointRef(epA), EndpointB = new SwitcherEndpointRef(swId, 0),
         };
         var rail2 = new Rail
         {
-            Id = new RailId(2), LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(2), LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new SwitcherEndpointRef(swId, 1), EndpointB = new BoundaryPointEndpointRef(bp),
         };
 
@@ -144,17 +144,17 @@ public class StationPathSuggesterTests
 
         var railIn = new Rail
         {
-            Id = new RailId(1), LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(1), LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new EntryPointEndpointRef(epA), EndpointB = new SwitcherEndpointRef(swId, 0), // root
         };
         var railNormal = new Rail
         {
-            Id = new RailId(2), LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(2), LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new SwitcherEndpointRef(swId, 1), EndpointB = new BoundaryPointEndpointRef(bpNormal),
         };
         var railReverse = new Rail
         {
-            Id = new RailId(3), LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(3), LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new SwitcherEndpointRef(swId, 2), EndpointB = new BoundaryPointEndpointRef(bpReverse),
         };
 
@@ -188,7 +188,7 @@ public class StationPathSuggesterTests
         var bsId = new BufferStopId(1);
         var rail = new Rail
         {
-            Id = new RailId(1), LengthM = 50, SpeedLimitKph = 25, Roll = RailRoll.Track,
+            Id = new RailId(1), LengthM = 50, SpeedLimitKph = 25, Role = RailRole.Track,
             EndpointA = new EntryPointEndpointRef(ep), EndpointB = new BufferStopEndpointRef(bsId),
         };
 

@@ -32,7 +32,7 @@ public class StationConnectionSegmentOccupancyProviderTests
         Id = id,
         LengthM = 200,
         SpeedLimitKph = 25,
-        Roll = RailRoll.Track,
+        Role = RailRole.Track,
         EndpointA = new EntryPointEndpointRef(ep),
         EndpointB = new BoundaryPointEndpointRef(bp),
     };

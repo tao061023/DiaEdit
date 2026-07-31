@@ -9,7 +9,7 @@ namespace DiaEditCore.Algorithm;
 /// 境界駅（MainRoute間）での折り返し判定（ResolveReversesAtBoundary）を、同一の判定基準で扱う。
 ///
 /// 判定基準：SCSから得た進入側EntryPointId・進出側EntryPointIdそれぞれについて、それを含む
-/// StationPath（Direction=Arrival／Departure）を列挙し、そのStationPathが経由するRailRoll.Track
+/// StationPath（Direction=Arrival／Departure）を列挙し、そのStationPathが経由するRailRole.Track
 /// のRail群（EndpointA/EndpointBの RailEndpointRef）を集合として取り出す。進入側・進出側の集合に
 /// 重複するRailEndpointRefが存在すれば、進入と進出で同一の物理番線を使用している＝折り返しが必須と
 /// 判定する（デルタ線は必ずMainRouteとして登録される制約があるため、使用する番線による向きの差異は
@@ -19,7 +19,7 @@ namespace DiaEditCore.Algorithm;
 /// RailSequenceResolverを共有する。出力（directionReversalStations／ServiceRouteSegment.reversesAtBoundary）は
 /// あくまで保存時のデフォルト値提示の候補であり、確定はユーザーが行う。
 ///
-/// 注：Shunting時に使用Trackが変わるケース（RailRoll.Shunting側のRailEndpointRef一致）は
+/// 注：Shunting時に使用Trackが変わるケース（RailRole.Shunting側のRailEndpointRef一致）は
 /// 本メソッドの対象外（Arrival/Departure StationPathのみを扱う）。必要になった場合は別途対応する。
 /// </summary>
 public static class ReversalResolver
@@ -118,7 +118,7 @@ public static class ReversalResolver
 
     /// <summary>
     /// 進入側候補（ToEntryPointId基準）・進出側候補（FromEntryPointId基準）の全組み合わせについて、
-    /// それぞれが経由するRailRoll.Track Railの端点集合（RailEndpointRef）に重複があるかを判定する。
+    /// それぞれが経由するRailRole.Track Railの端点集合（RailEndpointRef）に重複があるかを判定する。
     /// いずれかの組み合わせで重複があればtrue（OR）。候補やStationPathが無ければnull（判定不能）。
     /// </summary>
     private static bool? JudgeReversalByTrack(
@@ -156,16 +156,16 @@ public static class ReversalResolver
 
     /// <summary>
     /// entryPointIdをWaypointsに含み、指定方向を持つStationPathを列挙し、
-    /// それらが経由するRailRoll.Track RailのEndpointA/EndpointB（RailEndpointRef）のKey集合を返す。
+    /// それらが経由するRailRole.Track RailのEndpointA/EndpointB（RailEndpointRef）のKey集合を返す。
     /// </summary>
-    private static HashSet<(string Kind, int Id)> ResolveTrackEndpointKeys(
+    private static HashSet<ObjectId> ResolveTrackEndpointKeys(
         IReadOnlyList<StationPath> pathsAtStation,
         EntryPointId entryPointId,
         StationPathDirection direction,
         RailSequenceResolver railResolver,
         IReadOnlyList<Rail> allRails)
     {
-        var keys = new HashSet<(string, int)>();
+        var keys = new HashSet<ObjectId>();
 
         var matchingPaths = pathsAtStation.Where(p =>
             p.Direction == direction &&
@@ -187,10 +187,12 @@ public static class ReversalResolver
             foreach (var railId in railIds)
             {
                 var rail = allRails.FirstOrDefault(r => r.Id == railId);
-                if (rail is null || rail.Roll != RailRoll.Track) continue;
+                if (rail is null || rail.Role != RailRole.Track) continue;
 
-                keys.Add(rail.EndpointA.Key());
-                keys.Add(rail.EndpointB.Key());
+                // NoneEndpointRef（未接続端部）はToObjectId()がnullを返すため、
+                // keysに加えない。None同士は「同一地点を共有している」とはみなさない。
+                if (rail.EndpointA.ToObjectId() is { } a) keys.Add(a);
+                if (rail.EndpointB.ToObjectId() is { } b) keys.Add(b);
             }
         }
 

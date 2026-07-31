@@ -191,22 +191,8 @@ public sealed class StationPathSuggester
                 return true;
 
             var sw = _switchers[f.Id];
-
-            // N=3
-            if (sw.Mechanism is SwitchMechanism m)
-            {
-                var a = f.PortIndex;
-                var b = t.PortIndex;
-
-                return (a == m.RootPortIndex && (b == m.NormalPortIndex || b == m.ReversePortIndex))
-                    || (b == m.RootPortIndex && (a == m.NormalPortIndex || a == m.ReversePortIndex));
-            }
-
-            // N=4
-            var pair = new PortPair(f.PortIndex, t.PortIndex);
-            var reverse = new PortPair(t.PortIndex, f.PortIndex);
-
-            return sw.ValidRoutes.Contains(pair) || sw.ValidRoutes.Contains(reverse);
+            var pair = SwitcherRoutingExtensions.Normalize(f.PortIndex, t.PortIndex);
+            return sw.GetTraversablePairs().Contains(pair);
         }
 
         return true;

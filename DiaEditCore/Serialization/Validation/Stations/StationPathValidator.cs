@@ -36,11 +36,11 @@ public sealed class StationPathValidator : IValidator<StationPath>
         // 4. 隣接waypoint間を直接結ぶRailの存在確認
         for (var i = 0; i < wp.Count - 1; i++)
         {
-            var aKey = wp[i].Key();
-            var bKey = wp[i + 1].Key();
+            var aKey = wp[i].ToObjectId();
+            var bKey = wp[i + 1].ToObjectId();
             var connected = context.Rails.Any(r =>
-                (r.EndpointA.Key() == aKey && r.EndpointB.Key() == bKey) ||
-                (r.EndpointA.Key() == bKey && r.EndpointB.Key() == aKey));
+                (r.EndpointA.ToObjectId() == aKey && r.EndpointB.ToObjectId() == bKey) ||
+                (r.EndpointA.ToObjectId() == bKey && r.EndpointB.ToObjectId() == aKey));
             if (!connected)
                 issues.Add(new ValidationIssue($"StationPath({target.Id}): waypoint[{i}]とwaypoint[{i + 1}]を直接結ぶRailが存在しない"));
         }
@@ -60,15 +60,15 @@ public sealed class StationPathValidator : IValidator<StationPath>
             issues.Add(new ValidationIssue($"StationPath({target.Id}): name '{target.Name}' が同一FloorUnitId内で重複"));
 
         // 7. Track各端部からのEP到達可能性確認
-        foreach (var rail in context.Rails.Where(r => r.Roll == RailRoll.Track))
+        foreach (var rail in context.Rails.Where(r => r.Role == RailRole.Track))
         {
             foreach (var ep in new[] { rail.EndpointA, rail.EndpointB })
             {
                 if (ep is BoundaryPointEndpointRef or NoneEndpointRef) continue;
 
-                var epKey = ep.Key();
+                var epKey = ep.ToObjectId();
                 var reachesEntryPoint = context.StationPaths.Any(sp =>
-                    sp.Waypoints.Any(w => w.Key() == epKey) &&
+                    sp.Waypoints.Any(w => w.ToObjectId() == epKey) &&
                     sp.Waypoints.Any(w => w is EntryPointWaypoint));
 
                 if (!reachesEntryPoint)

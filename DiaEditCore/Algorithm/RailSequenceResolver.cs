@@ -22,8 +22,8 @@ public sealed class RailSequenceResolver
 
         for (int i = 0; i < wp.Count - 1; i++)
         {
-            var keyA = wp[i].Key();
-            var keyB = wp[i + 1].Key();
+            var keyA = wp[i].ToObjectId();
+            var keyB = wp[i + 1].ToObjectId();
 
             var rail = FindRailBetween(keyA, keyB);
 
@@ -40,12 +40,12 @@ public sealed class RailSequenceResolver
         return result;
     }
 
-    private Rail? FindRailBetween((string Kind, int Id) a, (string Kind, int Id) b)
+    private Rail? FindRailBetween(ObjectId a, ObjectId b)
     {
         foreach (var r in _rails)
         {
-            var ra = r.EndpointA.Key();
-            var rb = r.EndpointB.Key();
+            var ra = r.EndpointA.ToObjectId();
+            var rb = r.EndpointB.ToObjectId();
 
             // 無向一致
             if ((ra == a && rb == b) || (ra == b && rb == a))

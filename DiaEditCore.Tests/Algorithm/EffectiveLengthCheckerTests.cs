@@ -87,7 +87,7 @@ public class EffectiveLengthCheckerTests
         Id = TrackRail,
         LengthM = lengthM,
         SpeedLimitKph = 25,
-        Roll = RailRoll.Track,
+        Role = RailRole.Track,
         EndpointA = new NoneEndpointRef(),
         EndpointB = new NoneEndpointRef(),
     };

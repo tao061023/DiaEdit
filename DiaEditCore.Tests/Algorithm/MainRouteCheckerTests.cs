@@ -12,7 +12,7 @@ public class MainRouteCheckerTests
         Id = new RailId(id),
         LengthM = 100,
         SpeedLimitKph = 60,
-        Roll = RailRoll.Track,
+        Role = RailRole.Track,
         EndpointA = a,
         EndpointB = b,
     };

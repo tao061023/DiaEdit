@@ -110,7 +110,7 @@ public class ServiceRouteValidatorRule5Tests
 {
     private static Rail TrackRail(int id, RailEndpointRef a, RailEndpointRef b) => new()
     {
-        Id = new RailId(id), LengthM = 100, SpeedLimitKph = 60, Roll = RailRoll.Track,
+        Id = new RailId(id), LengthM = 100, SpeedLimitKph = 60, Role = RailRole.Track,
         EndpointA = a, EndpointB = b,
     };
 

@@ -36,7 +36,7 @@ public class StationPathOccupancyProviderTests
         Id = TrackB,
         LengthM = 200,
         SpeedLimitKph = 25,
-        Roll = RailRoll.Track,
+        Role = RailRole.Track,
         EndpointA = new EntryPointEndpointRef(EpB),
         EndpointB = new BoundaryPointEndpointRef(BpB),
     };
