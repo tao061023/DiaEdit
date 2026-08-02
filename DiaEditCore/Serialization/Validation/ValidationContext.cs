@@ -27,8 +27,9 @@ public sealed class ValidationContext
  
     public IReadOnlyList<Car> Cars { get; init; } = Array.Empty<Car>();
     public IReadOnlyList<CarConsist> CarConsists { get; init; } = Array.Empty<CarConsist>();
+    public IReadOnlyList<CarComposition> CarCompositions { get; init; } = Array.Empty<CarComposition>();
     public IReadOnlyList<VehicleType> VehicleTypes { get; init; } = Array.Empty<VehicleType>();
-    public IReadOnlyList<InsertionConfig> InsertionConfigs { get; init; } = Array.Empty<InsertionConfig>();
+    // public IReadOnlyList<InsertionConfig> InsertionConfigs { get; init; } = Array.Empty<InsertionConfig>();
  
     public IReadOnlyList<TrainType> TrainTypes { get; init; } = Array.Empty<TrainType>();
     public IReadOnlyList<Train> Trains { get; init; } = Array.Empty<Train>();

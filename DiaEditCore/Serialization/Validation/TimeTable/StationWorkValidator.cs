@@ -79,18 +79,18 @@ public sealed class StationWorkValidator : IValidator<StationWork>
                 break;
         }
 
-        // CutPoints内のCarConsistId実在チェック（Coupling/Decouplingで使用）
+        // CutPoints内のCarCompisitionId実在チェック（Coupling/Decouplingで使用）
         foreach (var cp in target.CutPoints)
         {
-            if (!context.CarConsists.Any(c => c.Id == cp.CarConsistId))
-                issues.Add(new ValidationIssue($"StationWork({target.Type}): CutPoints内のCarConsistId({cp.CarConsistId})が存在しない"));
+            if (!context.CarCompositions.Any(c => c.Id == cp.CarCompositionId))
+                issues.Add(new ValidationIssue($"StationWork({target.Type}): CutPoints内のCarCompositionId({cp.CarCompositionId})が存在しない"));
         }
 
-        // ★追加：StartOpConsist内のCarConsistId実在チェック（StartOpで使用）
+        // ★追加：StartOpConsist内のCarCompositionId実在チェック（StartOpで使用）
         foreach (var slot in target.StartOpConsist)
         {
-            if (!context.CarConsists.Any(c => c.Id == slot.CarConsistId))
-                issues.Add(new ValidationIssue($"StationWork(StartOp): StartOpConsist内のCarConsistId({slot.CarConsistId})が存在しない"));
+            if (!context.CarCompositions.Any(c => c.Id == slot.CarCompositionId))
+                issues.Add(new ValidationIssue($"StationWork(StartOp): StartOpConsist内のCarCompositionId({slot.CarCompositionId})が存在しない"));
         }
 
         return issues;

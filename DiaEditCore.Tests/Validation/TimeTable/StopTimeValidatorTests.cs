@@ -74,7 +74,7 @@ public class StopTimeValidatorTests
                     EndOpSeconds = 200,
                     CutPoints = new List<TrainCutPoint>
                     {
-                        new() { TrainId = new TrainId(1), Position = 0, CarConsistId = new CarConsistId(1) },
+                        new() { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(1) },
                     },
                 },
             },
@@ -85,8 +85,16 @@ public class StopTimeValidatorTests
             {
                 new()
                 {
-                    Id = new CarConsistId(1), Name = "x", VehicleTypeId = new VehicleTypeId(1),
-                    SourceTemplate = new BaseTemplateSource(), Identifier = "1", Cars = new List<CarRef>(),
+                    Id = new CarConsistId(1), VehicleTypeId = new VehicleTypeId(1),
+                    Type = CarConsistType.Basic, Cars = new List<CarRef>(),
+                },
+            },
+            CarCompositions = new List<CarComposition>
+            {
+                new()
+                {
+                    Id = new CarCompositionId(1), Name = "x", Identifier = 1,
+                    CarConsistId = new CarConsistId(1),
                 },
             },
         };

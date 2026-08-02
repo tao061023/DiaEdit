@@ -11,44 +11,38 @@ namespace DiaEditCore.Tests.Validation.Cars;
 public class CarValidatorTests
 {
     private readonly CarValidator _validator = new();
+    private static readonly ValidationContext EmptyContext = new();
 
-    private static VehicleType MakeVehicleType(int id) => new()
+    private static Car ValidCar() => new()
     {
-        Id = new VehicleTypeId(id),
-        Name = "E235系",
+        Id = new CarId(1),
+        CarType = "クハE234",
+        IsPower = false,
         LengthM = 20.0,
-        BaseCarTemplate = new List<CarRoleSlot> { new() { CarTypeCode = "クハE234" } },
     };
 
     [Fact]
     public void Validate_正常なCarはissueなし()
     {
-        var vehicleType = MakeVehicleType(1);
-        var context = new ValidationContext { VehicleTypes = new[] { vehicleType } };
-        var car = new Car { Id = new CarId(1), VehicleTypeId = vehicleType.Id, Number = "1001" };
-
-        var issues = _validator.Validate(car, context);
+        var issues = _validator.Validate(ValidCar(), EmptyContext);
         Assert.Empty(issues);
     }
 
     [Fact]
-    public void Validate_Numberが空ならissue()
+    public void Validate_CarTypeが空ならissue()
     {
-        var vehicleType = MakeVehicleType(1);
-        var context = new ValidationContext { VehicleTypes = new[] { vehicleType } };
-        var car = new Car { Id = new CarId(1), VehicleTypeId = vehicleType.Id, Number = "" };
-
-        var issues = _validator.Validate(car, context);
-        Assert.Contains(issues, i => i.Message.Contains("Number"));
+        var car = ValidCar();
+        car.CarType = "";
+        var issues = _validator.Validate(car, EmptyContext);
+        Assert.Contains(issues, i => i.Message.Contains("CarType"));
     }
 
     [Fact]
-    public void Validate_VehicleTypeIdが存在しなければissue()
+    public void Validate_LengthMが0以下ならissue()
     {
-        var context = new ValidationContext { VehicleTypes = Array.Empty<VehicleType>() };
-        var car = new Car { Id = new CarId(1), VehicleTypeId = new VehicleTypeId(999), Number = "1001" };
-
-        var issues = _validator.Validate(car, context);
-        Assert.Contains(issues, i => i.Message.Contains("VehicleTypeId"));
+        var car = ValidCar();
+        car.LengthM = 0;
+        var issues = _validator.Validate(car, EmptyContext);
+        Assert.Contains(issues, i => i.Message.Contains("LengthM"));
     }
 }

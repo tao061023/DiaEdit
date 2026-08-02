@@ -12,7 +12,7 @@ public enum NextTrainType { Other, TypeChange, InfoChange, SameTrain }
 public sealed class StartOpCarSlot
 {
     public required int Position { get; set; }
-    public required CarConsistId CarConsistId { get; set; }
+    public required CarCompositionId CarCompositionId { get; set; }
     public string OperationNumber { get; set; } = string.Empty; // 追加：空文字列ならStationWork.TrainOperationId（StartOp本体の運用）を継承
 }
 
@@ -20,7 +20,7 @@ public sealed class TrainCutPoint
 {
     public required TrainId TrainId { get; set; }
     public required int Position { get; set; }
-    public required CarConsistId CarConsistId { get; set; }
+    public required CarCompositionId CarCompositionId { get; set; }
     public string OperationNumber { get; set; } = string.Empty; // 追加：Decoupling=空文字列なら分割元Trainの運用番号を継承／Coupling=併合前の運用番号（自由記述の履歴）
 }
 

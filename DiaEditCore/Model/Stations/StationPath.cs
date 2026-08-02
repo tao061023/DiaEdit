@@ -9,6 +9,13 @@ public sealed record EntryPointWaypoint(EntryPointId Id) : StationPathWaypoint;
 public sealed record SwitcherWaypoint(SwitcherId Id) : StationPathWaypoint;
 public sealed record BufferStopWaypoint(BufferStopId Id) : StationPathWaypoint;
 
+public sealed class VirtualConflictObject
+{
+    public required VirtualConflictObjectId Id { get; set; }
+    public required FloorUnitId FloorUnitId { get; set; }
+    public string Name { get; set; } = "";
+}
+
 public sealed class StationPath
 {
     public required StationPathId Id { get; set; }
@@ -18,11 +25,4 @@ public sealed class StationPath
     public required List<StationPathWaypoint> Waypoints { get; set; }
     public int AdjustmentSec { get; set; } = 0;
     public List<VirtualConflictObjectId> ManualConflictObjectIds { get; set; } = new();
-}
-
-public sealed class VirtualConflictObject
-{
-    public required VirtualConflictObjectId Id { get; set; }
-    public required StationId StationId { get; set; }
-    public string Name { get; set; } = "";
 }

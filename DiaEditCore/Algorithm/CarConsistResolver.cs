@@ -11,19 +11,24 @@ namespace DiaEditCore.Algorithm;
 ///
 /// スコープ：対象Train自身のWorks列のみを走査する（他Trainを検索しない）。
 /// TrainCutPoint.TrainIdは相手Trainの識別情報であり、他Trainの編成の中身は
-/// CutPoint.CarConsistIdにすでに確定値として書き込まれている前提（合意済み）。
+/// CutPoint.CarCompositionIdにすでに確定値として書き込まれている前提（合意済み）。
+///
+/// v11.33：CarConsist（編成の"型"／ひな形）とCarComposition（実運用編成の実体、
+/// 例:"トウ01"）の分離に伴い、StartOpCarSlot/TrainCutPointが指すのはCarCompositionId
+/// になった。実車両列（Cars）を取るには CarComposition → CarConsist → Cars の
+/// 2段参照が必要になる。
 /// </summary>
 public static class CarConsistResolver
 {
     /// <summary>
-    /// ある時点の実編成。ConsistBlocksはPosition順のCarConsistId列（編成ブロック単位）、
+    /// ある時点の実編成。ConsistBlocksはPosition順のCarCompositionId列（編成ブロック単位）、
     /// CarsはConsistBlocksを順に展開したCarRef列（6.8節EffectiveLengthChecker等が使用）。
     /// </summary>
     public sealed record ResolvedConsist(
-        IReadOnlyList<CarConsistId> ConsistBlocks,
+        IReadOnlyList<CarCompositionId> ConsistBlocks,
         IReadOnlyList<CarRef> Cars);
 
-    private static readonly ResolvedConsist Empty = new(Array.Empty<CarConsistId>(), Array.Empty<CarRef>());
+    private static readonly ResolvedConsist Empty = new(Array.Empty<CarCompositionId>(), Array.Empty<CarRef>());
 
     /// <summary>
     /// train自身のWorks列をStartOpから対象stopKeyまで時系列順にたどり、実編成を復元する。
@@ -32,14 +37,15 @@ public static class CarConsistResolver
     public static ResolvedConsist ResolveConsistAt(
         Train train,
         StopKey stopKey,
-        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists)
+        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
+        IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
     {
         var visitedKeys = BuildVisitedStopKeys(train);
         var targetIndex = visitedKeys.IndexOf(stopKey);
         if (targetIndex < 0) return Empty;
 
         var startIndex = -1;
-        List<CarConsistId>? current = null;
+        List<CarCompositionId>? current = null;
 
         for (var i = 0; i <= targetIndex; i++)
         {
@@ -53,7 +59,7 @@ public static class CarConsistResolver
                         startIndex = i;
                         current = work.StartOpConsist
                             .OrderBy(slot => slot.Position)
-                            .Select(slot => slot.CarConsistId)
+                            .Select(slot => slot.CarCompositionId)
                             .ToList();
                         break;
 
@@ -63,16 +69,16 @@ public static class CarConsistResolver
                         current = work.CutPoints
                             .Where(cp => cp.TrainId == train.Id)
                             .OrderBy(cp => cp.Position)
-                            .Select(cp => cp.CarConsistId)
+                            .Select(cp => cp.CarCompositionId)
                             .ToList();
                         break;
 
                     case StationWorkType.Coupling when startIndex >= 0:
                         // 自Train内完結：CutPoints全件をPosition順に連結する
-                        // （TrainIdが自分か他人かは問わない。他Trainの中身はCarConsistIdに確定済み）
+                        // （TrainIdが自分か他人かは問わない。他Trainの中身はCarCompositionIdに確定済み）
                         current = work.CutPoints
                             .OrderBy(cp => cp.Position)
-                            .Select(cp => cp.CarConsistId)
+                            .Select(cp => cp.CarCompositionId)
                             .ToList();
                         break;
                 }
@@ -82,11 +88,12 @@ public static class CarConsistResolver
         if (startIndex < 0 || current is null) return Empty;
 
         var cars = new List<CarRef>();
-        foreach (var blockId in current)
+        foreach (var compositionId in current)
         {
-            if (carConsists.TryGetValue(blockId, out var block))
+            if (carCompositions.TryGetValue(compositionId, out var composition)
+                && carConsists.TryGetValue(composition.CarConsistId, out var consist))
             {
-                cars.AddRange(block.Cars);
+                cars.AddRange(consist.Cars);
             }
         }
 

@@ -1,4 +1,5 @@
 using DiaEditCore.Model;
+using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable;
 
@@ -113,8 +114,13 @@ public class StationWorkValidatorTests
         Assert.Contains(issues, i => i.Message.Contains("CutPoints"));
     }
 
+    // v11.33：TrainCutPoint.CarConsistId → CarCompositionIdに変更されたことに伴うフィールド名の追従。
+    // ※このテストが実際に緑になるには、StationWorkValidator.cs側の実装が
+    //   「context.CarConsistsからCarConsistIdを検索」ではなく「context.CarCompositionsから
+    //   CarCompositionIdを検索」に変わっている必要がある。StationWorkValidator.csが未アップロードの
+    //   ため、本体側の修正はまだ行っていない。アップロードされ次第、本体を修正する。
     [Fact]
-    public void CutPoints内のCarConsistIdが存在しなければエラー()
+    public void CutPoints内のCarCompositionIdが存在しなければエラー()
     {
         var work = new StationWork
         {
@@ -123,13 +129,13 @@ public class StationWorkValidatorTests
             EndOpSeconds = 60,
             CutPoints = new List<TrainCutPoint>
             {
-                new() { TrainId = new TrainId(1), Position = 0, CarConsistId = new CarConsistId(999) },
+                new() { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(999) },
             },
         };
 
-        var issues = Validator.Validate(work, EmptyContext); // CarConsistsが空なので999は存在しない
+        var issues = Validator.Validate(work, EmptyContext); // CarCompositionsが空なので999は存在しない
 
-        Assert.Contains(issues, i => i.Message.Contains("CarConsistId"));
+        Assert.Contains(issues, i => i.Message.Contains("CarCompositionId"));
     }
 
     [Fact]
@@ -197,8 +203,8 @@ public class StationWorkValidatorTests
             TrainOperationId = new TrainOperationId(1),
             StartOpConsist =
             [
-                new StartOpCarSlot { Position = 0, CarConsistId = new CarConsistId(1) },
-                new StartOpCarSlot { Position = 2, CarConsistId = new CarConsistId(2) }, // 1が抜けている
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1) },
+                new StartOpCarSlot { Position = 2, CarCompositionId = new CarCompositionId(2) }, // 1が抜けている
             ],
         };
 
@@ -207,8 +213,9 @@ public class StationWorkValidatorTests
         Assert.Contains(issues, i => i.Message.Contains("Position"));
     }
 
+    // 同上：StationWorkValidator.cs側の実装確認待ち（コメント参照）
     [Fact]
-    public void StartOpConsist内のCarConsistIdが存在しなければエラー()
+    public void StartOpConsist内のCarCompositionIdが存在しなければエラー()
     {
         var work = new StationWork
         {
@@ -217,13 +224,13 @@ public class StationWorkValidatorTests
             TrainOperationId = new TrainOperationId(1),
             StartOpConsist =
             [
-                new StartOpCarSlot { Position = 0, CarConsistId = new CarConsistId(999) },
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(999) },
             ],
         };
 
-        var issues = Validator.Validate(work, EmptyContext); // CarConsistsが空なので999は存在しない
+        var issues = Validator.Validate(work, EmptyContext); // CarCompositionsが空なので999は存在しない
 
-        Assert.Contains(issues, i => i.Message.Contains("StartOpConsist") && i.Message.Contains("CarConsistId"));
+        Assert.Contains(issues, i => i.Message.Contains("StartOpConsist") && i.Message.Contains("CarCompositionId"));
     }
 
     [Fact]

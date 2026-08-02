@@ -8,11 +8,12 @@ public sealed class CarValidator : IValidator<Car>
     {
         var issues = new List<IValidationIssue>();
 
-        if (string.IsNullOrWhiteSpace(target.Number))
-            issues.Add(new ValidationIssue($"Car({target.Id}): Numberが空"));
+        if (string.IsNullOrWhiteSpace(target.CarType))
+            issues.Add(new ValidationIssue($"Car({target.Id}): CarTypeが空"));
 
-        if (!context.VehicleTypes.Any(v => v.Id == target.VehicleTypeId))
-            issues.Add(new ValidationIssue($"Car({target.Id}): VehicleTypeId({target.VehicleTypeId})が存在しない"));
+        // LengthMはEffectiveLengthChecker（6.8節）が参照する実用値のため、0以下は不正とする
+        if (target.LengthM <= 0)
+            issues.Add(new ValidationIssue($"Car({target.Id}): LengthMが0以下"));
 
         return issues;
     }

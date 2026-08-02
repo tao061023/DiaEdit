@@ -24,7 +24,8 @@ public static class EffectiveLengthChecker
         IReadOnlyDictionary<StopKey, StopTime> stopTimes,
         IReadOnlyDictionary<CarId, Car> cars,
         IReadOnlyDictionary<VehicleTypeId, VehicleType> vehicleTypes,
-        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists)
+        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
+        IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
     {
         // --- StopTime の取得 ---
         if (!stopTimes.TryGetValue(stopKey, out var stopTime))
@@ -36,17 +37,12 @@ public static class EffectiveLengthChecker
 
         var railId = stopTime.TrackRailId.Value;
 
-        // --- 編成復元（CarConsistResolver を使用） ---
-        var consist = CarConsistResolver.ResolveConsistAt(train, stopKey, carConsists);
+        // --- 編成復元（CarConsistResolver を使用。v11.33：CarComposition経由の2段参照） ---
+        var consist = CarConsistResolver.ResolveConsistAt(train, stopKey, carConsists, carCompositions);
 
-        // --- 編成長の計算（VehicleType.lengthM の合計） ---
+        // --- 編成長の計算（Car.LengthM の合計） ---
         double totalLength = consist.Cars
-            .Sum(carRef =>
-            {
-                var car = cars[carRef.CarId];
-                var vt = vehicleTypes[car.VehicleTypeId];
-                return vt.LengthM;
-            });
+            .Sum(carRef => cars[carRef.CarId].LengthM);
 
         // --- Platform の検索（FacingRailIds に railId を含むもの） ---
         var platform = platforms.Values
