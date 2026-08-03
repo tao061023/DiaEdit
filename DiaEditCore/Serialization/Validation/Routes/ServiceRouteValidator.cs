@@ -7,6 +7,8 @@ namespace DiaEditCore.Serialization.Validation.Routes;
  
 public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
 {
+    private readonly DisplayNameValidator _displayNameValidator = new();
+
     private static StationConnectionDirection DirectionOf(int fromIndex, int toIndex) =>
         fromIndex < toIndex ? StationConnectionDirection.Down : StationConnectionDirection.Up;
  
@@ -45,7 +47,8 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
  
     public IReadOnlyList<IValidationIssue> Validate(ServiceRoute target, ValidationContext context)
     {
-        var issues = new List<IValidationIssue>();
+        var issues = new List<IValidationIssue>(
+            _displayNameValidator.Validate(target.Name, context));
  
         for (var i = 0; i < target.Segments.Count; i++)
         {

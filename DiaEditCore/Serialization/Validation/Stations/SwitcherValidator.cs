@@ -106,6 +106,23 @@ public sealed class SwitcherValidator : IValidator<Switcher>
             if (p < 0 || p >= n)
                 issues.Add(new ValidationIssue($"Switcher({target.Id}): 接続Rail端点のPortIndex={p} が0〜{n - 1}の範囲外"));
         }
+        
+        // 追加バリデーション（保存時バリデーション項目4）：
+        // Track役割・Shunting役割のRail端点はSwitcherを形成できない。
+        // target（Switcher）を参照するRail（EndpointA/EndpointBがSwitcherEndpointRef(target.Id, ...)を指すもの）を
+        // 全走査し、そのRail自身のRoleがNormal以外であれば不合格とする。
+        foreach (var rail in context.Rails)
+        {
+            bool refsThisSwitcher =
+                (rail.EndpointA is SwitcherEndpointRef refA && refA.Id == target.Id) ||
+                (rail.EndpointB is SwitcherEndpointRef refB && refB.Id == target.Id);
+
+            if (refsThisSwitcher && rail.Role != RailRole.Normal)
+            {
+                issues.Add(new ValidationIssue(
+                    $"Switcher({target.Id}): Track/Shunting役割のRail({rail.Id})がSwitcherを形成している（Normal役割以外は許可されない）"));
+            }
+        }
 
         return issues;
     }

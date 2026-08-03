@@ -23,7 +23,6 @@ public static class EffectiveLengthChecker
         IReadOnlyDictionary<PlatformId, Platform> platforms,
         IReadOnlyDictionary<StopKey, StopTime> stopTimes,
         IReadOnlyDictionary<CarId, Car> cars,
-        IReadOnlyDictionary<VehicleTypeId, VehicleType> vehicleTypes,
         IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
         IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
     {

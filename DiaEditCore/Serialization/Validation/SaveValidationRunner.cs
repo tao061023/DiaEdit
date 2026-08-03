@@ -68,6 +68,7 @@ public static class SaveValidationRunner
         Run(new DiagramRevisionValidator(), project.DiagramRevisions);
         Run(new TemporaryRestrictionValidator(), project.TemporaryRestrictions);
         Run(new DisplayContextValidator(), project.DisplayContexts);
+        Run(new TrainOperationNonEmptyValidator(), project.TrainOperations);
 
         // ── プロジェクト設定（単一オブジェクト） ──
         issues.AddRange(new ProjectSettingsValidator().Validate(project.ProjectSettings, context));
@@ -77,6 +78,9 @@ public static class SaveValidationRunner
         // 専用の個別呼び出しランナーとして既に実装済み（TrainOperationChainResolver・
         // TrainConnectionResolverによるTrainCrossValidationData構築込み）のため、それをそのまま使う。
         issues.AddRange(TrainOperationCrossValidator.Run(context, project.ProjectSettings));
+
+        // ── TrainOperation横断検証（OperationNumberのTimeTableSet単位一意性、§8.2項目15） ──
+        issues.AddRange(TrainOperationUniquenessValidator.Run(context, project.ProjectSettings));
 
         return issues;
     }

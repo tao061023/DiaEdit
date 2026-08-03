@@ -111,7 +111,7 @@ public class EffectiveLengthCheckerTests
         var rails = new Dictionary<RailId, Rail> { [TrackRail] = MakeRail(lengthM: 100) };
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, consists, compositions);
 
         Assert.IsType<LengthCheckOk>(result);
     }
@@ -123,7 +123,7 @@ public class EffectiveLengthCheckerTests
         var rails = new Dictionary<RailId, Rail> { [TrackRail] = MakeRail(lengthM: 100) };
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, consists, compositions);
 
         var overflow = Assert.IsType<LengthCheckOverflow>(result);
         Assert.Equal(20, overflow.OverflowMeters);
@@ -144,7 +144,7 @@ public class EffectiveLengthCheckerTests
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
             train, Key, rails, new Dictionary<PlatformId, Platform> { [platform.Id] = platform },
-            train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train.StopTimes, cars, consists, compositions);
 
         var overflow = Assert.IsType<LengthCheckOverflow>(result);
         Assert.Equal(10, overflow.OverflowMeters);
@@ -165,7 +165,7 @@ public class EffectiveLengthCheckerTests
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
             train, Key, rails, new Dictionary<PlatformId, Platform> { [platform.Id] = platform },
-            train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train.StopTimes, cars, consists, compositions);
 
         Assert.IsType<LengthCheckOk>(result); // 60m <= 100m(Railフォールバック)
     }
@@ -178,7 +178,7 @@ public class EffectiveLengthCheckerTests
         var rails = new Dictionary<RailId, Rail> { [TrackRail] = MakeRail(lengthM: 100) };
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, consists, compositions);
 
         Assert.IsType<LengthCheckNotApplicable>(result);
     }
@@ -191,7 +191,7 @@ public class EffectiveLengthCheckerTests
         var missingKey = new StopKey(new StationId(999), 0);
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, missingKey, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train, missingKey, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, consists, compositions);
 
         Assert.IsType<LengthCheckNotApplicable>(result);
     }
@@ -203,7 +203,7 @@ public class EffectiveLengthCheckerTests
         var rails = new Dictionary<RailId, Rail> { [TrackRail] = MakeRail(lengthM: 100) };
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, cars, consists, compositions);
 
         Assert.IsType<LengthCheckOk>(result); // 境界値：超過ではなく一致はOK扱い
     }
@@ -234,7 +234,7 @@ public class EffectiveLengthCheckerTests
         };
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, Key, rails, platforms, train.StopTimes, cars, VehicleTypes, consists, compositions);
+            train, Key, rails, platforms, train.StopTimes, cars, consists, compositions);
 
         Assert.IsType<LengthCheckOk>(result);
     }
@@ -303,7 +303,7 @@ public class EffectiveLengthCheckerTests
         var rails = new Dictionary<RailId, Rail> { [TrackRail] = MakeRail(lengthM: 61) }; // 合計61.5m > 61m
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
-            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, carsDict, VehicleTypes, consists, compositions);
+            train, Key, rails, new Dictionary<PlatformId, Platform>(), train.StopTimes, carsDict, consists, compositions);
 
         var overflow = Assert.IsType<LengthCheckOverflow>(result);
         Assert.Equal(0.5, overflow.OverflowMeters, 3);

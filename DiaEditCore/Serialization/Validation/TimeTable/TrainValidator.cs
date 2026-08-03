@@ -6,11 +6,13 @@ namespace DiaEditCore.Serialization.Validation.Timetable;
 public sealed class TrainValidator : IValidator<Train>
 {
     private readonly StopTimeValidator _stopTimeValidator = new();
-    private readonly TrainOperationValidator _trainOperationValidator = new();
+    // private readonly TrainOperationValidator _trainOperationValidator = new();
+    private readonly DisplayNameValidator _displayNameValidator = new();
 
     public IReadOnlyList<IValidationIssue> Validate(Train target, ValidationContext context)
     {
         var issues = new List<IValidationIssue>();
+        issues.AddRange(_displayNameValidator.Validate(target.TrainTypeName, context));
 
         if (string.IsNullOrWhiteSpace(target.TrainNumber))
             issues.Add(new ValidationIssue($"Train({target.Id}): TrainNumberが空"));

@@ -6,9 +6,12 @@ namespace DiaEditCore.Serialization.Validation.Routes;
 
 public sealed class MainRouteValidator : IValidator<MainRoute>
 {
+    private readonly DisplayNameValidator _displayNameValidator = new();
+
     public IReadOnlyList<IValidationIssue> Validate(MainRoute target, ValidationContext context)
     {
-        var issues = new List<IValidationIssue>();
+        var issues = new List<IValidationIssue>(
+            _displayNameValidator.Validate(target.Name, context));
 
         // stationDisplayNameOverridesのキーは全てstationOrderに含まれる駅であること
         var stationOrderSet = new HashSet<StationId>(target.StationOrder);
