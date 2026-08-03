@@ -16,6 +16,16 @@ public class SwitcherValidatorTests
         Position = new Point(0, 0),
     };
 
+    private static Rail MakeRailToSwitcher(int railId, SwitcherId switcherId, int portIndex) => new()
+    {
+        Id = new RailId(railId),
+        LengthM = 10,
+        SpeedLimitKph = 25,
+        Role = RailRole.Normal,
+        EndpointA = new SwitcherEndpointRef(switcherId, portIndex),
+        EndpointB = new NoneEndpointRef(),
+    };
+
     [Fact]
     public void PortCountが5以上は不合格()
     {
@@ -90,7 +100,7 @@ public class SwitcherValidatorTests
     }
 
     [Fact]
-    public void PortCount3で正しいMechanismなら合格()
+    public void PortCount3で正しいMechanismかつ接続Rail数が一致すれば合格()
     {
         var s = new Switcher
         {
@@ -99,7 +109,13 @@ public class SwitcherValidatorTests
             PortCount = 3,
             Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
         };
-        var context = new ValidationContext();
+        var rails = new[]
+        {
+            MakeRailToSwitcher(1, s.Id, 0),
+            MakeRailToSwitcher(2, s.Id, 1),
+            MakeRailToSwitcher(3, s.Id, 2),
+        };
+        var context = new ValidationContext { Rails = rails };
 
         var issues = new SwitcherValidator().Validate(s, context);
 
@@ -167,5 +183,157 @@ public class SwitcherValidatorTests
         var issues = new SwitcherValidator().Validate(s, context);
 
         Assert.Contains(issues, i => i.Message.Contains("Halt駅"));
+    }
+
+    // ==== §8.2項目10：PortCountと実際に接続しているRail端点数の一致検証 ====
+
+    [Fact]
+    public void 接続Rail端点数がPortCountより少なければ不合格()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
+        };
+        var rails = new[]
+        {
+            MakeRailToSwitcher(1, s.Id, 0),
+            MakeRailToSwitcher(2, s.Id, 1),
+            // Port2に接続するRailが無い
+        };
+        var context = new ValidationContext { Rails = rails };
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("実際に接続しているRail端点数は2"));
+    }
+
+    [Fact]
+    public void 接続Rail端点数がPortCountより多ければ不合格()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
+        };
+        var rails = new[]
+        {
+            MakeRailToSwitcher(1, s.Id, 0),
+            MakeRailToSwitcher(2, s.Id, 1),
+            MakeRailToSwitcher(3, s.Id, 2),
+            MakeRailToSwitcher(4, s.Id, 2), // 余分な接続（Port2と重複）
+        };
+        var context = new ValidationContext { Rails = rails };
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("実際に接続しているRail端点数は4"));
+    }
+
+    [Fact]
+    public void 他のSwitcherを指すRailはカウント対象外()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
+        };
+        var otherSwitcherId = new SwitcherId(2);
+        var rails = new[]
+        {
+            MakeRailToSwitcher(1, s.Id, 0),
+            MakeRailToSwitcher(2, s.Id, 1),
+            MakeRailToSwitcher(3, s.Id, 2),
+            MakeRailToSwitcher(4, otherSwitcherId, 0), // 別Switcher宛。target(1)のカウントには影響しない
+        };
+        var context = new ValidationContext { Rails = rails };
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void EndpointBがtargetを指すRailもカウント対象()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
+        };
+        var rail = new Rail
+        {
+            Id = new RailId(1),
+            LengthM = 10,
+            SpeedLimitKph = 25,
+            Role = RailRole.Normal,
+            EndpointA = new NoneEndpointRef(),
+            EndpointB = new SwitcherEndpointRef(s.Id, 0), // EndpointB側
+        };
+        var rails = new[]
+        {
+            rail,
+            MakeRailToSwitcher(2, s.Id, 1),
+            MakeRailToSwitcher(3, s.Id, 2),
+        };
+        var context = new ValidationContext { Rails = rails };
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void 同一PortIndexを指すRail端点が複数あれば不合格()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
+        };
+        var rails = new[]
+        {
+            MakeRailToSwitcher(1, s.Id, 0),
+            MakeRailToSwitcher(2, s.Id, 0), // Port0の重複
+            MakeRailToSwitcher(3, s.Id, 1),
+        };
+        var context = new ValidationContext { Rails = rails };
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("PortIndex=0") && i.Message.Contains("配線異常"));
+    }
+
+    [Fact]
+    public void 接続Rail端点のPortIndexが範囲外なら不合格()
+    {
+        var s = new Switcher
+        {
+            Id = new SwitcherId(1),
+            Base = MakeBase(),
+            PortCount = 3,
+            Mechanism = new SwitchMechanism { RootPortIndex = 0, NormalPortIndex = 1, ReversePortIndex = 2 },
+        };
+        var rails = new[]
+        {
+            MakeRailToSwitcher(1, s.Id, 0),
+            MakeRailToSwitcher(2, s.Id, 1),
+            MakeRailToSwitcher(3, s.Id, 5), // PortCount=3の範囲外
+        };
+        var context = new ValidationContext { Rails = rails };
+
+        var issues = new SwitcherValidator().Validate(s, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("PortIndex=5") && i.Message.Contains("範囲外"));
     }
 }

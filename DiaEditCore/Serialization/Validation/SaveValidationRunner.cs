@@ -1,0 +1,114 @@
+using DiaEditCore.Model;
+
+using DiaEditCore.Serialization.Validation.Cars;
+using DiaEditCore.Serialization.Validation.Routes;
+using DiaEditCore.Serialization.Validation.Stations;
+using DiaEditCore.Serialization.Validation.Timetable;
+
+namespace DiaEditCore.Serialization.Validation;
+
+/// <summary>
+/// ProjectFile全体に対して全Validatorを実行し、issueの一覧を返す。
+/// 1件でもissueがあれば保存不可（本プロジェクトの運用ではValidationSeverity.Warning＝保存不可相当。
+/// 5.13節等参照）とみなす判断は呼び出し側（JsonProjectFileSerializer.Save）が行う。
+///
+/// 実装状況・既知のギャップ（v11.38、①ProjectFile設計セッションで判明）：
+///   - DisplayNameValidatorは特定の集約トップレベルコレクションを持たない（DisplayName型を
+///     フィールドとして持つ他オブジェクトの内部で個別に呼ばれる想定）ため、本Runnerでは呼び出さない。
+///     各Validator（StationValidator等）が自身のDisplayNameフィールドについて委譲済みかどうかは
+///     未確認。呼び出し漏れがないか次回確認が必要（§8.2への追加候補）。
+///   - InsertionConfigValidatorはInsertionConfig自体がv11.32でスコープ外・凍結されているため、
+///     対応するコレクションがProjectFileに存在せず、意図的に呼び出さない。
+///   - Train横断検証（Rule 2）はTrainOperationCrossValidator.Runへ委譲する（v11.38で確認済み。
+///     TrainOperationCrossValidator自体が「単一オブジェクトValidatorの契約に収まらない検証」専用の
+///     個別呼び出しランナーとして既に実装されていたため、本Runner側で重複実装しない）。
+///   - TrainOperationsコレクション自体（TrainOperation.OperationNumberの非空チェック等）を
+///     直接検証するValidatorが現時点で存在しない。必要になった時点で追加する。
+/// </summary>
+public static class SaveValidationRunner
+{
+    public static IReadOnlyList<IValidationIssue> ValidateAll(ProjectFile project)
+    {
+        var issues = new List<IValidationIssue>();
+        var context = project.ToValidationContext();
+
+        void Run<T>(IValidator<T> validator, IEnumerable<T> targets)
+        {
+            foreach (var target in targets)
+                issues.AddRange(validator.Validate(target, context));
+        }
+
+        // ── 駅構内オブジェクト ──
+        Run(new StationValidator(), project.Stations);
+        Run(new FloorUnitValidator(), project.FloorUnits);
+        Run(new RailValidator(), project.Rails);
+        Run(new EntryPointValidator(), project.EntryPoints);
+        Run(new BoundaryPointValidator(), project.BoundaryPoints);
+        Run(new SwitcherValidator(), project.Switchers);
+        Run(new BufferStopValidator(), project.BufferStops);
+        Run(new PlatformValidator(), project.Platforms);
+        Run(new StationPathValidator(), project.StationPaths);
+
+        // ── 路線網 ──
+        Run(new StationConnectionSegmentValidator(), project.StationConnectionSegments);
+        Run(new MainRouteValidator(), project.MainRoutes);
+        Run(new StationConnectionValidator(), project.StationConnections);
+        Run(new ServiceRouteValidator(), project.ServiceRoutes);
+
+        // ── 車両 ──
+        Run(new CarValidator(), project.Cars);
+        Run(new CarConsistValidator(), project.CarConsists);
+        Run(new CarCompositionValidator(), project.CarCompositions);
+        Run(new VehicleTypeValidator(), project.VehicleTypes);
+
+        // ── 時刻表 ──
+        Run(new TrainTypeValidator(), project.TrainTypes);
+        Run(new TrainValidator(), project.Trains);
+        Run(new TimeTableSetValidator(), project.TimeTableSets);
+        Run(new DiagramRevisionValidator(), project.DiagramRevisions);
+        Run(new TemporaryRestrictionValidator(), project.TemporaryRestrictions);
+        Run(new DisplayContextValidator(), project.DisplayContexts);
+
+        // ── プロジェクト設定（単一オブジェクト） ──
+        issues.AddRange(new ProjectSettingsValidator().Validate(project.ProjectSettings, context));
+
+        // ── Train横断検証（Rule 2：PrevTrainの運用番号継続性） ──
+        // TrainOperationCrossValidator.Runが「単一オブジェクトValidatorの契約に収まらない検証」
+        // 専用の個別呼び出しランナーとして既に実装済み（TrainOperationChainResolver・
+        // TrainConnectionResolverによるTrainCrossValidationData構築込み）のため、それをそのまま使う。
+        issues.AddRange(TrainOperationCrossValidator.Run(context, project.ProjectSettings));
+
+        return issues;
+    }
+
+    /// <summary>ProjectFile（保存の実体、List＋setter）からValidationContext（検証専用の参照束、IReadOnlyList＋init）への変換。
+    /// フィールド追加時の対応漏れを避けるため、変換ロジックをこの1箇所に集約する。</summary>
+    private static ValidationContext ToValidationContext(this ProjectFile project) => new()
+    {
+        Stations = project.Stations,
+        FloorUnits = project.FloorUnits,
+        Rails = project.Rails,
+        EntryPoints = project.EntryPoints,
+        BoundaryPoints = project.BoundaryPoints,
+        Switchers = project.Switchers,
+        BufferStops = project.BufferStops,
+        StationPaths = project.StationPaths,
+        StationConnectionSegments = project.StationConnectionSegments,
+        MainRoutes = project.MainRoutes,
+        StationConnections = project.StationConnections,
+        ServiceRoutes = project.ServiceRoutes,
+        Cars = project.Cars,
+        CarConsists = project.CarConsists,
+        CarCompositions = project.CarCompositions,
+        VehicleTypes = project.VehicleTypes,
+        TrainTypes = project.TrainTypes,
+        Trains = project.Trains,
+        TimeTableSets = project.TimeTableSets,
+        DiagramRevisions = project.DiagramRevisions,
+        TemporaryRestrictions = project.TemporaryRestrictions,
+        DisplayContexts = project.DisplayContexts,
+        TrainOperations = project.TrainOperations,
+        // 注意：project.Platformsに対応するプロパティはValidationContext側に未追加（Tao氏対応中）。
+        // 追加され次第、ここにも反映すること。
+    };
+}

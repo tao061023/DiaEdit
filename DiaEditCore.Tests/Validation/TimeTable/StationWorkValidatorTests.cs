@@ -114,11 +114,6 @@ public class StationWorkValidatorTests
         Assert.Contains(issues, i => i.Message.Contains("CutPoints"));
     }
 
-    // v11.33：TrainCutPoint.CarConsistId → CarCompositionIdに変更されたことに伴うフィールド名の追従。
-    // ※このテストが実際に緑になるには、StationWorkValidator.cs側の実装が
-    //   「context.CarConsistsからCarConsistIdを検索」ではなく「context.CarCompositionsから
-    //   CarCompositionIdを検索」に変わっている必要がある。StationWorkValidator.csが未アップロードの
-    //   ため、本体側の修正はまだ行っていない。アップロードされ次第、本体を修正する。
     [Fact]
     public void CutPoints内のCarCompositionIdが存在しなければエラー()
     {
@@ -213,7 +208,6 @@ public class StationWorkValidatorTests
         Assert.Contains(issues, i => i.Message.Contains("Position"));
     }
 
-    // 同上：StationWorkValidator.cs側の実装確認待ち（コメント参照）
     [Fact]
     public void StartOpConsist内のCarCompositionIdが存在しなければエラー()
     {
@@ -257,5 +251,207 @@ public class StationWorkValidatorTests
         var issues = Validator.Validate(work, EmptyContext);
 
         Assert.Empty(issues);
+    }
+
+    // ==== §8.2項目5：StartOpCarSlot/TrainCutPointのOperationNumber検証 ====
+
+    [Fact]
+    public void StartOpConsistのOperationNumberが実在するTrainOperationと一致すればエラーなし()
+    {
+        var trainOperation = new TrainOperation { Id = new TrainOperationId(1), OperationNumber = "101" };
+        var work = new StationWork
+        {
+            Type = StationWorkType.StartOp,
+            StartOpSeconds = 3600,
+            TrainOperationId = new TrainOperationId(1),
+            StartOpConsist =
+            [
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "101" },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [trainOperation],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void StartOpConsistのOperationNumberが実在するTrainOperationと一致しなければエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.StartOp,
+            StartOpSeconds = 3600,
+            TrainOperationId = new TrainOperationId(1),
+            StartOpConsist =
+            [
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "999" },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [], // 999は存在しない
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("StartOpConsist") && i.Message.Contains("OperationNumber"));
+    }
+
+    [Fact]
+    public void StartOpConsistのOperationNumberが空でTrainOperationId未設定ならエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.StartOp,
+            StartOpSeconds = 3600,
+            TrainOperationId = null, // 継承元が未設定
+            StartOpConsist =
+            [
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "" },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("継承指定") && i.Message.Contains("TrainOperationIdが未設定"));
+    }
+
+    [Fact]
+    public void StartOpConsistのOperationNumberが空でもTrainOperationId設定済みならエラーなし()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.StartOp,
+            StartOpSeconds = 3600,
+            TrainOperationId = new TrainOperationId(1),
+            StartOpConsist =
+            [
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "" },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Empty(issues);
+    }
+
+    [Fact]
+    public void Decoupling_CutPointsのOperationNumberが実在しなければエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Decoupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            CutPoints =
+            [
+                new TrainCutPoint { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "999" },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [], // 999は存在しない
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("Decoupling") && i.Message.Contains("OperationNumber") && i.Message.Contains("一致しない"));
+    }
+
+    [Fact]
+    public void Decoupling_CutPoints間でOperationNumberが重複していればエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Decoupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            CutPoints =
+            [
+                new TrainCutPoint { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "101" },
+                new TrainCutPoint { TrainId = new TrainId(1), Position = 1, CarCompositionId = new CarCompositionId(2), OperationNumber = "101" }, // 重複
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions =
+            [
+                new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) },
+                new CarComposition { Id = new CarCompositionId(2), Name = "トウ02", Identifier = 2, CarConsistId = new CarConsistId(1) },
+            ],
+            TrainOperations = [new TrainOperation { Id = new TrainOperationId(1), OperationNumber = "101" }],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("重複"));
+    }
+
+    [Fact]
+    public void Decoupling_CutPoints双方が空文字列継承ならOperationNumber重複エラーなし()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Decoupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            CutPoints =
+            [
+                new TrainCutPoint { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "" },
+                new TrainCutPoint { TrainId = new TrainId(1), Position = 1, CarCompositionId = new CarCompositionId(2), OperationNumber = "" },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions =
+            [
+                new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) },
+                new CarComposition { Id = new CarCompositionId(2), Name = "トウ02", Identifier = 2, CarConsistId = new CarConsistId(1) },
+            ],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.DoesNotContain(issues, i => i.Message.Contains("重複"));
+    }
+
+    [Fact]
+    public void Coupling_CutPointsのOperationNumberは実在しなくてもエラーにならない()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Coupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            CutPoints =
+            [
+                new TrainCutPoint { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(1), OperationNumber = "999" }, // Couplingは自由記述の履歴として許容
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [], // 999は存在しないが、Couplingなので対象外
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.DoesNotContain(issues, i => i.Message.Contains("OperationNumber"));
     }
 }

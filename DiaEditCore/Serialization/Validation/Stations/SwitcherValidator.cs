@@ -71,6 +71,42 @@ public sealed class SwitcherValidator : IValidator<Switcher>
         if (station?.Type == StationType.Halt)
             issues.Add(new ValidationIssue($"Switcher({target.Id}): Halt駅にはSwitcherを配置できない"));
 
+        // ★追加（§8.2項目10）：PortCountと実際に接続しているRail端点数の一致検証。
+        // Railは自身が接続するSwitcherを一方向参照する構造（SwitcherEndpointRef）のため、
+        // 全Rail（EndpointA/EndpointBの両方）を走査してtarget.Idを指すものを集める必要がある
+        // クロスオブジェクト検証。ValidationContext.Railsから引くだけで完結するため、
+        // SaveValidationRunnerを待たずSwitcherValidator側へ直接実装する（v11.27原則）。
+        var connectedPortIndices = new List<int>();
+        foreach (var rail in context.Rails)
+        {
+            if (rail.EndpointA is SwitcherEndpointRef a && a.Id == target.Id)
+                connectedPortIndices.Add(a.PortIndex);
+            if (rail.EndpointB is SwitcherEndpointRef b && b.Id == target.Id)
+                connectedPortIndices.Add(b.PortIndex);
+        }
+
+        if (connectedPortIndices.Count != n)
+        {
+            issues.Add(new ValidationIssue(
+                $"Switcher({target.Id}): PortCount={n} だが実際に接続しているRail端点数は{connectedPortIndices.Count}"));
+        }
+
+        var duplicatedPorts = connectedPortIndices
+            .GroupBy(p => p)
+            .Where(g => g.Count() > 1)
+            .Select(g => g.Key);
+        foreach (var dup in duplicatedPorts)
+        {
+            issues.Add(new ValidationIssue(
+                $"Switcher({target.Id}): PortIndex={dup} を指すRail端点が複数存在する（配線異常）"));
+        }
+
+        foreach (var p in connectedPortIndices.Distinct())
+        {
+            if (p < 0 || p >= n)
+                issues.Add(new ValidationIssue($"Switcher({target.Id}): 接続Rail端点のPortIndex={p} が0〜{n - 1}の範囲外"));
+        }
+
         return issues;
     }
 }

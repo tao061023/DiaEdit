@@ -18,6 +18,7 @@ public sealed class ValidationContext
     public IReadOnlyList<BoundaryPoint> BoundaryPoints { get; init; } = Array.Empty<BoundaryPoint>();
     public IReadOnlyList<Switcher> Switchers { get; init; } = Array.Empty<Switcher>();
     public IReadOnlyList<BufferStop> BufferStops { get; init; } = Array.Empty<BufferStop>();
+    public IReadOnlyList<Platform> Platforms { get; init; } = Array.Empty<Platform>();
     public IReadOnlyList<StationPath> StationPaths { get; init; } = Array.Empty<StationPath>();
 
     public IReadOnlyList<StationConnectionSegment> StationConnectionSegments { get; init; } = Array.Empty<StationConnectionSegment>();

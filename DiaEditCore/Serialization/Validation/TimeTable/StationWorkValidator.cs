@@ -93,6 +93,57 @@ public sealed class StationWorkValidator : IValidator<StationWork>
                 issues.Add(new ValidationIssue($"StationWork(StartOp): StartOpConsist内のCarCompositionId({slot.CarCompositionId})が存在しない"));
         }
 
+        // ★追加（§8.2項目5）：StartOpCarSlot.OperationNumberの検証
+        //   ・非空：TrainOperation実体（context.TrainOperations）との整合性を要求（論点A①、構造的防止寄り）
+        //   ・空文字列（継承指定）：継承元となるStationWork.TrainOperationIdが設定されていることを要求（論点C①）
+        foreach (var slot in target.StartOpConsist)
+        {
+            if (!string.IsNullOrEmpty(slot.OperationNumber))
+            {
+                if (!context.TrainOperations.Any(o => o.OperationNumber == slot.OperationNumber))
+                    issues.Add(new ValidationIssue(
+                        $"StationWork(StartOp): StartOpConsist(Position={slot.Position})のOperationNumber({slot.OperationNumber})が実在するTrainOperationと一致しない"));
+            }
+            else if (target.TrainOperationId is null)
+            {
+                issues.Add(new ValidationIssue(
+                    $"StationWork(StartOp): StartOpConsist(Position={slot.Position})のOperationNumberが空（継承指定）だが、継承元のTrainOperationIdが未設定"));
+            }
+        }
+
+        // ★追加（§8.2項目5）：TrainCutPoint.OperationNumberの検証
+        //   ・Coupling：併合前の運用番号の自由記述の履歴として扱い、実体整合性チェックは対象外（論点B①）
+        //   ・Decoupling：非空ならTrainOperation実体との整合性を要求（論点A①、Couplingのような除外はしない）。
+        //     さらに「増結・解結のある列車は解結時の最小構成ごとに独立した運用番号を割り当てる」という業務要件に基づき、
+        //     同一StationWork内でPositionの異なるCutPoints間でOperationNumberが重複していないことを要求する
+        //     （空文字列＝継承指定は特別扱いとして比較対象から除外する）。
+        if (target.Type == StationWorkType.Decoupling)
+        {
+            foreach (var cp in target.CutPoints)
+            {
+                if (!string.IsNullOrEmpty(cp.OperationNumber) &&
+                    !context.TrainOperations.Any(o => o.OperationNumber == cp.OperationNumber))
+                {
+                    issues.Add(new ValidationIssue(
+                        $"StationWork(Decoupling): CutPoints(Position={cp.Position})のOperationNumber({cp.OperationNumber})が実在するTrainOperationと一致しない"));
+                }
+            }
+
+            var nonEmptyOperationNumbers = target.CutPoints
+                .Select(cp => cp.OperationNumber)
+                .Where(n => !string.IsNullOrEmpty(n))
+                .ToList();
+            var duplicated = nonEmptyOperationNumbers
+                .GroupBy(n => n)
+                .Where(g => g.Count() > 1)
+                .Select(g => g.Key);
+            foreach (var dup in duplicated)
+            {
+                issues.Add(new ValidationIssue(
+                    $"StationWork(Decoupling): CutPoints間でOperationNumber({dup})が重複している（解結時の最小構成ごとに独立した運用番号が必要）"));
+            }
+        }
+
         return issues;
     }
 }
