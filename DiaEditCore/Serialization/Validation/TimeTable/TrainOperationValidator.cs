@@ -5,20 +5,24 @@ namespace DiaEditCore.Serialization.Validation.Timetable;
 
 public sealed class TrainCrossValidationData
 {
-    public IReadOnlyDictionary<TrainId, TrainOperationId> TrainOperationIndex { get; init; }
-        = new Dictionary<TrainId, TrainOperationId>();
+    // v11.44改訂：CarComposition単位に変更。TrainOperationChainResolver.Resolve()の出力そのもの
+    // （(Train,CarComposition)ホップごとのスナップショット）。
+    public IReadOnlyDictionary<(TrainId TrainId, CarCompositionId CarCompositionId), TrainOperationId> TrainOperationIndex { get; init; }
+        = new Dictionary<(TrainId, CarCompositionId), TrainOperationId>();
     public IReadOnlyDictionary<TrainId, TrainId> PrevTrainMap { get; init; }
         = new Dictionary<TrainId, TrainId>();
 }
 
+/// <summary>
+/// Rule 2（改訂）：PrevTrainOperationOverrideの各NewOperationIdは、直前Trainにおける同一
+/// CarCompositionIdの運用（TrainOperationIndex、Composition単位）と異なっていなければならない。
+/// v11.44改訂前はTrain単位のスカラー比較だったが、Composition単位のリスト比較に変更した。
+/// </summary>
 public sealed class TrainOperationValidator : IValidator<Train>
 {
-    // IValidator<Train>インターフェースの実装（契約を満たすために必須）。
-    // 横断データが渡されないケース（単体テスト等）では判定不能として空を返す。
     public IReadOnlyList<IValidationIssue> Validate(Train target, ValidationContext context)
         => Validate(target, context, crossData: null);
 
-    // TrainValidatorから直接呼ばれる本体。crossDataがあればRule 2を判定する。
     public IReadOnlyList<IValidationIssue> Validate(
         Train target,
         ValidationContext context,
@@ -30,19 +34,25 @@ public sealed class TrainOperationValidator : IValidator<Train>
             .SelectMany(st => st.Works)
             .FirstOrDefault(w => w.Type == StationWorkType.PrevTrain);
 
-        if (prevTrainWork?.TrainOperationId is not { } newOpId)
-            return issues; // 省略＝継承のみ。変更なしなのでRule 2の対象外
+        if (prevTrainWork is null || prevTrainWork.PrevTrainOperationOverrides.Count == 0)
+            return issues; // 省略＝全Composition継承のみ。変更なしなのでRule 2の対象外
 
         if (crossData is null)
             return issues; // 横断情報が無ければ判定不能
 
-        if (crossData.PrevTrainMap.TryGetValue(target.Id, out var prevTrainId) &&
-            crossData.TrainOperationIndex.TryGetValue(prevTrainId, out var prevOpId) &&
-            newOpId.Value == prevOpId.Value)
+        if (!crossData.PrevTrainMap.TryGetValue(target.Id, out var prevTrainId))
+            return issues; // 直前Trainが特定できない（起点Train等）
+
+        foreach (var ovr in prevTrainWork.PrevTrainOperationOverrides)
         {
-            issues.Add(new ValidationIssue(
-                $"Train({target.Id}): PrevTrainのTrainOperationId({newOpId})が直前のTrain({prevTrainId})の運用番号と同一" +
-                $"（Rule 2違反：無意味な運用番号変更）"));
+            if (crossData.TrainOperationIndex.TryGetValue((prevTrainId, ovr.CarCompositionId), out var prevOpId) &&
+                ovr.NewOperationId.Value == prevOpId.Value)
+            {
+                issues.Add(new ValidationIssue(
+                    $"Train({target.Id}): PrevTrainOperationOverride(CarCompositionId={ovr.CarCompositionId})の" +
+                    $"NewOperationId({ovr.NewOperationId})が直前のTrain({prevTrainId})における同一Compositionの" +
+                    $"運用番号と同一（Rule 2違反：無意味な運用番号変更）"));
+            }
         }
 
         return issues;

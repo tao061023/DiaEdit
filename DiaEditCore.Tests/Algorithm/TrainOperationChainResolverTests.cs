@@ -15,6 +15,8 @@ public class TrainOperationChainResolverTests
     // ヘルパー
     // -----------------------------
 
+    private static readonly CarCompositionId Comp1 = new(1);
+
     private static Train NewTrain(int id, string trainNumber = "1000M") => new()
     {
         Id = new TrainId(id),
@@ -44,16 +46,36 @@ public class TrainOperationChainResolverTests
             EnableConflictDetection: true,
             EnableCarLengthCheck: true), 14400);
 
+    /// <summary>StartOp。Comp1に対しResolvedOperationRef(trainOperationId)を1件持つ。
+    /// trainOperationId=nullの場合はProvisionalOperationRef（運用未確定）扱いとし、
+    /// チェーンの起点にならないことを表す（旧「TrainOperationId未設定」相当）。</summary>
     private static StationWork StartOp(int? trainOperationId)
         => new()
         {
             Type = StationWorkType.StartOp,
-            TrainOperationId = trainOperationId is { } id ? new TrainOperationId(id) : null,
+            StartOpConsist =
+            [
+                new StartOpCarSlot
+                {
+                    Position = 0,
+                    CarCompositionId = Comp1,
+                    OperationId = trainOperationId is { } id
+                        ? new ResolvedOperationRef(new TrainOperationId(id))
+                        : new ProvisionalOperationRef("未確定"),
+                },
+            ],
         };
 
-    /// <summary>PrevTrain。TrainOperationIdを設定すると運用番号変更（旧OpNumberChange相当）を表す。</summary>
+    /// <summary>PrevTrain。trainOperationIdを指定するとComp1に対する運用番号変更を表す（旧OpNumberChange相当）。
+    /// 省略時（null）はPrevTrainOperationOverridesが空＝全Composition継承。</summary>
     private static StationWork PrevTrain(int? trainOperationId = null)
-        => new() { Type = StationWorkType.PrevTrain, TrainOperationId = trainOperationId is { } id ? new TrainOperationId(id) : null };
+        => new()
+        {
+            Type = StationWorkType.PrevTrain,
+            PrevTrainOperationOverrides = trainOperationId is { } id
+                ? [new PrevTrainOperationOverride { CarCompositionId = Comp1, NewOperationId = new TrainOperationId(id) }]
+                : [],
+        };
 
     // -----------------------------
     // テスト
@@ -65,13 +87,12 @@ public class TrainOperationChainResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        // 終着訪問(VisitSequence=1)。到着情報なし＝NextTrainは見つからない
         train.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime();
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train.Id]);
+        Assert.Equal(new TrainOperationId(100), result[(train.Id, Comp1)]);
     }
 
     [Fact]
@@ -83,11 +104,11 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
 
-        Assert.False(result.ContainsKey(train.Id));
+        Assert.DoesNotContain(result.Keys, k => k.TrainId == train.Id);
     }
 
     [Fact]
-    public void StartOpのTrainOperationIdが未設定なら登録されない()
+    public void StartOpのOperationIdがProvisionalなら登録されない()
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
@@ -96,7 +117,7 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
 
-        Assert.False(result.ContainsKey(train.Id));
+        Assert.DoesNotContain(result.Keys, k => k.TrainId == train.Id);
     }
 
     [Fact]
@@ -106,7 +127,6 @@ public class TrainOperationChainResolverTests
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        // 終着訪問(VisitSequence=1)
         train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
@@ -116,8 +136,8 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1, train2], index, MakeSettings(minTurnaroundSec: 0));
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
-        Assert.Equal(new TrainOperationId(100), result[train2.Id]);
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(100), result[(train2.Id, Comp1)]);
     }
 
     [Fact]
@@ -131,7 +151,6 @@ public class TrainOperationChainResolverTests
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        // train2自身の起点StopTimeにPrevTrain(運用番号変更あり)を持たせる
         train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
         {
             ArrivalSeconds = -1,
@@ -143,8 +162,8 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1, train2], index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
-        Assert.Equal(new TrainOperationId(200), result[train2.Id]);
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(200), result[(train2.Id, Comp1)]);
     }
 
     [Fact]
@@ -160,12 +179,10 @@ public class TrainOperationChainResolverTests
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
         train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
-        // train2の終着訪問もVisitSequence=1(RunSegments.Count=1)
         train2.StopTimes[new StopKey(new StationId(3), 1)] = new StopTime { ArrivalSeconds = 2000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train3 = NewTrain(3, "1003M");
         AddRunSegment(train3, 3, 4);
-        // train3自身の起点StopTimeにPrevTrain(運用番号変更あり)を持たせる
         train3.StopTimes[new StopKey(new StationId(3), 0)] = new StopTime
         {
             ArrivalSeconds = -1,
@@ -178,9 +195,9 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
-        Assert.Equal(new TrainOperationId(100), result[train2.Id]);
-        Assert.Equal(new TrainOperationId(200), result[train3.Id]);
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(100), result[(train2.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(200), result[(train3.Id, Comp1)]);
     }
 
     [Fact]
@@ -194,7 +211,6 @@ public class TrainOperationChainResolverTests
         train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
         train1.StopTimes[new StopKey(new StationId(2), 1)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
-        // train2は番線が異なるため接続候補にならない
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
         train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = otherRail };
@@ -203,17 +219,13 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
-        Assert.False(result.ContainsKey(train2.Id)); // train2自身はStartOpを持たないため登録されない
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.DoesNotContain(result.Keys, k => k.TrainId == train2.Id);
     }
 
     [Fact]
     public void NextTrainCandidateがResolveに渡されたTrain集合に存在しなければチェーンはそこで終了する()
     {
-        // departureIndexはtrain1・train2の双方から構築するが、Resolve自体にはtrain1しか渡さない。
-        // これにより「参照整合性エラー（NextTrain候補が実在しない）」を人為的に再現する。
-        // 実際の保存データでは発生しないはずだが、発生した場合でも例外を投げず静かにチェーンを
-        // 打ち切ることを保証する（参照整合性そのものの検証はSaveValidationRunner側の責務）。
         var rail = new RailId(1);
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
@@ -227,8 +239,8 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1], index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
-        Assert.Single(result); // train2は起点集合(allTrains)に含まれないため、参照整合性エラーとして無視される
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.Single(result);
     }
 
     [Fact]
@@ -248,18 +260,13 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);
-        Assert.Equal(new TrainOperationId(300), result[train2.Id]);
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(300), result[(train2.Id, Comp1)]);
     }
 
     [Fact]
     public void 複数の到着列車が同じ出発列車に接続候補となっても運用チェーンは一意マッチングにより破綻しない()
     {
-        // train1(station2に1000着)・train3(station2に1500着)がともにtrain2(station2から1800発)を
-        // NextTrain候補として持つ場合、旧実装(ResolveNextTrain個別呼び出し)ではtrainsの走査順に
-        // 依存してresult[train2.Id]が不定になっていた（train1のOpId=100かtrain3のOpId=999のどちらで
-        // 上書きされるか未定義）。ResolveUniqueNextTrainMapにより、乗継時間最短(train3)のみが
-        // train2に接続し、train1は単独チェーンとして終端する。
         var rail = new RailId(1);
 
         var train1 = NewTrain(1, "1001M");
@@ -280,8 +287,8 @@ public class TrainOperationChainResolverTests
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
-        Assert.Equal(new TrainOperationId(100), result[train1.Id]);   // train1は単独チェーンのまま
-        Assert.Equal(new TrainOperationId(999), result[train3.Id]);   // train3がtrain2に接続
-        Assert.Equal(new TrainOperationId(999), result[train2.Id]);   // train2はtrain3の運用番号を引き継ぐ（100ではない）
+        Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(999), result[(train3.Id, Comp1)]);
+        Assert.Equal(new TrainOperationId(999), result[(train2.Id, Comp1)]);
     }
 }

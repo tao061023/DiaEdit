@@ -4,8 +4,6 @@ using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.TimeTable;
 
 using DiaEditCore.Algorithm;
-using System.Transactions;
-using System.Diagnostics.CodeAnalysis;
 
 namespace DiaEditCore.Algorithm;
 
@@ -23,8 +21,7 @@ public static class EffectiveLengthChecker
         IReadOnlyDictionary<PlatformId, Platform> platforms,
         IReadOnlyDictionary<StopKey, StopTime> stopTimes,
         IReadOnlyDictionary<CarId, Car> cars,
-        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
-        IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
+        ConsistResolutionContext consistContext)
     {
         // --- StopTime の取得 ---
         if (!stopTimes.TryGetValue(stopKey, out var stopTime))
@@ -36,8 +33,8 @@ public static class EffectiveLengthChecker
 
         var railId = stopTime.TrackRailId.Value;
 
-        // --- 編成復元（CarConsistResolver を使用。v11.33：CarComposition経由の2段参照） ---
-        var consist = CarConsistResolver.ResolveConsistAt(train, stopKey, carConsists, carCompositions);
+        // --- 編成復元（CarConsistResolver を使用。v11.44：ConsistResolutionContextへ集約） ---
+        var consist = CarConsistResolver.ResolveConsistAt(train, stopKey, consistContext);
 
         // --- 編成長の計算（Car.LengthM の合計） ---
         double totalLength = consist.Cars

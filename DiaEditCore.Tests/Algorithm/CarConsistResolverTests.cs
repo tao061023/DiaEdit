@@ -34,7 +34,6 @@ public class CarConsistResolverTests
             StationConnectionId = new StationConnectionId(1),
         });
 
-    // CarConsist：編成の"型"（ひな形）。Name/Identifierは持たない（v11.33でCarCompositionへ移動）。
     private static CarConsist MakeConsist(int id, params int[] carIds)
     {
         var cars = carIds.Select((carId, i) => new CarRef { CarId = new CarId(carId), Position = i }).ToList();
@@ -47,8 +46,6 @@ public class CarConsistResolverTests
         };
     }
 
-    // CarComposition：実運用編成の実体。ここではテストの見通しを保つため、
-    // compositionIdとconsistIdを同一の数値で対応付ける（1:1マッピング）。
     private static CarComposition MakeComposition(int id, int carConsistId)
         => new()
         {
@@ -64,14 +61,23 @@ public class CarConsistResolverTests
     private static Dictionary<CarCompositionId, CarComposition> MakeCompositionDict(params CarComposition[] compositions)
         => compositions.ToDictionary(c => c.Id);
 
-    private static StartOpCarSlot Slot(int position, int carCompositionId)
-        => new() { Position = position, CarCompositionId = new CarCompositionId(carCompositionId) };
+    // テストでは運用IDの実在チェックはCarConsistResolverの対象外（Validator層の責務）なので、
+    // 適当なResolvedOperationRefを都度払い出すだけでよい。
+    private static OperationRef Op(int id) => new ResolvedOperationRef(new TrainOperationId(id));
 
-    private static TrainCutPoint CutPoint(int trainId, int position, int carCompositionId)
-        => new() { TrainId = new TrainId(trainId), Position = position, CarCompositionId = new CarCompositionId(carCompositionId) };
+    private static StartOpCarSlot Slot(int position, int carCompositionId, OperationRef? operationId = null)
+        => new() { Position = position, CarCompositionId = new CarCompositionId(carCompositionId), OperationId = operationId ?? Op(carCompositionId) };
+
+    private static CutGroup Cut(int groupIndex, int carCompositionId, OperationRef? operationId = null)
+        => new() { GroupIndex = groupIndex, CarCompositionId = new CarCompositionId(carCompositionId), OperationId = operationId ?? Op(carCompositionId) };
+
+    private static ConsistResolutionContext SimpleContext(
+        Dictionary<CarConsistId, CarConsist> consists,
+        Dictionary<CarCompositionId, CarComposition> compositions)
+        => ConsistResolutionContext.Empty(consists, compositions);
 
     // -----------------------------
-    // テスト
+    // テスト（StartOp単体、SplitOrigin/Decoupling/Couplingを使わないもの）
     // -----------------------------
 
     [Fact]
@@ -90,7 +96,7 @@ public class CarConsistResolverTests
         var consists = MakeConsistDict(MakeConsist(10, 1, 2), MakeConsist(20, 3));
         var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
 
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), consists, compositions);
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), SimpleContext(consists, compositions));
 
         Assert.Equal(new[] { new CarCompositionId(10), new CarCompositionId(20) }, result.ConsistBlocks);
         Assert.Equal(3, result.Cars.Count);
@@ -104,7 +110,7 @@ public class CarConsistResolverTests
         var consists = MakeConsistDict();
         var compositions = MakeCompositionDict();
 
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), consists, compositions);
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), SimpleContext(consists, compositions));
 
         Assert.Empty(result.ConsistBlocks);
         Assert.Empty(result.Cars);
@@ -123,93 +129,9 @@ public class CarConsistResolverTests
         var consists = MakeConsistDict(MakeConsist(10, 1));
         var compositions = MakeCompositionDict(MakeComposition(10, 10));
 
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(1), 0), consists, compositions);
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(1), 0), SimpleContext(consists, compositions));
 
         Assert.Empty(result.ConsistBlocks);
-    }
-
-    [Fact]
-    public void Decoupling後は自Trainに残る側のCutPointsのみに置き換わる()
-    {
-        var train = NewTrain(1);
-        AddRunSegment(train, 1, 2);
-        AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
-        {
-            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
-        };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
-        {
-            Works = [new StationWork
-            {
-                Type = StationWorkType.Decoupling,
-                CutPoints = [CutPoint(1, 0, 10), CutPoint(2, 0, 20)], // TrainId=2側は別Trainへ切り出し
-            }],
-        };
-        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(20, 2));
-        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
-
-        var beforeDecoupling = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(1), 0), consists, compositions);
-        var afterDecoupling = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), consists, compositions);
-
-        Assert.Equal(new[] { new CarCompositionId(10), new CarCompositionId(20) }, beforeDecoupling.ConsistBlocks);
-        Assert.Equal(new[] { new CarCompositionId(10) }, afterDecoupling.ConsistBlocks);
-    }
-
-    [Fact]
-    public void Coupling後はTrainIdを問わずCutPoints全件がPosition順に連結される()
-    {
-        var train = NewTrain(1);
-        AddRunSegment(train, 1, 2);
-        AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
-        {
-            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
-        };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
-        {
-            Works = [new StationWork
-            {
-                Type = StationWorkType.Coupling,
-                CutPoints = [CutPoint(2, 0, 20), CutPoint(1, 1, 10)], // 他Train由来(20)が0番、自Train(10)が1番
-            }],
-        };
-        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(20, 2));
-        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
-
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), consists, compositions);
-
-        Assert.Equal(new[] { new CarCompositionId(20), new CarCompositionId(10) }, result.ConsistBlocks);
-    }
-
-    [Fact]
-    public void 同一駅を複数回訪問するループ線でVisitSequenceにより区別される()
-    {
-        var train = NewTrain(1);
-        AddRunSegment(train, 1, 2);
-        AddRunSegment(train, 2, 1); // 駅1を再訪（ループ）
-        AddRunSegment(train, 1, 3);
-
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
-        {
-            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
-        };
-        train.StopTimes[new StopKey(new StationId(1), 1)] = new StopTime // 2回目の駅1でDecoupling
-        {
-            Works = [new StationWork
-            {
-                Type = StationWorkType.Decoupling,
-                CutPoints = [CutPoint(1, 0, 30)],
-            }],
-        };
-        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(30, 2));
-        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(30, 30));
-
-        var atFirstVisit = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), consists, compositions);
-        var atThirdStation = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), consists, compositions);
-
-        Assert.Equal(new[] { new CarCompositionId(10) }, atFirstVisit.ConsistBlocks);
-        Assert.Equal(new[] { new CarCompositionId(30) }, atThirdStation.ConsistBlocks);
     }
 
     [Fact]
@@ -224,7 +146,7 @@ public class CarConsistResolverTests
         var consists = MakeConsistDict(MakeConsist(10, 1, 2), MakeConsist(20, 3, 4));
         var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
 
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), consists, compositions);
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), SimpleContext(consists, compositions));
 
         Assert.Equal(new[] { new CarId(1), new CarId(2), new CarId(3), new CarId(4) }, result.Cars.Select(c => c.CarId));
     }
@@ -241,7 +163,7 @@ public class CarConsistResolverTests
         var consists = MakeConsistDict(MakeConsist(10, 1));
         var compositions = MakeCompositionDict(MakeComposition(10, 10));
 
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(999), 0), consists, compositions);
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(999), 0), SimpleContext(consists, compositions));
 
         Assert.Empty(result.ConsistBlocks);
     }
@@ -249,22 +171,184 @@ public class CarConsistResolverTests
     [Fact]
     public void 複数のCompositionが同じConsist_型_を共有していてもそれぞれ正しく展開される()
     {
-        // CarComposition"トウ01"と"トウ02"が同じCarConsist(型)を共有するケース。
-        // v11.33で追加された多対1関係（CarComposition N : CarConsist 1）を明示的に検証する。
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 101)] }],
         };
-        var sharedConsist = MakeConsist(10, 1, 2); // 型は1つ
+        var sharedConsist = MakeConsist(10, 1, 2);
         var consists = MakeConsistDict(sharedConsist);
-        // composition101と102はどちらもconsist(10)を参照する（102は本テストでは未使用だが多対1を明示する目的で残す）
         var compositions = MakeCompositionDict(MakeComposition(101, 10), MakeComposition(102, 10));
 
-        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), consists, compositions);
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), SimpleContext(consists, compositions));
 
         Assert.Equal(new[] { new CarCompositionId(101) }, result.ConsistBlocks);
         Assert.Equal(new[] { new CarId(1), new CarId(2) }, result.Cars.Select(c => c.CarId));
+    }
+
+    [Fact]
+    public void 同一駅を複数回訪問するループ線でVisitSequenceにより区別される()
+    {
+        var train = NewTrain(1);
+        AddRunSegment(train, 1, 2);
+        AddRunSegment(train, 2, 1); // 駅1を再訪（ループ）
+        AddRunSegment(train, 1, 3);
+
+        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        {
+            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
+        };
+        // 2回目の駅1でCoupling（自Train唯一のCutGroupなので単純にGroupIndex=0のみ）
+        train.StopTimes[new StopKey(new StationId(1), 1)] = new StopTime
+        {
+            Works = [new StationWork
+            {
+                Type = StationWorkType.Coupling,
+                CutGroups = [Cut(0, 30)],
+            }],
+        };
+        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(30, 2));
+        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(30, 30));
+
+        var atFirstVisit = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(2), 0), SimpleContext(consists, compositions));
+        var atThirdStation = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), SimpleContext(consists, compositions));
+
+        Assert.Equal(new[] { new CarCompositionId(10) }, atFirstVisit.ConsistBlocks);
+        Assert.Equal(new[] { new CarCompositionId(30) }, atThirdStation.ConsistBlocks);
+    }
+
+    // -----------------------------
+    // テスト（Decoupling/Coupling：v11.44改訂、GroupIndex＋SplitGroupAssignmentResolver方式）
+    // -----------------------------
+
+    [Fact]
+    public void Decoupling後は自Trainに割り当てられたGroupIndexのCutGroupsのみに置き換わる()
+    {
+        // 分割元Train(1)は前方(GroupIndex=0、Composition=10)をそのまま継続する。
+        // 後方(GroupIndex=1、Composition=20)は別Train(SplitOriginRef経由)へ渡る想定だが、
+        // このテストはCarConsistResolver単体の挙動確認のため、SplitGroupAssignmentsへ
+        // 「Train(1)はGroupIndex=0を継続する」という割当を直接与える。
+        var train = NewTrain(1);
+        AddRunSegment(train, 1, 2);
+        AddRunSegment(train, 2, 3);
+        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        {
+            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
+        };
+        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            Works = [new StationWork
+            {
+                Type = StationWorkType.Decoupling,
+                CutGroups = [Cut(0, 10), Cut(1, 20)],
+            }],
+        };
+        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(20, 2));
+        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
+        var splitGroupAssignments = new Dictionary<TrainId, int> { [train.Id] = 0 };
+        var context = new ConsistResolutionContext(
+            consists, compositions, splitGroupAssignments, new Dictionary<TrainId, Train>());
+
+        var beforeDecoupling = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(1), 0), context);
+        var afterDecoupling = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), context);
+
+        Assert.Equal(new[] { new CarCompositionId(10), new CarCompositionId(20) }, beforeDecoupling.ConsistBlocks);
+        Assert.Equal(new[] { new CarCompositionId(10) }, afterDecoupling.ConsistBlocks);
+    }
+
+    [Fact]
+    public void Decoupling後にSplitGroupAssignmentsへの割当が無ければ空を返す()
+    {
+        // データ不整合ケース（SplitGroupAssignmentResolverが割当を決定できなかった場合）。
+        // 例外を投げず空を返すことをここで固定しておく（Validator側で検出させる方針）。
+        var train = NewTrain(1);
+        AddRunSegment(train, 1, 2);
+        AddRunSegment(train, 2, 3);
+        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        {
+            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
+        };
+        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            Works = [new StationWork { Type = StationWorkType.Decoupling, CutGroups = [Cut(0, 10)] }],
+        };
+        var consists = MakeConsistDict(MakeConsist(10, 1));
+        var compositions = MakeCompositionDict(MakeComposition(10, 10));
+        var context = ConsistResolutionContext.Empty(consists, compositions); // SplitGroupAssignmentsは空
+
+        var afterDecoupling = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), context);
+
+        Assert.Empty(afterDecoupling.ConsistBlocks);
+    }
+
+    [Fact]
+    public void Coupling後はGroupIndexを問わず全CutGroupsがGroupIndex順に連結される()
+    {
+        var train = NewTrain(1);
+        AddRunSegment(train, 1, 2);
+        AddRunSegment(train, 2, 3);
+        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        {
+            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
+        };
+        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            Works = [new StationWork
+            {
+                Type = StationWorkType.Coupling,
+                CutGroups = [Cut(0, 20), Cut(1, 10)], // 他Train由来(20)がGroupIndex=0、自Train(10)が1
+            }],
+        };
+        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(20, 2));
+        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
+
+        var result = CarConsistResolver.ResolveConsistAt(train, new StopKey(new StationId(3), 0), SimpleContext(consists, compositions));
+
+        Assert.Equal(new[] { new CarCompositionId(20), new CarCompositionId(10) }, result.ConsistBlocks);
+    }
+
+    [Fact]
+    public void SplitOriginRef経由の新Trainは分割元TrainのDecouplingから割当GroupIndexの編成を引き継ぐ()
+    {
+        // origin: Train(1)がStation2でDecoupling（GroupIndex 0=先頭継続、1=新Train行き）
+        var origin = NewTrain(1);
+        AddRunSegment(origin, 1, 2);
+        AddRunSegment(origin, 2, 3);
+        origin.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        {
+            Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
+        };
+        var originDecouplingStopKey = new StopKey(new StationId(2), 0);
+        origin.StopTimes[originDecouplingStopKey] = new StopTime
+        {
+            Works = [new StationWork
+            {
+                Type = StationWorkType.Decoupling,
+                CutGroups = [Cut(0, 10), Cut(1, 20)],
+            }],
+        };
+
+        // 新Train(2)：SplitOriginRef経由でGroupIndex=1（Composition=20）を引き継ぐ
+        var newTrain = NewTrain(2);
+        AddRunSegment(newTrain, 2, 4);
+        newTrain.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        {
+            Works = [new StationWork
+            {
+                Type = StationWorkType.PrevTrain,
+                SplitOrigin = new SplitOriginRef { OriginTrainId = origin.Id, OriginStopKey = originDecouplingStopKey },
+            }],
+        };
+
+        var consists = MakeConsistDict(MakeConsist(10, 1), MakeConsist(20, 2));
+        var compositions = MakeCompositionDict(MakeComposition(10, 10), MakeComposition(20, 20));
+        var splitGroupAssignments = new Dictionary<TrainId, int> { [newTrain.Id] = 1 };
+        var allTrainsById = new Dictionary<TrainId, Train> { [origin.Id] = origin, [newTrain.Id] = newTrain };
+        var context = new ConsistResolutionContext(consists, compositions, splitGroupAssignments, allTrainsById);
+
+        var result = CarConsistResolver.ResolveConsistAt(newTrain, new StopKey(new StationId(4), 0), context);
+
+        Assert.Equal(new[] { new CarCompositionId(20) }, result.ConsistBlocks);
     }
 }

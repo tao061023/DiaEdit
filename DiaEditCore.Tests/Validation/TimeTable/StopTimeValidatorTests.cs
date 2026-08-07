@@ -14,6 +14,8 @@ public class StopTimeValidatorTests
     private static readonly StopTimeValidator Validator = new();
     private static readonly ValidationContext EmptyContext = new();
 
+    private static OperationRef DummyProvisional() => new ProvisionalOperationRef("履歴");
+
     [Fact]
     public void Worksが空ならエラーなし()
     {
@@ -32,7 +34,7 @@ public class StopTimeValidatorTests
             Works = new List<StationWork>
             {
                 new() { Type = StationWorkType.PrevTrain },
-                new() { Type = StationWorkType.StartOp, StartOpSeconds = 0, TrainOperationId = new TrainOperationId(1) },
+                new() { Type = StationWorkType.StartOp, StartOpSeconds = 0 },
             },
         };
 
@@ -72,9 +74,9 @@ public class StopTimeValidatorTests
                     Type = StationWorkType.Coupling,
                     StartOpSeconds = 100,
                     EndOpSeconds = 200,
-                    CutPoints = new List<TrainCutPoint>
+                    CutGroups = new List<CutGroup>
                     {
-                        new() { TrainId = new TrainId(1), Position = 0, CarCompositionId = new CarCompositionId(1) },
+                        new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = DummyProvisional() },
                     },
                 },
             },
@@ -112,7 +114,7 @@ public class StopTimeValidatorTests
             Works = new List<StationWork>
             {
                 new() { Type = StationWorkType.EndOp, EndOpSeconds = 200 },
-                new() { Type = StationWorkType.StartOp, StartOpSeconds = 100, TrainOperationId = new TrainOperationId(1) },
+                new() { Type = StationWorkType.StartOp, StartOpSeconds = 100 },
             },
         };
 

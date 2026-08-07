@@ -5,25 +5,37 @@ using DiaEditCore.Model.TimeTable;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.7節：StartOp.startOpConsist（＝出区時点のconsistSequence）を起点として、
-/// 以降のCoupling/Decouplingイベント（CutPoints）を時系列順にたどることで
+/// 6.7節：StartOp.startOpConsist、またはPrevTrain.SplitOrigin経由で他Trainのconsistsequenceを
+/// 起点として、以降のCoupling/Decouplingイベント（CutGroups）を時系列順にたどることで
 /// 任意時点の実編成を復元する。都度導出・非保存。
 ///
-/// スコープ：対象Train自身のWorks列のみを走査する（他Trainを検索しない）。
-/// TrainCutPoint.TrainIdは相手Trainの識別情報であり、他Trainの編成の中身は
-/// CutPoint.CarCompositionIdにすでに確定値として書き込まれている前提（合意済み）。
-///
-/// v11.33：CarConsist（編成の"型"／ひな形）とCarComposition（実運用編成の実体、
-/// 例:"トウ01"）の分離に伴い、StartOpCarSlot/TrainCutPointが指すのはCarCompositionId
-/// になった。実車両列（Cars）を取るには CarComposition → CarConsist → Cars の
-/// 2段参照が必要になる。
+/// v11.44改訂セッションでの変更：CutGroup.TrainIdが廃止されたことに伴い、「自Trainがどの
+/// GroupIndexを引き継いだか」は自Trainの情報だけでは判定できなくなった（分割元Train自身の
+/// 継続分と兄弟Train群の発車順比較が必要なため）。そのためSplitGroupAssignmentResolver
+/// （全Train横断）の出力を必須の追加引数として受け取る形に変更した。
+/// 「他Trainへのグラフ探索は行わない」という従来のスコープの一部が崩れている点に注意
+/// （SplitOrigin経由の起点特定でoriginTrainの1StopTimeのみを読む、という1回限りの参照は維持）。
 /// </summary>
+/// <summary>
+/// CarConsistResolver.ResolveConsistAtへ渡す横断参照データをまとめたもの。
+/// SplitOrigin/Decoupling/Couplingを一切使わない単純なテスト・呼び出しでは
+/// ConsistResolutionContext.Empty(carConsists, carCompositions)で足りる。
+/// </summary>
+public sealed record ConsistResolutionContext(
+    IReadOnlyDictionary<CarConsistId, CarConsist> CarConsists,
+    IReadOnlyDictionary<CarCompositionId, CarComposition> CarCompositions,
+    IReadOnlyDictionary<TrainId, int> SplitGroupAssignments,
+    IReadOnlyDictionary<TrainId, Train> AllTrainsById)
+{
+    public static ConsistResolutionContext Empty(
+        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
+        IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
+        => new(carConsists, carCompositions,
+            new Dictionary<TrainId, int>(), new Dictionary<TrainId, Train>());
+}
+
 public static class CarConsistResolver
 {
-    /// <summary>
-    /// ある時点の実編成。ConsistBlocksはPosition順のCarCompositionId列（編成ブロック単位）、
-    /// CarsはConsistBlocksを順に展開したCarRef列（6.8節EffectiveLengthChecker等が使用）。
-    /// </summary>
     public sealed record ResolvedConsist(
         IReadOnlyList<CarCompositionId> ConsistBlocks,
         IReadOnlyList<CarRef> Cars);
@@ -31,15 +43,18 @@ public static class CarConsistResolver
     private static readonly ResolvedConsist Empty = new(Array.Empty<CarCompositionId>(), Array.Empty<CarRef>());
 
     /// <summary>
-    /// train自身のWorks列をStartOpから対象stopKeyまで時系列順にたどり、実編成を復元する。
-    /// StartOpが見つからない場合、または対象stopKeyがStartOpより先行する場合は空を返す（例外は投げない）。
+    /// train自身のWorks列をStartOp（またはPrevTrain.SplitOrigin）から対象stopKeyまで時系列順にたどり、
+    /// 実編成を復元する。起点が見つからない場合、または対象stopKeyが起点より先行する場合は空を返す。
     /// </summary>
     public static ResolvedConsist ResolveConsistAt(
         Train train,
         StopKey stopKey,
-        IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
-        IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
+        ConsistResolutionContext context)
     {
+        var carConsists = context.CarConsists;
+        var carCompositions = context.CarCompositions;
+        var splitGroupAssignments = context.SplitGroupAssignments;
+        var allTrainsById = context.AllTrainsById;
         var visitedKeys = BuildVisitedStopKeys(train);
         var targetIndex = visitedKeys.IndexOf(stopKey);
         if (targetIndex < 0) return Empty;
@@ -63,22 +78,36 @@ public static class CarConsistResolver
                             .ToList();
                         break;
 
+                    // 新設：分割由来の新Trainは、StartOpの代わりにPrevTrain.SplitOriginを起点とする
+                    case StationWorkType.PrevTrain when startIndex < 0 && work.SplitOrigin is { } origin:
+                        startIndex = i;
+                        current = ResolveSplitOriginConsist(train.Id, origin, allTrainsById, splitGroupAssignments);
+                        break;
+
                     case StationWorkType.Decoupling when startIndex >= 0:
-                        // 自Train内完結：CutPointsのうちTrainId == train.Idのものだけを残す
-                        // （他Trainに切り出された側は以後の系列から除外。他Trainは検索しない）
-                        current = work.CutPoints
-                            .Where(cp => cp.TrainId == train.Id)
-                            .OrderBy(cp => cp.Position)
-                            .Select(cp => cp.CarCompositionId)
-                            .ToList();
+                        // v11.44改訂：CutGroup.TrainIdが廃止されたため、自TrainがどのGroupIndexを
+                        // 引き継いだかはSplitGroupAssignmentResolverの結果を参照する。
+                        if (splitGroupAssignments.TryGetValue(train.Id, out var myGroupIndex))
+                        {
+                            current = work.CutGroups
+                                .Where(cg => cg.GroupIndex == myGroupIndex)
+                                .OrderBy(cg => cg.GroupIndex)
+                                .Select(cg => cg.CarCompositionId)
+                                .ToList();
+                        }
+                        else
+                        {
+                            // 割当が見つからない＝データ不整合。SplitOriginCrossValidator側で検出される想定。
+                            current = new List<CarCompositionId>();
+                        }
                         break;
 
                     case StationWorkType.Coupling when startIndex >= 0:
-                        // 自Train内完結：CutPoints全件をPosition順に連結する
-                        // （TrainIdが自分か他人かは問わない。他Trainの中身はCarCompositionIdに確定済み）
-                        current = work.CutPoints
-                            .OrderBy(cp => cp.Position)
-                            .Select(cp => cp.CarCompositionId)
+                        // 自Train内完結：CutGroups全件をGroupIndex順に連結する
+                        // （他Trainの中身はCarCompositionIdに確定済み。TrainIdは元々不要）
+                        current = work.CutGroups
+                            .OrderBy(cg => cg.GroupIndex)
+                            .Select(cg => cg.CarCompositionId)
                             .ToList();
                         break;
                 }
@@ -100,12 +129,26 @@ public static class CarConsistResolver
         return new ResolvedConsist(current, cars);
     }
 
-    /// <summary>
-    /// Train.RunSegments（先頭のFromStationId＋各要素のToStationId）から訪問駅列を作り、
-    /// 同一駅の再訪をVisitSequenceのインクリメントで区別したStopKey列を構築する（ループ線対応）。
-    /// internal化（8.2節項目7、v11.25）：TrainValidatorの「終着駅かどうか」判定でも同一ロジックを
-    /// 再利用するため、単一の真実の源として本メソッドをAlgorithm層の公開APIとする。
-    /// </summary>
+    private static List<CarCompositionId> ResolveSplitOriginConsist(
+        TrainId trainId,
+        SplitOriginRef origin,
+        IReadOnlyDictionary<TrainId, Train> allTrainsById,
+        IReadOnlyDictionary<TrainId, int> splitGroupAssignments)
+    {
+        if (!allTrainsById.TryGetValue(origin.OriginTrainId, out var originTrain)) return new List<CarCompositionId>();
+        if (!originTrain.StopTimes.TryGetValue(origin.OriginStopKey, out var originStop)) return new List<CarCompositionId>();
+
+        var decoupling = originStop.Works.FirstOrDefault(w => w.Type == StationWorkType.Decoupling);
+        if (decoupling is null) return new List<CarCompositionId>();
+        if (!splitGroupAssignments.TryGetValue(trainId, out var myGroupIndex)) return new List<CarCompositionId>();
+
+        return decoupling.CutGroups
+            .Where(cg => cg.GroupIndex == myGroupIndex)
+            .OrderBy(cg => cg.GroupIndex)
+            .Select(cg => cg.CarCompositionId)
+            .ToList();
+    }
+
     internal static List<StopKey> BuildVisitedStopKeys(Train train)
     {
         var stations = new List<StationId>();
