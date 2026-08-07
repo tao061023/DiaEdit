@@ -1,4 +1,3 @@
-// DiaEditCore/Algorithm/RunTimeCalculator.cs
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 

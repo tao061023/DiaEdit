@@ -1,7 +1,7 @@
 using DiaEditCore.Model;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Algorithm;
 

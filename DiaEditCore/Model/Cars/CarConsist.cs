@@ -12,6 +12,6 @@ public sealed class CarConsist
 {
     public required CarConsistId Id { get; set; }
     public required VehicleTypeId VehicleTypeId { get; set; }
-    public required CarConsistType Type { get; set; } // Basic / Attached
+    public required CarConsistType Type { get; set; }
     public required List<CarRef> Cars { get; set; }
 }

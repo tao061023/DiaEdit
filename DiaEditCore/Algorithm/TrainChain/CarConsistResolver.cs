@@ -1,6 +1,6 @@
 using DiaEditCore.Model;
 using DiaEditCore.Model.Cars;
-using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 namespace DiaEditCore.Algorithm;
 

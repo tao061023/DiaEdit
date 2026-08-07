@@ -1,6 +1,6 @@
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Algorithm;
 using DiaEditCore.Serialization.Validation;

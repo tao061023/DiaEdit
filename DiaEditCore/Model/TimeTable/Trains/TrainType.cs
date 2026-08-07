@@ -1,4 +1,4 @@
-namespace DiaEditCore.Model.TimeTable;
+namespace DiaEditCore.Model.TimeTable.Trains;
 
 public enum LineStyle { Solid, Dashed, Dotted } // 具体的な値は7章UI実装時に確定
 

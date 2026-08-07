@@ -1,3 +1,3 @@
 namespace DiaEditCore.Model;
 
-public readonly record struct Point(double X, double Y);
+public readonly record struct Point(int X, int Y);

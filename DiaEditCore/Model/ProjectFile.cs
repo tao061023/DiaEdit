@@ -2,6 +2,7 @@ using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 namespace DiaEditCore.Model;
 

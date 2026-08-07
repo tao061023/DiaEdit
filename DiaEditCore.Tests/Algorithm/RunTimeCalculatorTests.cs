@@ -1,4 +1,3 @@
-// DiaEditCore.Tests/Algorithm/RunTimeCalculatorTests.cs
 using DiaEditCore.Algorithm;
 
 using DiaEditCore.Model;

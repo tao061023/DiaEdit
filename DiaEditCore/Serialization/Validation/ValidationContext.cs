@@ -5,6 +5,7 @@ using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
 /// 他オブジェクトを跨いだ検証に必要な参照一式。

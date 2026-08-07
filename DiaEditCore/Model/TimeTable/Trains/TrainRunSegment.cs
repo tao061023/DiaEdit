@@ -1,4 +1,4 @@
-namespace DiaEditCore.Model.TimeTable;
+namespace DiaEditCore.Model.TimeTable.Trains;
 
 public sealed class TrainRunSegment
 {

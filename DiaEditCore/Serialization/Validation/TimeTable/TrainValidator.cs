@@ -1,5 +1,5 @@
 using DiaEditCore.Algorithm;
-using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 namespace DiaEditCore.Serialization.Validation.Timetable;
 
