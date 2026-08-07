@@ -3,8 +3,6 @@ using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.TimeTable.Trains;
 
-using DiaEditCore.Algorithm;
-
 namespace DiaEditCore.Algorithm;
 
 public abstract record LengthCheckResult;

@@ -3,7 +3,7 @@ using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
 
-namespace DiaEditCore.Algorithm;
+namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
 /// StationConnectionSegment（駅間）用途のConflictChecker（6.5節）：全Trainを走査し、

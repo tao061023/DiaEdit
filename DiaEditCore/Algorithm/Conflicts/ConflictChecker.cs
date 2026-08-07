@@ -1,7 +1,6 @@
 using DiaEditCore.Model;
-using DiaEditCore.Model.TimeTable;
 
-namespace DiaEditCore.Algorithm;
+namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
 /// 交差支障検知（6.5節）：あるオブジェクトを列車が占有しているとき、別の列車が同じオブジェクトを

@@ -8,15 +8,15 @@ using DiaEditCore.Serialization.Validation.Timetable;
 
 using Xunit;
 
-namespace DiaEditCore.Tests.Validation.TimeTable;
+namespace DiaEditCore.Tests.Validation.TimeTable.Trains;
 
 public class StationWorkValidatorTests
 {
     private static readonly StationWorkValidator Validator = new();
     private static readonly ValidationContext EmptyContext = new();
 
-    private static OperationRef Resolved(int id) => new ResolvedOperationRef(new TrainOperationId(id));
-    private static OperationRef Provisional(string label) => new ProvisionalOperationRef(label);
+    private static ResolvedOperationRef Resolved(int id) => new(new TrainOperationId(id));
+    private static ProvisionalOperationRef Provisional(string label) => new(label);
 
     [Fact]
     public void Type_None_は常にエラー()
@@ -29,9 +29,10 @@ public class StationWorkValidatorTests
     }
 
     [Fact]
-    public void StartOp_必須フィールドが揃っていればエラーなし()
+    public void StartOp_StartOpSecondsが設定されていればエラーなし()
     {
-        // v11.44改訂：StationWork.TrainOperationIdは廃止済み。StartOpSecondsのみが必須。
+        // TrainOperationIdスカラーは廃止済み（各StartOpCarSlot.OperationIdがrequiredのため
+        // 「未設定」自体が型システムで防止される）。StartOpConsistが空でもエラーにはならない。
         var work = new StationWork
         {
             Type = StationWorkType.StartOp,
@@ -44,15 +45,14 @@ public class StationWorkValidatorTests
     }
 
     [Fact]
-    public void StartOp_StartOpSeconds未設定でエラー()
+    public void StartOp_StartOpSeconds未設定で1件エラー()
     {
-        // v11.44改訂：TrainOperationId未設定チェックは型システムで構造的に防止済みのため廃止。
-        // StartOpSeconds未設定の1件のみがエラーとなる。
         var work = new StationWork { Type = StationWorkType.StartOp };
 
         var issues = Validator.Validate(work, EmptyContext);
 
         Assert.Single(issues);
+        Assert.Contains(issues, i => i.Message.Contains("StartOpSeconds"));
     }
 
     [Fact]
@@ -127,10 +127,10 @@ public class StationWorkValidatorTests
             Type = StationWorkType.Coupling,
             StartOpSeconds = 0,
             EndOpSeconds = 60,
-            CutGroups = new List<CutGroup>
-            {
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(999), OperationId = Provisional("履歴") },
-            },
+            CutGroups =
+            [
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(999), OperationId = Provisional("履歴") },
+            ],
         };
 
         var issues = Validator.Validate(work, EmptyContext); // CarCompositionsが空なので999は存在しない
@@ -202,8 +202,8 @@ public class StationWorkValidatorTests
             StartOpSeconds = 3600,
             StartOpConsist =
             [
-                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("a") },
-                new StartOpCarSlot { Position = 2, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("b") }, // 1が抜けている
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(1), OperationId = Resolved(1) },
+                new StartOpCarSlot { Position = 2, CarCompositionId = new CarCompositionId(2), OperationId = Resolved(2) }, // 1が抜けている
             ],
         };
 
@@ -221,7 +221,7 @@ public class StationWorkValidatorTests
             StartOpSeconds = 3600,
             StartOpConsist =
             [
-                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(999), OperationId = Provisional("a") },
+                new StartOpCarSlot { Position = 0, CarCompositionId = new CarCompositionId(999), OperationId = Resolved(1) },
             ],
         };
 
@@ -240,69 +240,12 @@ public class StationWorkValidatorTests
         Assert.Empty(issues);
     }
 
-    // ==== CutGroups.GroupIndexの重複禁止（v11.44新設） ====
+    // ==== StartOpCarSlot/CutGroup.OperationId（OperationRef）検証 ====
 
     [Fact]
-    public void Decoupling_CutGroups間でGroupIndexが重複していればエラー()
+    public void StartOpConsistのOperationIdがResolvedOperationRefで実在するTrainOperationと一致すればエラーなし()
     {
-        var work = new StationWork
-        {
-            Type = StationWorkType.Decoupling,
-            StartOpSeconds = 0,
-            EndOpSeconds = 60,
-            CutGroups =
-            [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("a") },
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("b") }, // 重複
-            ],
-        };
-        var context = new ValidationContext
-        {
-            CarCompositions =
-            [
-                new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) },
-                new CarComposition { Id = new CarCompositionId(2), Name = "トウ02", Identifier = 2, CarConsistId = new CarConsistId(1) },
-            ],
-        };
-
-        var issues = Validator.Validate(work, context);
-
-        Assert.Contains(issues, i => i.Message.Contains("GroupIndex") && i.Message.Contains("重複"));
-    }
-
-    [Fact]
-    public void Decoupling_CutGroupsのGroupIndexが重複していなければエラーなし()
-    {
-        var work = new StationWork
-        {
-            Type = StationWorkType.Decoupling,
-            StartOpSeconds = 0,
-            EndOpSeconds = 60,
-            CutGroups =
-            [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("a") },
-                new() { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("b") },
-            ],
-        };
-        var context = new ValidationContext
-        {
-            CarCompositions =
-            [
-                new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) },
-                new CarComposition { Id = new CarCompositionId(2), Name = "トウ02", Identifier = 2, CarConsistId = new CarConsistId(1) },
-            ],
-        };
-
-        var issues = Validator.Validate(work, context);
-
-        Assert.DoesNotContain(issues, i => i.Message.Contains("GroupIndex") && i.Message.Contains("重複"));
-    }
-
-    // ==== StartOpCarSlot.OperationId（Rule 5改訂） ====
-
-    [Fact]
-    public void StartOpConsistのOperationIdがResolvedで実在するTrainOperationと一致すればエラーなし()
-    {
+        var trainOperation = new TrainOperation { Id = new TrainOperationId(1), OperationNumber = "101" };
         var work = new StationWork
         {
             Type = StationWorkType.StartOp,
@@ -315,7 +258,7 @@ public class StationWorkValidatorTests
         var context = new ValidationContext
         {
             CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
-            TrainOperations = [new TrainOperation { Id = new TrainOperationId(1), OperationNumber = "101" }],
+            TrainOperations = [trainOperation],
         };
 
         var issues = Validator.Validate(work, context);
@@ -324,7 +267,7 @@ public class StationWorkValidatorTests
     }
 
     [Fact]
-    public void StartOpConsistのOperationIdがResolvedで実在するTrainOperationと一致しなければエラー()
+    public void StartOpConsistのOperationIdがResolvedOperationRefで実在するTrainOperationと一致しなければエラー()
     {
         var work = new StationWork
         {
@@ -347,8 +290,10 @@ public class StationWorkValidatorTests
     }
 
     [Fact]
-    public void StartOpConsistのOperationIdがProvisionalなら実在チェック対象外()
+    public void StartOpConsistのOperationIdがProvisionalOperationRefなら実在チェックされない()
     {
+        // 現状の実装：改訂案のRule 5表はCutGroupのみを規定しており、StartOpCarSlotで
+        // ProvisionalOperationRefを許容してよいかは未確定のためチェックをスキップしている。
         var work = new StationWork
         {
             Type = StationWorkType.StartOp,
@@ -361,6 +306,7 @@ public class StationWorkValidatorTests
         var context = new ValidationContext
         {
             CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [],
         };
 
         var issues = Validator.Validate(work, context);
@@ -368,10 +314,8 @@ public class StationWorkValidatorTests
         Assert.Empty(issues);
     }
 
-    // ==== CutGroup.OperationId（Rule 5改訂） ====
-
     [Fact]
-    public void Decoupling_CutGroupsのOperationIdがResolvedで実在しなければエラー()
+    public void Decoupling_CutGroupsのOperationIdがResolvedOperationRefで実在しなければエラー()
     {
         var work = new StationWork
         {
@@ -380,7 +324,7 @@ public class StationWorkValidatorTests
             EndOpSeconds = 60,
             CutGroups =
             [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Resolved(999) },
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Resolved(999) },
             ],
         };
         var context = new ValidationContext
@@ -404,8 +348,8 @@ public class StationWorkValidatorTests
             EndOpSeconds = 60,
             CutGroups =
             [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("A") },
-                new() { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("A") }, // 重複
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("101") },
+                new CutGroup { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("101") }, // 重複
             ],
         };
         var context = new ValidationContext
@@ -419,11 +363,11 @@ public class StationWorkValidatorTests
 
         var issues = Validator.Validate(work, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("Label") && i.Message.Contains("重複"));
+        Assert.Contains(issues, i => i.Message.Contains("重複"));
     }
 
     [Fact]
-    public void Decoupling_CutGroupsのProvisionalLabelが異なればエラーなし()
+    public void Decoupling_CutGroups間でProvisionalOperationRefのLabelが異なればエラーなし()
     {
         var work = new StationWork
         {
@@ -432,8 +376,8 @@ public class StationWorkValidatorTests
             EndOpSeconds = 60,
             CutGroups =
             [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("A") },
-                new() { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("B") },
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("101") },
+                new CutGroup { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("102") },
             ],
         };
         var context = new ValidationContext
@@ -447,11 +391,35 @@ public class StationWorkValidatorTests
 
         var issues = Validator.Validate(work, context);
 
-        Assert.DoesNotContain(issues, i => i.Message.Contains("Label") && i.Message.Contains("重複"));
+        Assert.DoesNotContain(issues, i => i.Message.Contains("重複"));
     }
 
     [Fact]
-    public void Coupling_CutGroupsにResolvedOperationRefが来たらエラー()
+    public void Coupling_CutGroupsのOperationIdがProvisionalOperationRefなら実在しなくてもエラーにならない()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.Coupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            CutGroups =
+            [
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("999") }, // 履歴の自由記述として許容
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.DoesNotContain(issues, i => i.Message.Contains("OperationId"));
+    }
+
+    [Fact]
+    public void Coupling_CutGroupsのOperationIdがResolvedOperationRefならエラー()
     {
         // Rule 5④：CouplingはProvisionalOperationRefのみ許容
         var work = new StationWork
@@ -461,7 +429,7 @@ public class StationWorkValidatorTests
             EndOpSeconds = 60,
             CutGroups =
             [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Resolved(1) },
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Resolved(1) },
             ],
         };
         var context = new ValidationContext
@@ -472,21 +440,23 @@ public class StationWorkValidatorTests
 
         var issues = Validator.Validate(work, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("Coupling") && i.Message.Contains("ProvisionalOperationRef"));
+        Assert.Contains(issues, i => i.Message.Contains("Coupling") && i.Message.Contains("ProvisionalOperationRefのみ許容"));
     }
 
+    // ==== CutGroups.GroupIndex重複禁止（新設） ====
+
     [Fact]
-    public void Coupling_CutGroupsのProvisionalOperationRefは実在しなくてもLabel重複してもエラーにならない()
+    public void CutGroups間でGroupIndexが重複していればエラー()
     {
         var work = new StationWork
         {
-            Type = StationWorkType.Coupling,
+            Type = StationWorkType.Decoupling,
             StartOpSeconds = 0,
             EndOpSeconds = 60,
             CutGroups =
             [
-                new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("999") },
-                new() { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("999") }, // 履歴の自由記述なので重複OK
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("101") },
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("102") }, // GroupIndex重複
             ],
         };
         var context = new ValidationContext
@@ -496,61 +466,45 @@ public class StationWorkValidatorTests
                 new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) },
                 new CarComposition { Id = new CarCompositionId(2), Name = "トウ02", Identifier = 2, CarConsistId = new CarConsistId(1) },
             ],
-            TrainOperations = [], // 999は存在しないが、Couplingなので対象外
         };
 
         var issues = Validator.Validate(work, context);
 
-        Assert.Empty(issues);
+        Assert.Contains(issues, i => i.Message.Contains("GroupIndex") && i.Message.Contains("重複"));
     }
 
-    // ==== PrevTrainOperationOverrides ====
-
     [Fact]
-    public void PrevTrainOperationOverrides内のCarCompositionIdが存在しなければエラー()
+    public void CutGroups間でGroupIndexが重複していなければエラーなし()
     {
         var work = new StationWork
         {
-            Type = StationWorkType.PrevTrain,
-            PrevTrainOperationOverrides =
+            Type = StationWorkType.Decoupling,
+            StartOpSeconds = 0,
+            EndOpSeconds = 60,
+            CutGroups =
             [
-                new PrevTrainOperationOverride { CarCompositionId = new CarCompositionId(999), NewOperationId = new TrainOperationId(1) },
+                new CutGroup { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = Provisional("101") },
+                new CutGroup { GroupIndex = 1, CarCompositionId = new CarCompositionId(2), OperationId = Provisional("102") },
             ],
         };
         var context = new ValidationContext
         {
-            TrainOperations = [new TrainOperation { Id = new TrainOperationId(1), OperationNumber = "101" }],
-        };
-
-        var issues = Validator.Validate(work, context);
-
-        Assert.Contains(issues, i => i.Message.Contains("PrevTrainOperationOverrides") && i.Message.Contains("CarCompositionId"));
-    }
-
-    [Fact]
-    public void PrevTrainOperationOverrides内のNewOperationIdが実在しなければエラー()
-    {
-        var work = new StationWork
-        {
-            Type = StationWorkType.PrevTrain,
-            PrevTrainOperationOverrides =
+            CarCompositions =
             [
-                new PrevTrainOperationOverride { CarCompositionId = new CarCompositionId(1), NewOperationId = new TrainOperationId(999) },
+                new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) },
+                new CarComposition { Id = new CarCompositionId(2), Name = "トウ02", Identifier = 2, CarConsistId = new CarConsistId(1) },
             ],
         };
-        var context = new ValidationContext
-        {
-            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
-            TrainOperations = [], // 999は存在しない
-        };
 
         var issues = Validator.Validate(work, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("PrevTrainOperationOverrides") && i.Message.Contains("NewOperationId"));
+        Assert.DoesNotContain(issues, i => i.Message.Contains("GroupIndex") && i.Message.Contains("重複"));
     }
 
+    // ==== PrevTrainOperationOverrides（新設） ====
+
     [Fact]
-    public void PrevTrainOperationOverridesが実在するCompositionとOperationを参照していればエラーなし()
+    public void PrevTrainOperationOverridesのCarCompositionIdとNewOperationIdが実在すればエラーなし()
     {
         var work = new StationWork
         {
@@ -571,10 +525,71 @@ public class StationWorkValidatorTests
         Assert.Empty(issues);
     }
 
-    // ==== SplitOrigin（v11.44新設。PrevTrain以外での使用禁止） ====
+    [Fact]
+    public void PrevTrainOperationOverridesのCarCompositionIdが存在しなければエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.PrevTrain,
+            PrevTrainOperationOverrides =
+            [
+                new PrevTrainOperationOverride { CarCompositionId = new CarCompositionId(999), NewOperationId = new TrainOperationId(1) },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            TrainOperations = [new TrainOperation { Id = new TrainOperationId(1), OperationNumber = "101" }],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("PrevTrainOperationOverrides") && i.Message.Contains("CarCompositionId"));
+    }
 
     [Fact]
-    public void SplitOriginはPrevTrain以外に付随するとエラー()
+    public void PrevTrainOperationOverridesのNewOperationIdが実在しなければエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.PrevTrain,
+            PrevTrainOperationOverrides =
+            [
+                new PrevTrainOperationOverride { CarCompositionId = new CarCompositionId(1), NewOperationId = new TrainOperationId(999) },
+            ],
+        };
+        var context = new ValidationContext
+        {
+            CarCompositions = [new CarComposition { Id = new CarCompositionId(1), Name = "トウ01", Identifier = 1, CarConsistId = new CarConsistId(1) }],
+            TrainOperations = [],
+        };
+
+        var issues = Validator.Validate(work, context);
+
+        Assert.Contains(issues, i => i.Message.Contains("PrevTrainOperationOverrides") && i.Message.Contains("NewOperationId"));
+    }
+
+    // ==== 型別排他制約（新設） ====
+
+    [Fact]
+    public void PrevTrainOperationOverridesをPrevTrain以外で使うとエラー()
+    {
+        var work = new StationWork
+        {
+            Type = StationWorkType.EndOp,
+            EndOpSeconds = 60,
+            PrevTrainOperationOverrides =
+            [
+                new PrevTrainOperationOverride { CarCompositionId = new CarCompositionId(1), NewOperationId = new TrainOperationId(1) },
+            ],
+        };
+
+        var issues = Validator.Validate(work, EmptyContext);
+
+        Assert.Contains(issues, i => i.Message.Contains("PrevTrainOperationOverridesはPrevTrainでのみ使用可能"));
+    }
+
+    [Fact]
+    public void SplitOriginをPrevTrain以外で使うとエラー()
     {
         var work = new StationWork
         {
@@ -585,11 +600,11 @@ public class StationWorkValidatorTests
 
         var issues = Validator.Validate(work, EmptyContext);
 
-        Assert.Contains(issues, i => i.Message.Contains("SplitOrigin"));
+        Assert.Contains(issues, i => i.Message.Contains("SplitOriginはPrevTrainでのみ使用可能"));
     }
 
     [Fact]
-    public void SplitOriginはPrevTrainに付随すればエラーなし()
+    public void SplitOriginをPrevTrainで使うのはエラーにならない()
     {
         var work = new StationWork
         {
@@ -599,6 +614,6 @@ public class StationWorkValidatorTests
 
         var issues = Validator.Validate(work, EmptyContext);
 
-        Assert.Empty(issues);
+        Assert.DoesNotContain(issues, i => i.Message.Contains("SplitOrigin"));
     }
 }

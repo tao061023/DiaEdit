@@ -1,13 +1,13 @@
 using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.Conflicts;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
-using DiaEditCore.Serialization.Validation;
 
 using Xunit;
 
-namespace DiaEditCore.Tests.Algorithm;
+namespace DiaEditCore.Tests.Algorithm.Conflicts;
 
 public class TrackOccupancyProviderTests
 {

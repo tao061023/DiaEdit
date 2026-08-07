@@ -3,7 +3,7 @@ using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
 
-namespace DiaEditCore.Algorithm;
+namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
 /// Track（番線）用途のConflictChecker（6.5節）：全Trainを走査し、番線ごとの占有区間を構築する。

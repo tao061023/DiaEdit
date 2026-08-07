@@ -36,7 +36,7 @@ public sealed class ProjectFile
 
     public required ProjectSettings ProjectSettings { get; set; }
 
-    // ── 駅構内オブジェクト（5.1〜5.7節） ──
+    // ── 駅構内オブジェクト ──
     public List<Station> Stations { get; set; } = new();
     public List<FloorUnit> FloorUnits { get; set; } = new();
     public List<Rail> Rails { get; set; } = new();
@@ -47,19 +47,19 @@ public sealed class ProjectFile
     public List<Platform> Platforms { get; set; } = new(); // ★v11.38追加：ValidationContext側の追加漏れも合わせて修正
     public List<StationPath> StationPaths { get; set; } = new();
 
-    // ── 路線網（5.8〜5.9節） ──
+    // ── 路線網 ──
     public List<StationConnectionSegment> StationConnectionSegments { get; set; } = new();
     public List<MainRoute> MainRoutes { get; set; } = new();
     public List<StationConnection> StationConnections { get; set; } = new();
     public List<ServiceRoute> ServiceRoutes { get; set; } = new();
 
-    // ── 車両（5.10節） ──
+    // ── 車両 ──
     public List<Car> Cars { get; set; } = new();
     public List<CarConsist> CarConsists { get; set; } = new();
     public List<CarComposition> CarCompositions { get; set; } = new();
     public List<VehicleType> VehicleTypes { get; set; } = new();
 
-    // ── 時刻表（5.11〜5.15節） ──
+    // ── 時刻表 ──
     public List<TrainType> TrainTypes { get; set; } = new();
     public List<Train> Trains { get; set; } = new();
     public List<TimeTableSet> TimeTableSets { get; set; } = new();

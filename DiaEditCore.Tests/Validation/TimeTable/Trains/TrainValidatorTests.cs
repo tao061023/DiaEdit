@@ -9,7 +9,7 @@ using DiaEditCore.Serialization.Validation.Timetable;
 
 using Xunit;
 
-namespace DiaEditCore.Tests.Validation.TimeTable;
+namespace DiaEditCore.Tests.Validation.TimeTable.Trains;
 public class TrainValidatorTests
 {
     private static ServiceRoute MakeServiceRoute(int id) => new()

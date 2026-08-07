@@ -1,7 +1,7 @@
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 
-namespace DiaEditCore.Algorithm;
+namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
 /// 6.5節「統一グルーピング方式」：StationPathが占有する対象オブジェクトID群を求め、
