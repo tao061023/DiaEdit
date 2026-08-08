@@ -61,6 +61,7 @@ public class StationConnectionSegmentOccupancyProviderTests
     private static Train NewTrain(int id, string trainNumber) => new()
     {
         Id = new TrainId(id),
+        TimeTableSetId = new TimeTableSetId(1),
         TrainNumber = trainNumber,
         ServiceRouteId = new ServiceRouteId(1),
         TrainTypeId = new TrainTypeId(1),
@@ -81,7 +82,7 @@ public class StationConnectionSegmentOccupancyProviderTests
             DepartureSeconds = departureSeconds,
             TrackRailId = TrackA,
         };
-        train.StopTimes[new StopKey(StB, 1)] = new StopTime
+        train.StopTimes[new StopKey(StB, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = arrivalSeconds,

@@ -27,6 +27,7 @@ public class TrainConnectionResolverTests
     private static Train NewTrain(int id, string trainNumber) => new()
     {
         Id = new TrainId(id),
+        TimeTableSetId = new TimeTableSetId(1),
         TrainNumber = trainNumber,
         ServiceRouteId = new ServiceRouteId(1),
         TrainTypeId = new TrainTypeId(1),
@@ -38,8 +39,9 @@ public class TrainConnectionResolverTests
     /// <summary>
     /// 到着駅(stationId)にArrivalSeconds/TrackRailIdを持つ「終着列車」を1本作る。
     /// RunSegmentsは [dummyFrom -> stationId] の1本のみ。
-    /// 終着訪問のVisitSequenceはRunSegments.Count(=1)であるため、StopTimeはStopKey(stationId, 1)に登録する
-    /// （StopKey(stationId, 0)は始発訪問用のキーであり、終着訪問のキーとして流用してはならない）。
+    /// VisitCountは駅ごとのローカルな来訪回数（StopKeySequenceBuilder参照）であり、
+    /// stationIdはこのTrain内で1回しか訪問されないため、経路上の位置に関わらず常にVisitCount=0となる
+    /// （dummyFromはstationIdと異なる駅なので、始発訪問(dummyFrom側)とは衝突しない）。
     /// </summary>
     private static Train MakeArrivingTrain(int id, StationId stationId, int arrivalSeconds, RailId? trackRailId, string trainNumber = "")
     {
@@ -51,7 +53,7 @@ public class TrainConnectionResolverTests
             ToStationId = stationId,
             StationConnectionId = new StationConnectionId(1),
         });
-        train.StopTimes[new StopKey(stationId, train.RunSegments.Count)] = new StopTime
+        train.StopTimes[new StopKey(stationId, 0)] = new StopTime
         {
             ArrivalSeconds = arrivalSeconds,
             DepartureSeconds = -1,
@@ -107,7 +109,7 @@ public class TrainConnectionResolverTests
             DepartureSeconds = departureSeconds,
             TrackRailId = departureRail,
         };
-        train.StopTimes[new StopKey(toStationId, 1)] = new StopTime
+        train.StopTimes[new StopKey(toStationId, 0)] = new StopTime
         {
             ArrivalSeconds = arrivalSeconds,
             DepartureSeconds = -1,
@@ -250,14 +252,14 @@ public class TrainConnectionResolverTests
             ToStationId = station,
             StationConnectionId = new StationConnectionId(1),
         });
-        // 終着訪問(VisitSequence=1)として登録する
-        train.StopTimes[new StopKey(station, 1)] = new StopTime
+        // 終着訪問として登録する（stationはこのTrain内で1回しか訪問しないためVisitCountは常に0）
+        train.StopTimes[new StopKey(station, 0)] = new StopTime
         {
             ArrivalSeconds = 1000,
             DepartureSeconds = 1300, // 折返し発車（このStopTime自体はTrain自身の終着訪問データであり、
-                                      // BuildDepartureIndexが参照する「始発訪問(VisitSequence=0)」の
-                                      // FromStationId=9999には対応するStopTimeが無いため、
-                                      // このTrainは発車インデックスに一切登録されない）
+                                    // BuildDepartureIndexが参照する「始発訪問(VisitCount=0)」の
+                                    // FromStationId=9999には対応するStopTimeが無いため、
+                                    // このTrainは発車インデックスに一切登録されない）
             TrackRailId = rail,
         };
 

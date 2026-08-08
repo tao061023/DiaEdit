@@ -4,7 +4,7 @@ using DiaEditCore.Model.TimeTable.Trains;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.4節：駅の同一番線を使用する終着・始発列車を時刻順に走査して
+/// 駅の同一番線を使用する終着・始発列車を時刻順に走査して
 /// PrevTrain/NextTrainを導出する。都度導出・非保存（Train自身はPrevTrainId/NextTrainId
 /// を保持しない）。OpNumberが未設定のTrainに対しても、折り返し・接続候補をUI表示できるようにする。
 ///
@@ -12,11 +12,11 @@ namespace DiaEditCore.Algorithm;
 /// をBuildDepartureIndexで構築し、ResolveNextTrainCandidatesはこのインデックスを引き当てるだけで
 /// 候補を求める（全Train走査のO(N)ではなく、該当駅・番線分のみのO(K)）。
 ///
-/// 一意マッチングについて（v11.24で追加）：
+/// 一意マッチングについて：
 /// ResolveNextTrainCandidates／ResolveNextTrainは、到着列車ごとに独立して「最短接続となる
 /// 出発列車」を選ぶAPIのため、複数の到着列車が同じ出発列車を候補として選びうる（非単射）。
 /// これはUI上の接続候補表示（ユーザーに選択肢を見せる用途）としては正しい挙動だが、
-/// TrackOccupancyProvider（6.5節）・TrainOperationChainResolver（6.12節）のように
+/// TrackOccupancyProvider・TrainOperationChainResolverのように
 /// 「物理的に一意な折り返しペア」を前提とする用途では非単射なマッチングをそのまま使うと
 /// 誤ったTrack占有の重複や運用チェーンの上書きを引き起こす。
 ///
@@ -45,14 +45,14 @@ public static class TrainConnectionResolver
         {
             if (train.RunSegments.Count == 0) continue;
 
-            var startStationId = train.RunSegments[0].FromStationId;
-            var departureStopTime = FindStopTimeForStation(train, startStationId, 0);
+            if (StopKeyAt(train, 0) is not { } departureStopKey) continue;
+            var departureStopTime = FindStopTimeAt(train, departureStopKey);
             if (departureStopTime is null || departureStopTime.DepartureSeconds < 0 || departureStopTime.TrackRailId is null)
             {
                 continue;
             }
 
-            var key = (startStationId, departureStopTime.TrackRailId.Value);
+            var key = (departureStopKey.StationId, departureStopTime.TrackRailId.Value);
             if (!index.TryGetValue(key, out var list))
             {
                 list = new List<(int, TrainId)>();
@@ -89,8 +89,12 @@ public static class TrainConnectionResolver
     {
         if (arrivingTrain.RunSegments.Count == 0) return Array.Empty<ConnectionCandidate>();
 
-        var terminalStationId = arrivingTrain.RunSegments[^1].ToStationId;
-        var arrivalStopTime = FindStopTimeForStation(arrivingTrain, terminalStationId, arrivingTrain.RunSegments.Count);
+        if (StopKeyAt(arrivingTrain, arrivingTrain.RunSegments.Count) is not { } arrivalStopKey)
+        {
+            return Array.Empty<ConnectionCandidate>();
+        }
+        var terminalStationId = arrivalStopKey.StationId;
+        var arrivalStopTime = FindStopTimeAt(arrivingTrain, arrivalStopKey);
         if (arrivalStopTime is null || arrivalStopTime.ArrivalSeconds < 0 || arrivalStopTime.TrackRailId is null)
         {
             return Array.Empty<ConnectionCandidate>();
@@ -165,8 +169,8 @@ public static class TrainConnectionResolver
         {
             if (arrivingTrain.RunSegments.Count == 0) continue;
 
-            var terminalStationId = arrivingTrain.RunSegments[^1].ToStationId;
-            var arrivalStopTime = FindStopTimeForStation(arrivingTrain, terminalStationId, arrivingTrain.RunSegments.Count);
+            if (StopKeyAt(arrivingTrain, arrivingTrain.RunSegments.Count) is not { } arrivalStopKey) continue;
+            var arrivalStopTime = FindStopTimeAt(arrivingTrain, arrivalStopKey);
             if (arrivalStopTime is null || arrivalStopTime.ArrivalSeconds < 0) continue;
 
             var candidates = ResolveNextTrainCandidates(arrivingTrain, departureIndex, settings);
@@ -218,6 +222,14 @@ public static class TrainConnectionResolver
         return result;
     }
 
-    private static StopTime? FindStopTimeForStation(Train train, StationId stationId, int visitSequence)
-        => train.StopTimes.TryGetValue(new StopKey(stationId, visitSequence), out var st) ? st : null;
+    // 変更後
+    private static StopTime? FindStopTimeAt(Train train, StopKey stopKey)
+        => train.StopTimes.TryGetValue(stopKey, out var st) ? st : null;
+
+    /// <summary>trainのRunSegmentsが定める訪問順における、index番目のStopKeyを返す。</summary>
+    private static StopKey? StopKeyAt(Train train, int index)
+    {
+        var keys = StopKeySequenceBuilder.BuildVisitedStopKeys(train);
+        return index >= 0 && index < keys.Count ? keys[index] : null;
+    }
 }

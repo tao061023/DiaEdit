@@ -63,6 +63,20 @@ public class StopTimeValidatorTests
     [Fact]
     public void Rule4_時刻が配列順に単調非減少なら違反なし()
     {
+        var partner = new Train
+        {
+            Id = new TrainId(2),
+            TimeTableSetId = new TimeTableSetId(1),
+            TrainNumber = "9000M",
+            ServiceRouteId = new ServiceRouteId(1),
+            TrainTypeId = new TrainTypeId(1),
+            TrainTypeName = new DisplayName { Name = "普通" },
+            Nickname = new DisplayName { Name = "" },
+            DefaultVehicleTypeId = new VehicleTypeId(1),
+        };
+        var partnerStopKey = new StopKey(new StationId(1), 0);
+        partner.StopTimes[partnerStopKey] = new StopTime();
+
         var stopTime = new StopTime
         {
             Works = new List<StationWork>
@@ -74,10 +88,7 @@ public class StopTimeValidatorTests
                     Type = StationWorkType.Coupling,
                     StartOpSeconds = 100,
                     EndOpSeconds = 200,
-                    CutGroups = new List<CutGroup>
-                    {
-                        new() { GroupIndex = 0, CarCompositionId = new CarCompositionId(1), OperationId = DummyProvisional() },
-                    },
+                    CouplingDetail = new CouplingWork { PartnerTrainId = partner.Id, PartnerStopKey = partnerStopKey }
                 },
             },
         };

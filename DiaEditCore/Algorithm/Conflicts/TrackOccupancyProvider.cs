@@ -39,6 +39,7 @@ public static class TrackOccupancyProvider
         ProjectSettings projectSettings)
     {
         var result = new Dictionary<RailId, List<ConflictChecker.Occupancy>>();
+        var trainsById = trains.ToDictionary(t => t.Id);
 
         void Add(RailId railId, ConflictChecker.Occupancy occ)
         {
@@ -82,7 +83,15 @@ public static class TrackOccupancyProvider
                 int? start = visit.ArrivalStart;
                 if (start is null)
                 {
-                    if (prevTrainMap.TryGetValue(train.Id, out var prevTrainId) &&
+                    if (TryResolveSplitOriginStart(train, trainsById, out var splitStart))
+                    {
+                        // 分割由来の子Train：親Trainの占有終了ではなく、Decoupling作業完了時刻
+                        // （EndOpSeconds）から占有が続いているとみなす（作業中は基準側Trainの
+                        // 占有として既に計上されているため、二重計上を避けるためStartOpSecondsではなく
+                        // EndOpSecondsを採用する）。
+                        start = splitStart;
+                    }
+                    else if (prevTrainMap.TryGetValue(train.Id, out var prevTrainId) &&
                         terminalArrivalEnd.TryGetValue(prevTrainId, out var prevEnd))
                     {
                         start = prevEnd;
@@ -117,6 +126,28 @@ public static class TrackOccupancyProvider
         AddShuntingOccupancy(trains, pathsById, rails, Add);
 
         return result;
+    }
+
+    /// <summary>
+    /// trainがSplitOriginRef経由の分割由来Trainである場合、参照先Decoupling作業の
+    /// EndOpSeconds（作業完了時刻）を占有開始時刻として返す。該当しなければfalse。
+    /// </summary>
+    private static bool TryResolveSplitOriginStart(
+        Train train, IReadOnlyDictionary<TrainId, Train> trainsById, out int startSeconds)
+    {
+        startSeconds = 0;
+        var firstWork = train.StopTimes.Values
+            .SelectMany(st => st.Works)
+            .FirstOrDefault(w => w.Type == StationWorkType.PrevTrain && w.SplitOrigin is not null);
+        if (firstWork?.SplitOrigin is not { } origin) return false;
+        if (!trainsById.TryGetValue(origin.OriginTrainId, out var originTrain)) return false;
+        if (!originTrain.StopTimes.TryGetValue(origin.OriginStopKey, out var originStop)) return false;
+
+        var decoupling = originStop.Works.FirstOrDefault(w => w.Type == StationWorkType.Decoupling);
+        if (decoupling is null || decoupling.EndOpSeconds < 0) return false;
+
+        startSeconds = decoupling.EndOpSeconds;
+        return true;
     }
 
     /// <summary>

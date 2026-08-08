@@ -14,6 +14,7 @@ public class TimeTableSetValidatorTests
     private static Train MakeValidTrain(int id, string trainNumber = "1234M") => new()
     {
         Id = new TrainId(id),
+        TimeTableSetId = new TimeTableSetId(1),
         TrainNumber = trainNumber,
         ServiceRouteId = new ServiceRouteId(1),
         TrainTypeId = new TrainTypeId(1),

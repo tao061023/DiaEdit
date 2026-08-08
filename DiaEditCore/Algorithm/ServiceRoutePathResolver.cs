@@ -3,8 +3,8 @@ using DiaEditCore.Model.Routes;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.2節：ServiceRoute.segmentsをたどり、各境界駅のEntryPointSequenceElementを連結した
-/// 経路全体のEntryPointSequenceを導出する。出力型は5.7.1節のEntryPointSequenceElementを
+/// ServiceRoute.segmentsをたどり、各境界駅のEntryPointSequenceElementを連結した
+/// 経路全体のEntryPointSequenceを導出する。出力型はEntryPointSequenceElementを
 /// そのまま再利用する（境界駅だけを含む部分列として扱う。新しい型は起こさない）。
 /// 都度導出・非保存。
 /// </summary>
@@ -27,7 +27,7 @@ public static class ServiceRoutePathResolver
     /// 一部segmentだけpaired側の値を持つ中途半端な状態は許容しない）。
     /// 各列の要素は、対応するBoundaryEntryPointResolverの候補が0件だった場合はnull
     /// （「対応するStationConnectionが実在しない」の判定・エラー化は呼び出し側の責務とする。
-    /// 6.1節BoundaryEntryPointResolverと同じ責務分離方針）。
+    /// BoundaryEntryPointResolverと同じ責務分離方針）。
     /// </summary>
     public static IReadOnlyList<IReadOnlyList<EntryPointSequenceElement?>> ResolveServiceRoutePath(
         ServiceRoute sr,

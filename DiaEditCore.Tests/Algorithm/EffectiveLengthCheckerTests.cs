@@ -62,6 +62,7 @@ public class EffectiveLengthCheckerTests
         var train = new Train
         {
             Id = new TrainId(1),
+            TimeTableSetId = new TimeTableSetId(1),
             TrainNumber = "1000M",
             ServiceRouteId = new ServiceRouteId(1),
             TrainTypeId = new TrainTypeId(1),
@@ -273,6 +274,7 @@ public class EffectiveLengthCheckerTests
         var train = new Train
         {
             Id = new TrainId(2),
+            TimeTableSetId = new TimeTableSetId(1),
             TrainNumber = "2000M",
             ServiceRouteId = new ServiceRouteId(1),
             TrainTypeId = new TrainTypeId(1),

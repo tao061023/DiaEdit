@@ -4,9 +4,9 @@ using DiaEditCore.Model.Routes;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.1節：境界駅のEPを、既存のEntryPointSequenceResolverの結果から取り出すためのラッパー。
-/// ServiceRoutePathResolver（6.2節）・ReversalResolver（6.10節）が下請けとして利用する。
-/// 都度導出・非保存。複々線等で対応するStationConnectionが複数存在しうるため、
+/// 境界駅のEPを、既存のEntryPointSequenceResolverの結果から取り出すためのラッパー。 <br/>
+/// ServiceRoutePathResolver・ReversalResolverが下請けとして利用する。 <br/>
+/// 都度導出・非保存。複々線等で対応するStationConnectionが複数存在しうるため、 <br/>
 /// 該当する全候補を返す（列車種別ごとに利用可能なEPが異なりうるため、この段階では絞り込まない）。
 /// </summary>
 public static class BoundaryEntryPointResolver
@@ -22,7 +22,7 @@ public static class BoundaryEntryPointResolver
     /// <param name="allStationConnections">StationConnection全体</param>
     /// <param name="allSegments">StationConnectionSegment全体</param>
     /// <returns>
-    /// 一致するStationConnectionそれぞれについて、境界駅（toIndex側）に該当するEntryPointSequenceElementを1件ずつ含むリスト。
+    /// 一致するStationConnectionそれぞれについて、境界駅（toIndex側）に該当するEntryPointSequenceElementを1件ずつ含むリスト。<br/>
     /// 一致するStationConnectionが存在しない場合は空リスト（呼び出し側で「対応するStationConnectionが実在しない」として扱う）。
     /// </returns>
     public static IReadOnlyList<EntryPointSequenceElement> ResolveBoundaryEntryPoint(

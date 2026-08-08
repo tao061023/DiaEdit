@@ -13,7 +13,7 @@ public sealed record MergeNameResolved(string Name) : MergeNameResolution;
 public sealed record MergeNameConflict(string NameA, string NameB) : MergeNameResolution;
 
 /// <summary>
-/// 5.4.6節「N=2の自動Rail統合」の純粋関数実装。2本のRailのうち、収束点側の2端点は破棄し、
+/// 「N=2の自動Rail統合」の純粋関数実装。2本のRailのうち、収束点側の2端点は破棄し、
 /// 反対側の2端点をそのまま新Railの両端に据える（PortIndex等を含むRailEndpointRefを一切改変しない）。
 /// 収束点自体はもはやSwitcherを形成しないため、収束点側の端点情報は意味を失う。
 /// </summary>
@@ -38,8 +38,7 @@ public static class RailMerger
 
     /// <summary>
     /// railA・railBを、それぞれの収束側端点（convergingSideA/B）を破棄する形で1本のRailへ統合する。
-    /// 呼び出し前提：railA.Role == railB.Role == RailRole.Normal（5.4.6節バリデーション項目4により
-    /// Track/Shunting役割はそもそも収束対象になり得ないため、ここでは前提として扱い呼び出し側で保証する）。
+    /// 呼び出し前提：railA.Role == railB.Role == RailRole.Normal
     /// nameが両方非空かつ異なる場合は resolvedName に確定済みの文字列を明示的に渡すこと
     /// （ResolveNameがMergeNameConflictを返したケースをユーザー選択で解決した後の値）。
     /// </summary>

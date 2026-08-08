@@ -5,33 +5,25 @@ using DiaEditCore.Model.TimeTable.Trains;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.7節：StartOp.startOpConsist、またはPrevTrain.SplitOrigin経由で他Trainのconsistsequenceを
-/// 起点として、以降のCoupling/Decouplingイベント（CutGroups）を時系列順にたどることで
-/// 任意時点の実編成を復元する。都度導出・非保存。
+/// StartOp.startOpConsist、またはPrevTrain.SplitOrigin経由で他Trainのconsistsequenceを <br/>
+/// 起点として、以降のCoupling/Decouplingイベントを時系列順にたどることで任意時点の実編成を復元する。 <br/>
+/// 都度導出・非保存。 <br/>
 ///
-/// v11.44改訂セッションでの変更：CutGroup.TrainIdが廃止されたことに伴い、「自Trainがどの
-/// GroupIndexを引き継いだか」は自Trainの情報だけでは判定できなくなった（分割元Train自身の
-/// 継続分と兄弟Train群の発車順比較が必要なため）。そのためSplitGroupAssignmentResolver
-/// （全Train横断）の出力を必須の追加引数として受け取る形に変更した。
-/// 「他Trainへのグラフ探索は行わない」という従来のスコープの一部が崩れている点に注意
-/// （SplitOrigin経由の起点特定でoriginTrainの1StopTimeのみを読む、という1回限りの参照は維持）。
-/// </summary>
-/// <summary>
-/// CarConsistResolver.ResolveConsistAtへ渡す横断参照データをまとめたもの。
-/// SplitOrigin/Decoupling/Couplingを一切使わない単純なテスト・呼び出しでは
-/// ConsistResolutionContext.Empty(carConsists, carCompositions)で足りる。
+/// DecouplingWork.IsRearBaseを直読みするだけで「自Trainがfront/rearどちらを引き継いだか」が一意に決まるため、全Train横断の事前計算は不要 <br/>
+/// （train.StopTimes走査中にDecoupling作業へ遭遇した時点で、trainは常にそのDecouplingの継続側＝originであることが構造的に保証される。 <br/>
+/// 子Train側はPrevTrain.SplitOrigin経由の別メソッド ResolveSplitOriginConsist でのみ解決されるため混線しない）。 <br/>
+///
+/// Couplingは相手Train（CouplingWork.PartnerTrainId）を再帰的にResolveConsistAtで解決する。
 /// </summary>
 public sealed record ConsistResolutionContext(
     IReadOnlyDictionary<CarConsistId, CarConsist> CarConsists,
     IReadOnlyDictionary<CarCompositionId, CarComposition> CarCompositions,
-    IReadOnlyDictionary<TrainId, int> SplitGroupAssignments,
     IReadOnlyDictionary<TrainId, Train> AllTrainsById)
 {
     public static ConsistResolutionContext Empty(
         IReadOnlyDictionary<CarConsistId, CarConsist> carConsists,
         IReadOnlyDictionary<CarCompositionId, CarComposition> carCompositions)
-        => new(carConsists, carCompositions,
-            new Dictionary<TrainId, int>(), new Dictionary<TrainId, Train>());
+        => new(carConsists, carCompositions, new Dictionary<TrainId, Train>());
 }
 
 public static class CarConsistResolver
@@ -43,8 +35,8 @@ public static class CarConsistResolver
     private static readonly ResolvedConsist Empty = new(Array.Empty<CarCompositionId>(), Array.Empty<CarRef>());
 
     /// <summary>
-    /// train自身のWorks列をStartOp（またはPrevTrain.SplitOrigin）から対象stopKeyまで時系列順にたどり、
-    /// 実編成を復元する。起点が見つからない場合、または対象stopKeyが起点より先行する場合は空を返す。
+    /// train自身のWorks列をStartOp（またはPrevTrain.SplitOrigin）から対象stopKeyまで時系列順にたどり、実編成を復元する。 <br/>
+    /// 起点が見つからない場合、または対象stopKeyが起点より先行する場合は空を返す。
     /// </summary>
     public static ResolvedConsist ResolveConsistAt(
         Train train,
@@ -53,9 +45,7 @@ public static class CarConsistResolver
     {
         var carConsists = context.CarConsists;
         var carCompositions = context.CarCompositions;
-        var splitGroupAssignments = context.SplitGroupAssignments;
-        var allTrainsById = context.AllTrainsById;
-        var visitedKeys = BuildVisitedStopKeys(train);
+        var visitedKeys = StopKeySequenceBuilder.BuildVisitedStopKeys(train);
         var targetIndex = visitedKeys.IndexOf(stopKey);
         if (targetIndex < 0) return Empty;
 
@@ -78,37 +68,30 @@ public static class CarConsistResolver
                             .ToList();
                         break;
 
-                    // 新設：分割由来の新Trainは、StartOpの代わりにPrevTrain.SplitOriginを起点とする
                     case StationWorkType.PrevTrain when startIndex < 0 && work.SplitOrigin is { } origin:
                         startIndex = i;
-                        current = ResolveSplitOriginConsist(train.Id, origin, allTrainsById, splitGroupAssignments);
+                        current = ResolveSplitOriginConsist(origin, context);
                         break;
 
                     case StationWorkType.Decoupling when startIndex >= 0:
-                        // v11.44改訂：CutGroup.TrainIdが廃止されたため、自TrainがどのGroupIndexを
-                        // 引き継いだかはSplitGroupAssignmentResolverの結果を参照する。
-                        if (splitGroupAssignments.TryGetValue(train.Id, out var myGroupIndex))
+                        // train自身がこのDecouplingのstopTimeを持つ＝trainは常に継続側（origin）。
+                        // IsRearBase直読みのみで確定し、他Trainへの参照は不要。
+                        if (work.DecouplingDetail is { } dw)
                         {
-                            current = work.CutGroups
-                                .Where(cg => cg.GroupIndex == myGroupIndex)
-                                .OrderBy(cg => cg.GroupIndex)
-                                .Select(cg => cg.CarCompositionId)
+                            current = (dw.IsRearBase ? dw.RearGroup : dw.FrontGroup)
+                                .Select(e => e.CarCompositionId)
                                 .ToList();
-                        }
-                        else
-                        {
-                            // 割当が見つからない＝データ不整合。SplitOriginCrossValidator側で検出される想定。
-                            current = new List<CarCompositionId>();
                         }
                         break;
 
                     case StationWorkType.Coupling when startIndex >= 0:
-                        // 自Train内完結：CutGroups全件をGroupIndex順に連結する
-                        // （他Trainの中身はCarCompositionIdに確定済み。TrainIdは元々不要）
-                        current = work.CutGroups
-                            .OrderBy(cg => cg.GroupIndex)
-                            .Select(cg => cg.CarCompositionId)
-                            .ToList();
+                        if (work.CouplingDetail is { } cw && current is not null)
+                        {
+                            var partnerConsist = ResolvePartnerConsistAt(cw.PartnerTrainId, cw.PartnerStopKey, context);
+                            current = cw.AttachToFront
+                                ? partnerConsist.Concat(current).ToList()
+                                : current.Concat(partnerConsist).ToList();
+                        }
                         break;
                 }
             }
@@ -130,23 +113,33 @@ public static class CarConsistResolver
     }
 
     private static List<CarCompositionId> ResolveSplitOriginConsist(
-        TrainId trainId,
         SplitOriginRef origin,
-        IReadOnlyDictionary<TrainId, Train> allTrainsById,
-        IReadOnlyDictionary<TrainId, int> splitGroupAssignments)
+        ConsistResolutionContext context)
     {
-        if (!allTrainsById.TryGetValue(origin.OriginTrainId, out var originTrain)) return new List<CarCompositionId>();
+        if (!context.AllTrainsById.TryGetValue(origin.OriginTrainId, out var originTrain)) return new List<CarCompositionId>();
         if (!originTrain.StopTimes.TryGetValue(origin.OriginStopKey, out var originStop)) return new List<CarCompositionId>();
 
         var decoupling = originStop.Works.FirstOrDefault(w => w.Type == StationWorkType.Decoupling);
-        if (decoupling is null) return new List<CarCompositionId>();
-        if (!splitGroupAssignments.TryGetValue(trainId, out var myGroupIndex)) return new List<CarCompositionId>();
+        if (decoupling?.DecouplingDetail is not { } dw) return new List<CarCompositionId>();
 
-        return decoupling.CutGroups
-            .Where(cg => cg.GroupIndex == myGroupIndex)
-            .OrderBy(cg => cg.GroupIndex)
-            .Select(cg => cg.CarCompositionId)
-            .ToList();
+        // 子Train（非継続側）は継続側の「逆」のグループを引き継ぐ。
+        // IsRearBase=false（front継続）なら子はRearGroup。IsRearBase=true（rear継続）なら子はFrontGroup。
+        var childGroup = dw.IsRearBase ? dw.FrontGroup : dw.RearGroup;
+        return childGroup.Select(e => e.CarCompositionId).ToList();
+    }
+
+    private static List<CarCompositionId> ResolvePartnerConsistAt(
+        TrainId partnerTrainId,
+        StopKey partnerStopKey,
+        ConsistResolutionContext context)
+    {
+        if (!context.AllTrainsById.TryGetValue(partnerTrainId, out var partnerTrain))
+            return new List<CarCompositionId>();
+
+        // 再帰的に相手Trainを解決する。相手がさらに別のCoupling/Decouplingを経ていても
+        // ResolveConsistAt自身がそれを辿るため、ここでの特別扱いは不要。
+        var resolved = ResolveConsistAt(partnerTrain, partnerStopKey, context);
+        return resolved.ConsistBlocks.ToList();
     }
 
     internal static List<StopKey> BuildVisitedStopKeys(Train train)

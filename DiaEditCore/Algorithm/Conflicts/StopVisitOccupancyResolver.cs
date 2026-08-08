@@ -6,12 +6,11 @@ using DiaEditCore.Model.TimeTable.Trains;
 namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
-/// 1回の駅訪問(visitSeq)について、到着StationPath/出発StationPathそれぞれの占有区間
-/// (StationPathId・開始秒・終了秒)を導出する共通ロジック。StationPathOccupancyProvider・
-/// TrackOccupancyProviderの両方から同一の算出式を共有するために切り出した(v11.23、6.5節)。
+/// 1回の駅訪問(visitSeq)について、到着StationPath/出発StationPathそれぞれの占有区間 <br/>
+/// (StationPathId・開始秒・終了秒)を導出する共通ロジック。 <br/>
+/// StationPathOccupancyProvider・TrackOccupancyProviderの両方から同一の算出式を共有するために切り出した。 <br/>
 ///
-/// 基準時刻の統一：停車時はarrivalSeconds/departureSeconds、通過時はdepartureSecondsを
-/// 通過時刻として流用する(5.11.4節)。いずれも未設定(-1)なら対象外。
+/// 基準時刻の統一：停車時はarrivalSeconds/departureSeconds、通過時はdepartureSecondsを通過時刻として流用する。いずれも未設定(-1)なら対象外。
 /// </summary>
 public static class StopVisitOccupancyResolver
 {
@@ -27,7 +26,7 @@ public static class StopVisitOccupancyResolver
         int? DepartureEnd);
 
     /// <summary>
-    /// train.RunSegmentsに対するvisitSeq(0..segs.Count)を1つ受け取り、その訪問のStationPath占有情報を返す。
+    /// train.RunSegmentsに対するvisitSeq(0..segs.Count)を1つ受け取り、その訪問のStationPath占有情報を返す。 <br/>
     /// 対象のStopTimeが存在しない、またはTrackRailIdが未設定の場合はnullを返す。
     /// </summary>
     public static VisitOccupancy? Resolve(
@@ -39,8 +38,10 @@ public static class StopVisitOccupancyResolver
         IReadOnlyDictionary<(RailId, EntryPointId), StationPathId> departureIndex)
     {
         var segs = train.RunSegments;
-        var stationId = visitSeq == 0 ? segs[0].FromStationId : segs[visitSeq - 1].ToStationId;
-        if (!train.StopTimes.TryGetValue(new StopKey(stationId, visitSeq), out var st)) return null;
+        var visitedKeys = StopKeySequenceBuilder.BuildVisitedStopKeys(train);
+        if (visitSeq < 0 || visitSeq >= visitedKeys.Count) return null;
+        var stopKey = visitedKeys[visitSeq];
+        if (!train.StopTimes.TryGetValue(stopKey, out var st)) return null;
         if (st.TrackRailId is not { } trackRailId) return null;
 
         EntryPointId? arrivalEp = visitSeq > 0

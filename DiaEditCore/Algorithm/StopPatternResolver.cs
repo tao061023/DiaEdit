@@ -13,7 +13,7 @@ public sealed record StopPatternElement(
     StopPatternMark Mark);
 
 /// <summary>
-/// 6.2.1節：resolveServiceRouteStationOrderの結果と、対象TrainのstopTimes・TrainRunSegmentを
+/// resolveServiceRouteStationOrderの結果と、対象TrainのstopTimes・TrainRunSegmentを
 /// 突き合わせ、駅名付きの停車パターン列（基準列車選択UI用）を導出する。都度導出・非保存。
 /// </summary>
 public static class StopPatternResolver
@@ -55,7 +55,7 @@ public static class StopPatternResolver
     {
         if (!visitedStations.Contains(stationId)) return StopPatternMark.OutOfRange;
 
-        // 同一Train内で同一駅を複数回訪問することはない前提（6.2.1節）のため、
+        // 同一Train内で同一駅を複数回訪問することはない前提のため、
         // StationId一致のみでStopTimeを一意に特定できる
         var stopTime = train.StopTimes
             .Where(kv => kv.Key.StationId == stationId)

@@ -65,6 +65,7 @@ public class StationPathOccupancyProviderTests
     private static Train NewTrain(int id, string trainNumber, bool isProvisional = false) => new()
     {
         Id = new TrainId(id),
+        TimeTableSetId = new TimeTableSetId(1),
         TrainNumber = trainNumber,
         ServiceRouteId = new ServiceRouteId(1),
         TrainTypeId = new TrainTypeId(1),
@@ -79,7 +80,7 @@ public class StationPathOccupancyProviderTests
     {
         var train = NewTrain(id, trainNumber, isProvisional);
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
-        train.StopTimes[new StopKey(StB, 1)] = new StopTime
+        train.StopTimes[new StopKey(StB, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = arrivalSeconds,
@@ -110,7 +111,7 @@ public class StationPathOccupancyProviderTests
         var train = NewTrain(id, trainNumber);
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = ScBC });
-        train.StopTimes[new StopKey(StB, 1)] = new StopTime
+        train.StopTimes[new StopKey(StB, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = arrivalAtB,

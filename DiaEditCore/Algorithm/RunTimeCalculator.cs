@@ -42,9 +42,6 @@ public sealed record RunTimeCalculationResult(
     IReadOnlyList<RunTimeWarning> Warnings
 );
 
-// DiaEditCore/Algorithm/RunTimeCalculator.cs
-// ... (前半は変更なし：AnchorMode, RunTimeAnchor, ProposedAdjustment, RunTimeWarning, RunTimeCalculationResult は同じ)
-
 public static class RunTimeCalculator
 {
     public static RunTimeCalculationResult Calculate(

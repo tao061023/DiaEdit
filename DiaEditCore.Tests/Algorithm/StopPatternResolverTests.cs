@@ -53,6 +53,7 @@ public class StopPatternResolverTests
         var train = new Train
         {
             Id = new TrainId(1),
+            TimeTableSetId = new TimeTableSetId(1),
             TrainNumber = "1001M",
             ServiceRouteId = sr.Id,
             TrainTypeId = new TrainTypeId(1),

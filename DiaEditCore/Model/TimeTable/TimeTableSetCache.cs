@@ -20,6 +20,13 @@ public sealed class TimeTableSetCache
     public Dictionary<StationConnectionSegmentId, List<TemporaryRestrictionId>> TemporaryRestrictionBySegmentIndex { get; } = new();
     public Dictionary<TrainId, List<TrainId>> DerivedTrainsBySourceId { get; } = new();
 
+    // (TrainId, StopKey) → その停車を外部から参照しているTrainの一覧
+    // （SplitOriginRef.OriginStopKey／CouplingWork.PartnerStopKey経由）。
+    // 構築はStopKeyReferenceIndexBuilder.Build()側の責務とする（DepartureByStationTrackIndex等と同じ責務分離）。
+    // 用途：①RunSegments編集コマンドのAffectedIds算出、②Cross Validatorの実在性検証対象の絞り込み。
+    // DependencyResolverのObjectIdグラフとは別枠（StopKeyはRunSegments編集で値が変わりうる不安定キーのため）。
+    public Dictionary<(TrainId TrainId, StopKey StopKey), List<StopKeyReferrer>> StopKeyReferenceIndex { get; } = new();
+
     // 駅×番線をキーに、発車時刻昇順のTrainを引けるようにするインデックス（6.4節TrainConnectionResolverが使用）。
     // 構築はTrainConnectionResolver.BuildDepartureIndex()側の責務とする（TrainOperationIndex等と同じ責務分離）。
     public Dictionary<(StationId StationId, RailId RailId), List<(int DepartureSeconds, TrainId TrainId)>> DepartureByStationTrackIndex { get; } = new();
@@ -81,6 +88,7 @@ public sealed class TimeTableSetCache
         TemporaryRestrictionBySegmentIndex.Clear();
         DerivedTrainsBySourceId.Clear();
         DepartureByStationTrackIndex.Clear();
+        StopKeyReferenceIndex.Clear();
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
 

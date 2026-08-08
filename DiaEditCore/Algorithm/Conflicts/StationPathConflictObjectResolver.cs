@@ -4,15 +4,15 @@ using DiaEditCore.Model.Stations;
 namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
-/// 6.5節「統一グルーピング方式」：StationPathが占有する対象オブジェクトID群を求め、
-/// 全StationPathを対象オブジェクトIDでグルーピングする（同じ対象オブジェクトIDを含む
-/// StationPath同士が、ConflictCheckerの1インスタンスに対応する）。
+///「統一グルーピング方式」：StationPathが占有する対象オブジェクトID群を求め、 <br/>
+/// 全StationPathを対象オブジェクトIDでグルーピングする（同じ対象オブジェクトIDを含む <br/>
+/// StationPath同士が、ConflictCheckerの1インスタンスに対応する）。 <br/>
 ///
-/// 対象オブジェクトID群 = resolveRailSequence(sp) ∪ waypoints中のSwitcherId ∪ manualConflictObjectIds
+/// 対象オブジェクトID群 = resolveRailSequence(sp) ∪ waypoints中のSwitcherId ∪ manualConflictObjectIds <br/>
 ///
-/// Switcherの判定について：Switcher自体が「常に単一の物理的収束点を表す」よう設計されているため
-/// （5.4.6節）、1つのSwitcherを共有するStationPathは、使用した経路の組み合わせによらず常に競合する。
-/// waypoints中のSwitcherWaypointをそのままグルーピング対象に含めるだけで、特別な判定ロジックは不要。
+/// Switcherの判定について：Switcher自体が「常に単一の物理的収束点を表す」よう設計されているため、 <br/>
+/// 1つのSwitcherを共有するStationPathは、使用した経路の組み合わせによらず常に競合する。 <br/>
+/// waypoints中のSwitcherWaypointをそのままグルーピング対象に含めるだけで、特別な判定ロジックは不要。 <br/>
 /// </summary>
 public static class StationPathConflictObjectResolver
 {

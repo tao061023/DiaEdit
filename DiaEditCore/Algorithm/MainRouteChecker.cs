@@ -4,11 +4,11 @@ using DiaEditCore.Model.Stations;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 5.7節「MainRoute整合性」・5.8節「境界駅の整合性条件」共通ロジック。
-/// EntryPointId列（長さ2N、[From_0,To_0,From_1,To_1,...]）を受け取り、
-/// 隣接するSCS境界（EP[2i+1]⇔EP[2i+2]）で到着側Track集合と出発側Track集合が
-/// 1件以上重複することを検証する。isLoopの場合はEP[0]⇔EP[^1]境界も追加検証する。
-/// 都度導出・非保存。単一StationConnection（MainRoute整合性）・ServiceRoute結合列
+/// 「MainRoute整合性」・「境界駅の整合性条件」共通ロジック。 <br/>
+/// EntryPointId列（長さ2N、[From_0,To_0,From_1,To_1,...]）を受け取り、 <br/>
+/// 隣接するSCS境界（EP[2i+1]⇔EP[2i+2]）で到着側Track集合と出発側Track集合が <br/>
+/// 1件以上重複することを検証する。isLoopの場合はEP[0]⇔EP[^1]境界も追加検証する。 <br/>
+/// 都度導出・非保存。単一StationConnection（MainRoute整合性）・ServiceRoute結合列 <br/>
 /// （ServiceRoute整合性）の両方から共通して呼ばれる。
 /// </summary>
 public static class MainRouteChecker

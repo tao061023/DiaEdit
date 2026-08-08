@@ -4,8 +4,8 @@ using DiaEditCore.Model.Routes;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.2.1節：ServiceRouteが通る駅の順序付き全リスト（境界駅だけでなく中間駅も含む）を返す
-/// 非永続の導出処理。基準列車選択UI（7.1節）の停車パターン表示のために追加する。
+/// ServiceRouteが通る駅の順序付き全リスト（境界駅だけでなく中間駅も含む）を返す
+/// 非永続の導出処理。基準列車選択UIの停車パターン表示のために追加する。
 /// 都度導出・非保存。
 /// </summary>
 public static class ServiceRouteStationOrderResolver
@@ -19,7 +19,7 @@ public static class ServiceRouteStationOrderResolver
 
     /// <summary>
     /// resolveServiceRouteStationOrderと同じ駅列に加え、各駅がどのSegment（MainRoute）由来かを返す。
-    /// StopPatternResolver（6.2.1節）が駅表示名の解決にMainRoute.StationDisplayNameOverridesを
+    /// StopPatternResolverが駅表示名の解決にMainRoute.StationDisplayNameOverridesを
     /// 適用する際に使用する。境界駅（前Segmentの終端と重複する駅）は、重複除去の結果として
     /// 前Segment側のMainRouteIdが採用される。
     /// </summary>

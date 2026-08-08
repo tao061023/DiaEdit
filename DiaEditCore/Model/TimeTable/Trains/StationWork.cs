@@ -10,10 +10,10 @@ public enum StationWorkType
 public enum NextTrainType
 {
     Other, TypeChange, InfoChange, SameTrain,
-    Coupling, // 新設。次に発車する列車が本Trainの一部として併合される関係（Conflict除外の判定キー。6.5節ConflictFilter参照）
+    Coupling, // 次に発車する列車が本Trainの一部として併合される関係（Conflict除外の判定キー。6.5節ConflictFilter参照）
 }
 
-// 確定運用への参照／未確定の仮ラベルを型で区別する（判別共用体、ObjectId.csの命名規約に合わせフラットなsealed recordで表現）
+// 確定運用への参照／未確定の仮ラベルを型で区別する（判別共用体）
 public abstract record OperationRef;
 public sealed record ResolvedOperationRef(TrainOperationId Id) : OperationRef;
 public sealed record ProvisionalOperationRef(string Label) : OperationRef;
@@ -23,25 +23,58 @@ public sealed class StartOpCarSlot
 {
     public required int Position { get; set; }
     public required CarCompositionId CarCompositionId { get; set; }
-
-    // 必須。旧OperationNumber(string)から変更。空文字列によるStationWork.TrainOperationId継承フォールバックは廃止
-    // （Composition単位が正データになったため、Train単位への継承は不要）。
     public required OperationRef OperationId { get; set; }
 }
 
-// Coupling/Decoupling専用：分割後の集合（旧TrainCutPointを再構成）。
-// TrainIdフィールドは廃止：Coupling側の相手Train特定はTrainConnectionResolver（6.4節）が
-// NextTrainType.Couplingとして導出する非永続情報に委ね、CutGroup自体には保持しない
-// （discard-and-regenerate原則。参照: セッション議事、MergeToRefは正データとして不採用と決定）。
-public sealed class CutGroup
+// vNEXT改訂：Coupling/Decoupling共通で使っていた CutGroup（GroupIndexフラット配列）を廃止し、
+// front/rear 2バケット構造（DecouplingWork）と参照型（CouplingWork）に分離した。
+// 理由（セッション議事）：
+//   - 実例調査の結果、分割は必ず「前グループ／後グループ」の2分割にしかならないことが判明した
+//     （3グループ以上の同時分割は発生しない）ため、N分割を許容する型は構造的に過大だった。
+//   - Couplingは「自編成へ相手Train 1本をまるごと連結する」運用のみが確認されており、
+//     相手編成の一部だけを連結する運用は存在しない（運用フロー側で「先に解結してから連結する」
+//     ことで対応するため、データモデル側で部分連結を表現する必要がない）。
+//   - 相手Trainの中身（CarCompositionId一覧）は CarConsistResolver.ResolveConsistAt で
+//     相手Train側を再帰的に解決すれば都度導出できるため、Coupling側は「相手Trainへの参照」の
+//     みを持てば足りる（discard-and-regenerate原則。CutGroup.TrainId廃止時と同じ理屈）。
+
+// Decoupling専用：分割後の1グループ分の要素。
+public sealed class CutGroupEntry
 {
-    // 0始まり連番。分割前の走行方向に対する前方からの順。同一StationWork内で重複禁止（保存時検証、要Validator実装）。
-    public required int GroupIndex { get; set; }
     public required CarCompositionId CarCompositionId { get; set; }
 
-    // Decoupling: 必須（Resolved/Provisional問わず）。Rule 5改訂を参照。
-    // Coupling:   ProvisionalOperationRefのみ許容（履歴の自由記述用途。実在チェック対象外）。
+    // Decoupling必須（Resolved必須。Rule 5）。
+    // 「OperationNumberはCarCompositionに紐づく」という原則により、分割で新しく意識しなければ
+    // ならなくなるCarCompositionに対して運用番号を明示的に再指定させるためのフィールド。
+    // front/rear（継続側／離脱側）を問わず必須：継続側であっても、このCarCompositionが
+    // 分割後に持つ運用番号を明示するのはこのフィールドの役割である
+    // （TrainOperationChainResolver.TryFollowDecoupling参照）。
     public required OperationRef OperationId { get; set; }
+}
+
+public sealed class DecouplingWork
+{
+    // 分割前の走行方向に対する前側／後側。両方とも最低1件必須（Rule 8）。
+    // front/rear間でCarCompositionIdの重複は不可（Rule 7、同一編成が両側に属することは物理的に不可能）。
+    public required List<CutGroupEntry> FrontGroup { get; set; }
+    public required List<CutGroupEntry> RearGroup { get; set; }
+
+    // false = front側が基準（自Trainがそのまま継続）。true = rear側が基準。
+    // 継続側でないほうが SplitOriginRef 経由の新Trainとして生まれる。
+    public bool IsRearBase { get; set; } = false;
+}
+
+public sealed class CouplingWork
+{
+    // 連結される相手Train・その時点のStopKey（相手編成の中身はResolveConsistAtで都度導出、非保存）。
+    public required TrainId PartnerTrainId { get; set; }
+    public required StopKey PartnerStopKey { get; set; }
+
+    // false = 自編成の後ろに連結。true = 自編成の前に連結。
+    public bool AttachToFront { get; set; } = false;
+
+    // OperationIdフィールドは意図的に持たない：合流するCarCompositionの運用番号は
+    // 合流前の値をそのまま保持するため（CarCompositionに紐づく属性であり、Couplingでは変化しない）。
 }
 
 // PrevTrain専用：直前Trainから引き継いだCarCompositionのうち運用を変更するものだけの差分リスト。
@@ -49,27 +82,12 @@ public sealed class CutGroup
 public sealed class PrevTrainOperationOverride
 {
     public required CarCompositionId CarCompositionId { get; set; }
-
-    // 変更後は必ずResolved（新運用への切替のため仮ラベルは想定しない）。
     public required TrainOperationId NewOperationId { get; set; }
 }
 
-// 分割で生じた新Train側が、自身の起点を示す（新設）。
-// GroupIndexは持たない（v11.44改訂セッションで削除確定）：TrainConnectionResolver（6.4節）の
-// PrevTrain/NextTrain導出は「1出発列車＝最大1到着列車」の一意マッチングを前提としており、
-// 1到着列車→複数出発列車という分割そのものを表現できないため、OriginTrainId/OriginStopKeyという
-// 「どのDecoupling由来か」の紐付けだけは明示データとして残す。一方、どのCutGroup（GroupIndex）を
-// 引き継いだかは、以下の前提のもとCarConsistResolver（6.7節）側でtwo-pointer方式により導出できる：
-//   - ランナウンド線はスコープ外（中間グループを飛び越して先に引き出すことはできない＝
-//     残存編成は常に両端からしか出し入れできないdeque構造）
-//   - 分割された編成が同時に動き出すことは信号システム上あり得ない（発車時刻は常に一意に順序付け可能）
-// 導出アルゴリズム：(OriginTrainId, OriginStopKey)が一致する兄弟Train群を発車時刻昇順に並べ、
-// 各Trainの経路にShunting（StationWorkType.Shunting、直前の継続方向に対する入替・反転の有無を示す
-// 明示データ）が含まれるかどうかで、CutGroupsの手前側(lo)／奥側(hi)いずれから引き当てるかを判定する
-// （2ポインタ：Shuntingなし→lo側から順に、Shuntingあり→hi側から順に）。
-// 「兄弟Train間で発車時刻が重複してはならない」「two-pointer割当がCutGroups数と整合するか」は
-// 単一StationWork内で完結しない横断検証のため、SplitOriginCrossValidator（新設予定、6.12.1節の
-// TrainOperationCrossValidatorと同型）側の責務とする。
+// 分割で生じた新Train側が、自身の起点を示す。
+// GroupIndexは持たない：どちらのグループ（front/rear）を引き継いだかはDecouplingWork.IsRearBaseを
+// 直読みすれば一意に決まるため、SplitGroupAssignmentResolverによる推定（旧two-pointer方式）は不要になった。
 public sealed class SplitOriginRef
 {
     public required TrainId OriginTrainId { get; set; }
@@ -81,15 +99,16 @@ public sealed class StationWork
     public required StationWorkType Type { get; set; }
 
     public List<StartOpCarSlot> StartOpConsist { get; set; } = new();               // StartOpのみ
-    public List<CutGroup> CutGroups { get; set; } = new();                          // Coupling/Decouplingのみ
-    public List<PrevTrainOperationOverride> PrevTrainOperationOverrides { get; set; } = new(); // PrevTrainのみ（省略時＝全Composition継承）
+    public List<PrevTrainOperationOverride> PrevTrainOperationOverrides { get; set; } = new(); // PrevTrainのみ
 
-    public SplitOriginRef? SplitOrigin { get; set; }       // 新設。分割由来の新Train先頭StopTimeが持つ
+    // vNEXT改訂：CutGroups（List<CutGroup>）を廃止し、Type別に排他のDecouplingDetail/CouplingDetailへ分離。
+    public DecouplingWork? DecouplingDetail { get; set; }   // Decouplingのみ
+    public CouplingWork? CouplingDetail { get; set; }       // Couplingのみ
+
+    public SplitOriginRef? SplitOrigin { get; set; }       // 分割由来の新Train先頭StopTimeが持つ（PrevTrainのみ）
     public NextTrainType? NextTrainType { get; set; }      // NextTrainのみ
     public StationPathId? StationPathId { get; set; }      // Shunting等
 
     public int StartOpSeconds { get; set; } = -1;
     public int EndOpSeconds { get; set; } = -1;
-
-    // TrainOperationId フィールドは廃止（StartOp: StartOpCarSlot.OperationId、PrevTrain: PrevTrainOperationOverridesへ分散）
 }

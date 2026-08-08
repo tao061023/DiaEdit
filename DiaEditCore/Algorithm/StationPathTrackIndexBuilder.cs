@@ -18,7 +18,6 @@ public static class StationPathTrackIndexBuilder
         rails.FirstOrDefault(r => r.Role == RailRole.Track &&
             (r.EndpointA == terminal || r.EndpointB == terminal));
 
-    // ===== 既存シグネチャ・実装は完全に元のまま（変更なし） =====
     public static (
         Dictionary<(EntryPointId, RailId), StationPathId> ArrivalIndex,
         Dictionary<(RailId, EntryPointId), StationPathId> DepartureIndex
@@ -49,7 +48,6 @@ public static class StationPathTrackIndexBuilder
         return (arrivalIndex, departureIndex);
     }
 
-    // ===== 新設：5.7/5.8節 MainRouteChecker専用。Shunting込み・汎用境界表現版 =====
     public readonly record struct BoundaryTerminal(ObjectId Id)
     {
         // 既存テストからの様々な呼び出し形に対応するための補助コンストラクタ/暗黙変換を提供する。

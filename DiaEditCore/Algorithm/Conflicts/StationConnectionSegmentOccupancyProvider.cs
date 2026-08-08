@@ -6,19 +6,16 @@ using DiaEditCore.Model.TimeTable.Trains;
 namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
-/// StationConnectionSegment（駅間）用途のConflictChecker（6.5節）：全Trainを走査し、
-/// SCSごとの占有区間を構築する。
+/// StationConnectionSegment用途のConflictChecker：
+/// 全Trainを走査し、SCSごとの占有区間を構築する。 <br/>
 ///
-/// 「1 RunSegment＝1 SCS」が保証されている前提（実装セッションで確定）のため、
-/// EntryPointSequenceResolverによる複数SCS展開は不要で、StationConnection.Segments[0]を
-/// そのまま対象SCSIdとして採用できる。
+/// 「1 RunSegment＝1 SCS」が保証されている前提で、StationConnection.Segments[0]をそのまま対象SCSIdとして採用している。 <br/>
 ///
-/// 占有区間 = 出発駅側DepartureStationPathの占有終了 〜 到着駅側ArrivalStationPathの占有開始
-/// （Track用途と同様、StopVisitOccupancyResolverの計算をそのまま再利用する）。
+/// 占有区間 = 出発駅側DepartureStationPathの占有終了 〜 到着駅側ArrivalStationPathの占有開始 <br/>
+/// （TrackOccupancyProviderと同様、StopVisitOccupancyResolverの計算をそのまま再利用する）。 <br/>
 ///
-/// 注：現時点ではTrack用途と異なりPrevTrain/NextTrainによる境界延長は行わない
-/// （RunSegmentの内部区間であるため、始発・終着側の欠落は発生しない＝visitI/visitI+1は
-/// 常にTrain自身のRunSegments内で両方求まる）。
+/// 注：現時点ではTrack用途と異なりPrevTrain/NextTrainによる境界延長は行わない <br/>
+/// （RunSegmentの内部区間であるため、始発・終着側の欠落は発生しない＝visitI/visitI+1は常にTrain自身のRunSegments内で両方求まる）。
 /// </summary>
 public static class StationConnectionSegmentOccupancyProvider
 {

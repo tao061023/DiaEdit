@@ -6,11 +6,11 @@ using DiaEditCore.Model.TimeTable.Trains;
 namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
-/// 全Trainを走査し、StationPathごとの占有区間（ConflictChecker.Occupancy）を構築する。
-/// 仮列車（IsProvisional=true）も対象に含める（6.5節・「仮列車も対象に含める」）。
+/// 全Trainを走査し、StationPathごとの占有区間（ConflictChecker.Occupancy）を構築する。 <br/>
+/// 仮列車（IsProvisional=true）も対象に含める。 <br/>
 ///
-/// 各訪問(visitSeq)ごとの到着/出発StationPath占有算出自体はStopVisitOccupancyResolverに
-/// 切り出し済み（v11.23）。TrackOccupancyProviderと同一ロジックを共有する。
+/// 各訪問(visitSeq)ごとの到着/出発StationPath占有算出自体はStopVisitOccupancyResolverに切り出し済み。 <br/>
+/// TrackOccupancyProviderと同一ロジックを共有する。
 /// </summary>
 public static class StationPathOccupancyProvider
 {
@@ -57,11 +57,10 @@ public static class StationPathOccupancyProvider
 }
 
 /// <summary>
-/// StationConnectionIdごとのEntryPointSequence解決結果をメモ化するだけの小さなキャッシュ。
-/// StationPathOccupancyProvider・TrackOccupancyProviderの双方から同一インスタンスを
-/// 共有する必要はなく、都度Buildして良い(TimeTableSetCache側の責務ではない、6.5節用途限定の
-/// 呼び出し内ローカルキャッシュ)。
-/// 追記：StopVisitOccupancyResolverTests.csで外部呼出しが行われるためpublicとした。
+/// StationConnectionIdごとのEntryPointSequence解決結果をメモ化するだけの小さなキャッシュ。 <br/>
+/// StationPathOccupancyProvider・TrackOccupancyProviderの双方から同一インスタンスを <br/>
+/// 共有する必要はなく、都度Buildして良い(TimeTableSetCache側の責務ではない、呼び出し内ローカルキャッシュ)。 <br/>
+/// 追記：StopVisitOccupancyResolverTests.csで外部呼出しが行われるためpublicとした。 <br/>
 /// </summary>
 public static class EntryPointSequenceCache
 {

@@ -5,7 +5,7 @@ using DiaEditCore.Model.Stations;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.10節：編成前後反転の自動導出。単一MainRoute内のスイッチバック判定（ResolveDirectionReversalStations）と、
+/// 編成前後反転の自動導出。単一MainRoute内のスイッチバック判定（ResolveDirectionReversalStations）と、
 /// 境界駅（MainRoute間）での折り返し判定（ResolveReversesAtBoundary）を、同一の判定基準で扱う。
 ///
 /// 判定基準：SCSから得た進入側EntryPointId・進出側EntryPointIdそれぞれについて、それを含む
