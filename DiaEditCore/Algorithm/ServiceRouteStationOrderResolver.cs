@@ -76,4 +76,36 @@ public static class ServiceRouteStationOrderResolver
 
         return result;
     }
+    
+    /// <summary>
+    /// MainRouteId → それを経由するServiceRouteの一覧、を構築する。
+    /// TimeTableSetCache.ServiceRoutesByMainRouteIndexへの格納値として使う想定。
+    /// 用途はUI表示専用（MainRoute編集時の影響範囲表示）に限定し、DependencyResolverの
+    /// AffectedIds算出には使わない（6.1節参照）。
+    /// </summary>
+    public static Dictionary<MainRouteId, List<ServiceRouteId>> BuildServiceRoutesByMainRouteIndex(
+        IReadOnlyList<ServiceRoute> allServiceRoutes)
+    {
+        var index = new Dictionary<MainRouteId, List<ServiceRouteId>>();
+
+        foreach (var sr in allServiceRoutes)
+        {
+            foreach (var seg in sr.Segments)
+            {
+                if (!index.TryGetValue(seg.MainRouteId, out var list))
+                {
+                    list = new List<ServiceRouteId>();
+                    index[seg.MainRouteId] = list;
+                }
+
+                // 同一ServiceRoute内でMainRouteを複数Segmentにまたいで使う場合（環状線での往復等）の重複登録防止
+                if (!list.Contains(sr.Id))
+                {
+                    list.Add(sr.Id);
+                }
+            }
+        }
+
+        return index;
+    }
 }

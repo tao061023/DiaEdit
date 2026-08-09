@@ -141,28 +141,4 @@ public static class CarConsistResolver
         var resolved = ResolveConsistAt(partnerTrain, partnerStopKey, context);
         return resolved.ConsistBlocks.ToList();
     }
-
-    internal static List<StopKey> BuildVisitedStopKeys(Train train)
-    {
-        var stations = new List<StationId>();
-        if (train.RunSegments.Count > 0)
-        {
-            stations.Add(train.RunSegments[0].FromStationId);
-            foreach (var segment in train.RunSegments)
-            {
-                stations.Add(segment.ToStationId);
-            }
-        }
-
-        var visitCounts = new Dictionary<StationId, int>();
-        var keys = new List<StopKey>(stations.Count);
-        foreach (var stationId in stations)
-        {
-            var visitSequence = visitCounts.TryGetValue(stationId, out var count) ? count : 0;
-            keys.Add(new StopKey(stationId, visitSequence));
-            visitCounts[stationId] = visitSequence + 1;
-        }
-
-        return keys;
-    }
 }

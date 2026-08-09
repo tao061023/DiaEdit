@@ -31,6 +31,11 @@ public sealed class TimeTableSetCache
     // 構築はTrainConnectionResolver.BuildDepartureIndex()側の責務とする（TrainOperationIndex等と同じ責務分離）。
     public Dictionary<(StationId StationId, RailId RailId), List<(int DepartureSeconds, TrainId TrainId)>> DepartureByStationTrackIndex { get; } = new();
 
+    // MainRouteId → それを経由するServiceRouteの一覧。UI表示専用（MainRouteのStationOrder変更時、
+    // 影響を受けるServiceRouteの一覧表示に使う）。DependencyResolverのAffectedIds算出には使わない。
+    // 構築はServiceRouteStationOrderResolver.BuildServiceRoutesByMainRouteIndex()側の責務とする。
+    public Dictionary<MainRouteId, List<ServiceRouteId>> ServiceRoutesByMainRouteIndex { get; } = new();
+
     // -----------------------------
     // (b) 重量キャッシュ系（遅延再構築）
     // -----------------------------
@@ -88,6 +93,7 @@ public sealed class TimeTableSetCache
         TemporaryRestrictionBySegmentIndex.Clear();
         DerivedTrainsBySourceId.Clear();
         DepartureByStationTrackIndex.Clear();
+        ServiceRoutesByMainRouteIndex.Clear();
         StopKeyReferenceIndex.Clear();
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
