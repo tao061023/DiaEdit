@@ -9,6 +9,15 @@ public sealed class DisplayName
     public string Resolve(string localeCode)
         => Translations.TryGetValue(localeCode, out var v) ? v : Name;
 
-    public string ResolveCompact(string localeCode)
-        => Abbreviation ?? Resolve(localeCode);
+    /// <summary>
+    /// Name/Abbreviation/Translationsをディープコピーした新しいDisplayNameを返す。
+    /// DisplayNameは参照型（class）かつTranslationsがミュータブルなDictionaryのため、
+    /// スナップショット保持（UndoableCommand等）で外部参照を残さないために使う。
+    /// </summary>
+    public DisplayName Clone() => new()
+    {
+        Name = Name,
+        Abbreviation = Abbreviation,
+        Translations = new Dictionary<string, string>(Translations)
+    };
 }

@@ -43,9 +43,12 @@ public static class DependencyResolver
     /// <summary>
     /// 単一オブジェクトの直接の依存先（1ホップ分）を返す。依存関係ルールテーブルの実体。 <br/>
     /// 新しいObjectId派生型を追加した場合、CS8509(error)によりここでのケース追加漏れがビルドエラーとなる <br/>
-    /// （.editorconfigでdotnet_diagnostic.CS8509.severity=errorが設定済みのため）。
+    /// （.editorconfigでdotnet_diagnostic.CS8509.severity=errorが設定済みのため）。 <br/>
+    /// public化（v12.11）：ResolveAffected内部での波及探索用途に加え、削除系コマンドが
+    /// 「直接の参照元が残っている場合はexecute時点で拒否する」（6.1節）判定に使う1ホップ専用の
+    /// 問い合わせとしても利用する。
     /// </summary>
-    private static IEnumerable<ObjectId> ResolveDirectDependents(ObjectId current, TimeTableSetCache cache) =>
+    public static IEnumerable<ObjectId> ResolveDirectDependents(ObjectId current, TimeTableSetCache cache) =>
         current switch
         {
             // Station → StationConnection
