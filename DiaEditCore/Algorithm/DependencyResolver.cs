@@ -85,6 +85,7 @@ public static class DependencyResolver
             SwitcherObjectId => [],
             RailObjectId => [],
             VirtualConflictObjectIdObject => [],
+            TrainObjectId => [],
 
             // CS8509（error化済み）は参照型switchでnullケースも網羅対象とするため明示。
             // ResolveAffected()側はchangedIds/queueにnullを積まない前提だが、

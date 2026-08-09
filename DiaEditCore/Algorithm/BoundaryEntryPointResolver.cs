@@ -66,6 +66,49 @@ public static class BoundaryEntryPointResolver
 
         return result;
     }
+    /// <summary>
+    /// ResolveBoundaryEntryPointと同じ照合ロジックで、一致したStationConnection自体のIdを返す版。
+    /// SyncRunSegmentsToTrainCommand等、ホップ単位でどのStationConnectionを使うか確定させたい
+    /// 呼び出し元向け。
+    /// </summary>
+    public static IReadOnlyList<StationConnectionId> ResolveBoundaryStationConnection(
+        MainRouteId mainRouteId,
+        int fromIndex,
+        int toIndex,
+        IReadOnlyList<MainRoute> allMainRoutes,
+        IReadOnlyList<StationConnection> allStationConnections,
+        IReadOnlyList<StationConnectionSegment> allSegments)
+    {
+        var mainRoute = allMainRoutes.FirstOrDefault(mr => mr.Id == mainRouteId);
+        if (mainRoute is null) return Array.Empty<StationConnectionId>();
+
+        var stationOrder = mainRoute.StationOrder;
+        if (fromIndex < 0 || fromIndex >= stationOrder.Count ||
+            toIndex < 0 || toIndex >= stationOrder.Count ||
+            fromIndex == toIndex)
+        {
+            return Array.Empty<StationConnectionId>();
+        }
+
+        var direction = fromIndex < toIndex
+            ? StationConnectionDirection.Down
+            : StationConnectionDirection.Up;
+
+        var expectedStations = BuildExpectedStations(stationOrder, fromIndex, toIndex);
+
+        var result = new List<StationConnectionId>();
+        foreach (var sc in allStationConnections)
+        {
+            if (sc.MainRouteId != mainRouteId || sc.Direction != direction) continue;
+
+            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments);
+            if (!MatchesExpectedStations(seq, expectedStations)) continue;
+
+            result.Add(sc.Id);
+        }
+
+        return result;
+    }
 
     private static List<StationId> BuildExpectedStations(IReadOnlyList<StationId> stationOrder, int fromIndex, int toIndex)
     {

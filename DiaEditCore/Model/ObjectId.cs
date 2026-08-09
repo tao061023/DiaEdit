@@ -13,3 +13,4 @@ public sealed record StationObjectId(StationId Id) : ObjectId;
 public sealed record MainRouteObjectId(MainRouteId Id) : ObjectId;
 public sealed record StationConnectionObjectId(StationConnectionId Id) : ObjectId;
 public sealed record TemporaryRestrictionObjectId(TemporaryRestrictionId Id) : ObjectId;
+public sealed record TrainObjectId(TrainId Id) : ObjectId;
