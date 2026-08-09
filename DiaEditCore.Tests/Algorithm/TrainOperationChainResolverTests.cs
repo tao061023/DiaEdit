@@ -87,8 +87,8 @@ public class TrainOperationChainResolverTests
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime();
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime();
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
@@ -113,7 +113,7 @@ public class TrainOperationChainResolverTests
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(null)] };
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(null)] };
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
@@ -127,12 +127,12 @@ public class TrainOperationChainResolverTests
         var rail = new RailId(1);
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
+        train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1, train2], index, MakeSettings(minTurnaroundSec: 0));
@@ -147,12 +147,12 @@ public class TrainOperationChainResolverTests
         var rail = new RailId(1);
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             ArrivalSeconds = -1,
             DepartureSeconds = 1300,
@@ -174,17 +174,17 @@ public class TrainOperationChainResolverTests
 
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
-        train2.StopTimes[new StopKey(new StationId(3), 0)] = new StopTime { ArrivalSeconds = 2000, DepartureSeconds = -1, TrackRailId = rail };
+        train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
+        train2.StopTimesInternal[new StopKey(new StationId(3), 0)] = new StopTime { ArrivalSeconds = 2000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train3 = NewTrain(3, "1003M");
         AddRunSegment(train3, 3, 4);
-        train3.StopTimes[new StopKey(new StationId(3), 0)] = new StopTime
+        train3.StopTimesInternal[new StopKey(new StationId(3), 0)] = new StopTime
         {
             ArrivalSeconds = -1,
             DepartureSeconds = 2300,
@@ -209,12 +209,12 @@ public class TrainOperationChainResolverTests
 
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = otherRail };
+        train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = otherRail };
 
         var trains = new[] { train1, train2 };
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
@@ -230,12 +230,12 @@ public class TrainOperationChainResolverTests
         var rail = new RailId(1);
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
+        train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
 
         var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1], index, MakeSettings());
@@ -249,13 +249,13 @@ public class TrainOperationChainResolverTests
     {
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime();
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime();
 
         var train2 = NewTrain(2, "2001M");
         AddRunSegment(train2, 5, 6);
-        train2.StopTimes[new StopKey(new StationId(5), 0)] = new StopTime { Works = [StartOp(300)] };
-        train2.StopTimes[new StopKey(new StationId(6), 0)] = new StopTime();
+        train2.StopTimesInternal[new StopKey(new StationId(5), 0)] = new StopTime { Works = [StartOp(300)] };
+        train2.StopTimesInternal[new StopKey(new StationId(6), 0)] = new StopTime();
 
         var trains = new[] { train1, train2 };
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);
@@ -272,17 +272,17 @@ public class TrainOperationChainResolverTests
 
         var train1 = NewTrain(1, "1001M");
         AddRunSegment(train1, 1, 2);
-        train1.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
-        train1.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
+        train1.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
+        train1.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = rail };
 
         var train3 = NewTrain(3, "1003M");
         AddRunSegment(train3, 4, 2);
-        train3.StopTimes[new StopKey(new StationId(4), 0)] = new StopTime { Works = [StartOp(999)] };
-        train3.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1500, DepartureSeconds = -1, TrackRailId = rail };
+        train3.StopTimesInternal[new StopKey(new StationId(4), 0)] = new StopTime { Works = [StartOp(999)] };
+        train3.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = 1500, DepartureSeconds = -1, TrackRailId = rail };
 
         var train2 = NewTrain(2, "1002M");
         AddRunSegment(train2, 2, 3);
-        train2.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1800, TrackRailId = rail };
+        train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1800, TrackRailId = rail };
 
         var trains = new[] { train1, train3, train2 };
         var index = TrainConnectionResolver.BuildDepartureIndex(trains);

@@ -79,7 +79,7 @@ public class EffectiveLengthCheckerTests
                 },
             },
         };
-        train.StopTimes[Key] = new StopTime
+        train.StopTimesInternal[Key] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = -1,
@@ -182,7 +182,7 @@ public class EffectiveLengthCheckerTests
     public void TrackRailIdが未設定StopTimeはNotApplicable()
     {
         var (train, consists, compositions, cars) = MakeTrainWithConsist(carCount: 2, lengthM: 20);
-        train.StopTimes[Key].TrackRailId = null;
+        train.StopTimesInternal[Key].TrackRailId = null;
         var rails = new Dictionary<RailId, Rail> { [TrackRail] = MakeRail(lengthM: 100) };
 
         var result = EffectiveLengthChecker.CheckEffectiveLength(
@@ -291,7 +291,7 @@ public class EffectiveLengthCheckerTests
                 },
             },
         };
-        train.StopTimes[Key] = new StopTime
+        train.StopTimesInternal[Key] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = -1,

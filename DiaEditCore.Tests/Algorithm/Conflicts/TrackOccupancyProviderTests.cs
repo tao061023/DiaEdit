@@ -95,7 +95,7 @@ public class TrackOccupancyProviderTests
     {
         var train = NewTrain(id, trainNumber);
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = arrivalSeconds,
@@ -110,7 +110,7 @@ public class TrackOccupancyProviderTests
     {
         var train = NewTrain(id, trainNumber);
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = ScBC });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = -1,
@@ -235,7 +235,7 @@ public class TrackOccupancyProviderTests
     {
         var (scs, segs, pathsById, arrivalIndex, departureIndex, rails, shuntingPath) = BuildTopology();
         var train = MakeArrivingTrain(1, arrivalSeconds: 1000);
-        train.StopTimes[new StopKey(StB, 0)].Works.Add(new StationWork
+        train.StopTimesInternal[new StopKey(StB, 0)].Works.Add(new StationWork
         {
             Type = StationWorkType.Shunting,
             StationPathId = shuntingPath.Id,
@@ -257,7 +257,7 @@ public class TrackOccupancyProviderTests
     {
         var (scs, segs, pathsById, arrivalIndex, departureIndex, rails, shuntingPath) = BuildTopology();
         var train = MakeArrivingTrain(1, arrivalSeconds: 1000);
-        train.StopTimes[new StopKey(StB, 0)].Works.Add(new StationWork
+        train.StopTimesInternal[new StopKey(StB, 0)].Works.Add(new StationWork
         {
             Type = StationWorkType.Shunting,
             StationPathId = shuntingPath.Id,

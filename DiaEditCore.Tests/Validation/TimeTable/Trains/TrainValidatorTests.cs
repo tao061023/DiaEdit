@@ -337,7 +337,7 @@ public class TrainValidatorTests
     public void StopTimesの矛盾がWorks経由で伝播する()
     {
         var train = MakeValidTrain(1);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.None }],
         };

@@ -75,7 +75,7 @@ public class StopTimeValidatorTests
             DefaultVehicleTypeId = new VehicleTypeId(1),
         };
         var partnerStopKey = new StopKey(new StationId(1), 0);
-        partner.StopTimes[partnerStopKey] = new StopTime();
+        partner.StopTimesInternal[partnerStopKey] = new StopTime();
 
         var stopTime = new StopTime
         {

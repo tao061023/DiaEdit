@@ -64,18 +64,26 @@ public sealed class SyncRunSegmentsToTrainCommand : UndoableCommand<Train, SyncR
     protected override SyncRunSegmentsSnapshot CaptureSnapshot(Train target) =>
         new(
             new List<TrainRunSegment>(target.RunSegments),
-            new Dictionary<StopKey, StopTime>(target.StopTimes));
+            new Dictionary<StopKey, StopTime>(target.StopTimes)); // IReadOnlyDictionaryからのコピーコンストラクタはそのまま使える
 
     protected override void Apply(Train target)
     {
         target.RunSegments = _newRunSegments;
-        target.StopTimes = _newStopTimes;
+        target.StopTimesInternal.Clear();
+        foreach (var (key, value) in _newStopTimes)
+        {
+            target.StopTimesInternal[key] = value;
+        }
     }
 
     protected override void Restore(Train target, SyncRunSegmentsSnapshot snapshot)
     {
         target.RunSegments = snapshot.RunSegments;
-        target.StopTimes = snapshot.StopTimes;
+        target.StopTimesInternal.Clear();
+        foreach (var (key, value) in snapshot.StopTimes)
+        {
+            target.StopTimesInternal[key] = value;
+        }
     }
 
     // -----------------------------

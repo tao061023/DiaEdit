@@ -65,13 +65,10 @@ public class StopPatternResolverTests
                 new() { FromStationId = stA, ToStationId = stB, StationConnectionId = new StationConnectionId(1) },
                 new() { FromStationId = stB, ToStationId = stC, StationConnectionId = new StationConnectionId(2) },
             },
-            StopTimes = new Dictionary<StopKey, StopTime>
-            {
-                [new StopKey(stA, 0)] = new() { IsStop = true, DepartureSeconds = 100 },
-                [new StopKey(stB, 0)] = new() { IsStop = true, ArrivalSeconds = 200, DepartureSeconds = 210 },
-                [new StopKey(stC, 0)] = new() { IsStop = true, ArrivalSeconds = 300 },
-            },
         };
+        train.StopTimesInternal[new StopKey(stA, 0)] = new() { IsStop = true, DepartureSeconds = 100 };
+        train.StopTimesInternal[new StopKey(stB, 0)] = new() { IsStop = true, ArrivalSeconds = 200, DepartureSeconds = 210 };
+        train.StopTimesInternal[new StopKey(stC, 0)] = new() { IsStop = true, ArrivalSeconds = 300 };
 
         var stations = new List<Station> { MakeStation(stA, "A駅"), MakeStation(stB, "B駅"), MakeStation(stC, "C駅") };
         return (train, sr, mainRoute, stations);
@@ -95,7 +92,7 @@ public class StopPatternResolverTests
         var (train, sr, mainRoute, stations) = BuildBasicThreeStationCase();
         // B駅を通過扱いに変更
         var stB = stations[1].Id;
-        train.StopTimes[new StopKey(stB, 0)] = new StopTime { IsStop = false, DepartureSeconds = 205 };
+        train.StopTimesInternal[new StopKey(stB, 0)] = new StopTime { IsStop = false, DepartureSeconds = 205 };
 
         var result = StopPatternResolver.ResolveStopPattern(
             train, new List<ServiceRoute> { sr }, new List<MainRoute> { mainRoute }, stations);
@@ -109,7 +106,7 @@ public class StopPatternResolverTests
     {
         var (train, sr, mainRoute, stations) = BuildBasicThreeStationCase();
         var stB = stations[1].Id;
-        train.StopTimes.Remove(new StopKey(stB, 0));
+        train.StopTimesInternal.Remove(new StopKey(stB, 0));
 
         var result = StopPatternResolver.ResolveStopPattern(
             train, new List<ServiceRoute> { sr }, new List<MainRoute> { mainRoute }, stations);

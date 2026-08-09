@@ -53,7 +53,7 @@ public class TrainOperationValidatorTests
     public void PrevTrainの運用番号変更が直前Trainと異なれば合格()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(102)],
         };
@@ -76,7 +76,7 @@ public class TrainOperationValidatorTests
     public void PrevTrainの運用番号変更が直前Trainと同一なら不合格()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(101)],
         };
@@ -99,7 +99,7 @@ public class TrainOperationValidatorTests
     public void PrevTrainのOperationOverride省略なら継承のみのためRule2の対象外()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(trainOperationId: null)],
         };
@@ -122,7 +122,7 @@ public class TrainOperationValidatorTests
     public void StartOpのみでPrevTrainWorkが無ければRule2の対象外()
     {
         var target = MakeValidTrain(1);
-        target.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [MakeStartOp(100)],
         };
@@ -138,7 +138,7 @@ public class TrainOperationValidatorTests
     public void crossDataがnullなら判定不能のためスキップされる()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(101)],
         };
@@ -153,7 +153,7 @@ public class TrainOperationValidatorTests
     public void PrevTrainMapに直前Trainのエントリが無ければ判定不能としてスキップされる()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(101)],
         };
@@ -169,7 +169,7 @@ public class TrainOperationValidatorTests
     public void TrainOperationIndexに直前Trainのエントリが無ければ判定不能としてスキップされる()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(101)],
         };
@@ -189,8 +189,8 @@ public class TrainOperationValidatorTests
     public void StopTimesの辞書登録順に関わらずPrevTrainWorkが検出される()
     {
         var target = MakeValidTrain(2);
-        target.StopTimes[new StopKey(new StationId(3), 1)] = new StopTime();
-        target.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        target.StopTimesInternal[new StopKey(new StationId(3), 1)] = new StopTime();
+        target.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [MakePrevTrain(101)],
         };

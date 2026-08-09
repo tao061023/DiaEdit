@@ -88,7 +88,7 @@ public class CarConsistResolverTests
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -125,7 +125,7 @@ public class CarConsistResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
         };
@@ -142,7 +142,7 @@ public class CarConsistResolverTests
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
         };
@@ -159,7 +159,7 @@ public class CarConsistResolverTests
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
         };
@@ -176,7 +176,7 @@ public class CarConsistResolverTests
     {
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 101)] }],
         };
@@ -200,7 +200,7 @@ public class CarConsistResolverTests
         AddRunSegment(train, 2, 1); // 駅1を再訪（ループ）
         AddRunSegment(train, 1, 3);
 
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
         };
@@ -208,14 +208,14 @@ public class CarConsistResolverTests
         var partner = NewTrain(2, "9000M");
         AddRunSegment(partner, 5, 1);
         var partnerStopKey = new StopKey(new StationId(1), 0);
-        partner.StopTimes[new StopKey(new StationId(5), 0)] = new StopTime
+        partner.StopTimesInternal[new StopKey(new StationId(5), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 30)] }],
         };
-        partner.StopTimes[partnerStopKey] = new StopTime();
+        partner.StopTimesInternal[partnerStopKey] = new StopTime();
 
         // 2回目の駅1でCoupling（相手Train全体＝Composition30を自編成の後ろに連結）
-        train.StopTimes[new StopKey(new StationId(1), 1)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 1)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -248,11 +248,11 @@ public class CarConsistResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
         };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -283,11 +283,11 @@ public class CarConsistResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
         };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -317,11 +317,11 @@ public class CarConsistResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
         };
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.Decoupling, DecouplingDetail = null }],
         };
@@ -340,7 +340,7 @@ public class CarConsistResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
         };
@@ -348,13 +348,13 @@ public class CarConsistResolverTests
         var partner = NewTrain(2, "9000M");
         AddRunSegment(partner, 5, 2);
         var partnerStopKey = new StopKey(new StationId(2), 0);
-        partner.StopTimes[new StopKey(new StationId(5), 0)] = new StopTime
+        partner.StopTimesInternal[new StopKey(new StationId(5), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 20)] }],
         };
-        partner.StopTimes[partnerStopKey] = new StopTime();
+        partner.StopTimesInternal[partnerStopKey] = new StopTime();
 
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -379,7 +379,7 @@ public class CarConsistResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
         AddRunSegment(train, 2, 3);
-        train.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10)] }],
         };
@@ -387,13 +387,13 @@ public class CarConsistResolverTests
         var partner = NewTrain(2, "9000M");
         AddRunSegment(partner, 5, 2);
         var partnerStopKey = new StopKey(new StationId(2), 0);
-        partner.StopTimes[new StopKey(new StationId(5), 0)] = new StopTime
+        partner.StopTimesInternal[new StopKey(new StationId(5), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 20)] }],
         };
-        partner.StopTimes[partnerStopKey] = new StopTime();
+        partner.StopTimesInternal[partnerStopKey] = new StopTime();
 
-        train.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -419,12 +419,12 @@ public class CarConsistResolverTests
         var origin = NewTrain(1);
         AddRunSegment(origin, 1, 2);
         AddRunSegment(origin, 2, 3);
-        origin.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        origin.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
         };
         var originDecouplingStopKey = new StopKey(new StationId(2), 0);
-        origin.StopTimes[originDecouplingStopKey] = new StopTime
+        origin.StopTimesInternal[originDecouplingStopKey] = new StopTime
         {
             Works = [new StationWork
             {
@@ -441,7 +441,7 @@ public class CarConsistResolverTests
         // 新Train(2)：SplitOriginRef経由でrear（Composition=20）を引き継ぐ
         var newTrain = NewTrain(2);
         AddRunSegment(newTrain, 2, 4);
-        newTrain.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        newTrain.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork
             {
@@ -466,12 +466,12 @@ public class CarConsistResolverTests
         var origin = NewTrain(1);
         AddRunSegment(origin, 1, 2);
         AddRunSegment(origin, 2, 3);
-        origin.StopTimes[new StopKey(new StationId(1), 0)] = new StopTime
+        origin.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
         {
             Works = [new StationWork { Type = StationWorkType.StartOp, StartOpConsist = [Slot(0, 10), Slot(1, 20)] }],
         };
         var originDecouplingStopKey = new StopKey(new StationId(2), 0);
-        origin.StopTimes[originDecouplingStopKey] = new StopTime
+        origin.StopTimesInternal[originDecouplingStopKey] = new StopTime
         {
             Works = [new StationWork
             {
@@ -487,7 +487,7 @@ public class CarConsistResolverTests
 
         var newTrain = NewTrain(2);
         AddRunSegment(newTrain, 2, 4);
-        newTrain.StopTimes[new StopKey(new StationId(2), 0)] = new StopTime
+        newTrain.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime
         {
             Works = [new StationWork
             {

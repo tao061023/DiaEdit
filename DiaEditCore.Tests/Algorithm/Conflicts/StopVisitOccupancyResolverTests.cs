@@ -114,7 +114,7 @@ public class StopVisitOccupancyResolverTests
         var (resolveEp, pathsById, arrivalIndex, departureIndex) = BuildTopology(arrivalAdjustmentSec: 30);
         var train = NewTrain(1, "arr");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = TrackB };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, DepartureSeconds = -1, TrackRailId = TrackB };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 1, resolveEp, pathsById, arrivalIndex, departureIndex);
 
@@ -133,7 +133,7 @@ public class StopVisitOccupancyResolverTests
         var (resolveEp, pathsById, arrivalIndex, departureIndex) = BuildTopology(departureAdjustmentSec: 20);
         var train = NewTrain(1, "dep");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = ScBC });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = -1, DepartureSeconds = 1100, TrackRailId = TrackB };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = -1, DepartureSeconds = 1100, TrackRailId = TrackB };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 0, resolveEp, pathsById, arrivalIndex, departureIndex);
 
@@ -151,7 +151,7 @@ public class StopVisitOccupancyResolverTests
         var train = NewTrain(1, "through");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = ScBC });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, DepartureSeconds = 1100, TrackRailId = TrackB };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, DepartureSeconds = 1100, TrackRailId = TrackB };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 1, resolveEp, pathsById, arrivalIndex, departureIndex);
 
@@ -169,7 +169,7 @@ public class StopVisitOccupancyResolverTests
         var train = NewTrain(1, "pass");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = ScBC });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = false, ArrivalSeconds = -1, DepartureSeconds = 1050, TrackRailId = TrackB };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = false, ArrivalSeconds = -1, DepartureSeconds = 1050, TrackRailId = TrackB };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 1, resolveEp, pathsById, arrivalIndex, departureIndex);
 
@@ -187,7 +187,7 @@ public class StopVisitOccupancyResolverTests
         var train = NewTrain(1, "pass");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = ScBC });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = false, ArrivalSeconds = -1, DepartureSeconds = -1, TrackRailId = TrackB };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = false, ArrivalSeconds = -1, DepartureSeconds = -1, TrackRailId = TrackB };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 1, resolveEp, pathsById, arrivalIndex, departureIndex);
 
@@ -215,7 +215,7 @@ public class StopVisitOccupancyResolverTests
         var (resolveEp, pathsById, arrivalIndex, departureIndex) = BuildTopology();
         var train = NewTrain(1, "arr");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, TrackRailId = null };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, TrackRailId = null };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 1, resolveEp, pathsById, arrivalIndex, departureIndex);
 
@@ -230,7 +230,7 @@ public class StopVisitOccupancyResolverTests
         var emptyArrivalIndex = new Dictionary<(EntryPointId, RailId), StationPathId>();
         var train = NewTrain(1, "arr");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, TrackRailId = TrackB };
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime { IsStop = true, ArrivalSeconds = 1000, TrackRailId = TrackB };
 
         var result = StopVisitOccupancyResolver.Resolve(train, visitSeq: 1, resolveEp, pathsById, emptyArrivalIndex, departureIndex);
 

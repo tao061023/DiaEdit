@@ -53,7 +53,7 @@ public class TrainConnectionResolverTests
             ToStationId = stationId,
             StationConnectionId = new StationConnectionId(1),
         });
-        train.StopTimes[new StopKey(stationId, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(stationId, 0)] = new StopTime
         {
             ArrivalSeconds = arrivalSeconds,
             DepartureSeconds = -1,
@@ -76,7 +76,7 @@ public class TrainConnectionResolverTests
             ToStationId = dummyTo,
             StationConnectionId = new StationConnectionId(1),
         });
-        train.StopTimes[new StopKey(stationId, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(stationId, 0)] = new StopTime
         {
             ArrivalSeconds = -1,
             DepartureSeconds = departureSeconds,
@@ -103,13 +103,13 @@ public class TrainConnectionResolverTests
             ToStationId = toStationId,
             StationConnectionId = new StationConnectionId(1),
         });
-        train.StopTimes[new StopKey(fromStationId, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(fromStationId, 0)] = new StopTime
         {
             ArrivalSeconds = -1,
             DepartureSeconds = departureSeconds,
             TrackRailId = departureRail,
         };
-        train.StopTimes[new StopKey(toStationId, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(toStationId, 0)] = new StopTime
         {
             ArrivalSeconds = arrivalSeconds,
             DepartureSeconds = -1,
@@ -253,7 +253,7 @@ public class TrainConnectionResolverTests
             StationConnectionId = new StationConnectionId(1),
         });
         // 終着訪問として登録する（stationはこのTrain内で1回しか訪問しないためVisitCountは常に0）
-        train.StopTimes[new StopKey(station, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(station, 0)] = new StopTime
         {
             ArrivalSeconds = 1000,
             DepartureSeconds = 1300, // 折返し発車（このStopTime自体はTrain自身の終着訪問データであり、

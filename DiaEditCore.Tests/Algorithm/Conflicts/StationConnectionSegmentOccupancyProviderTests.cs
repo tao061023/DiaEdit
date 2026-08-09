@@ -75,14 +75,14 @@ public class StationConnectionSegmentOccupancyProviderTests
     {
         var train = NewTrain(id, trainNumber);
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
-        train.StopTimes[new StopKey(StA, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(StA, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = -1,
             DepartureSeconds = departureSeconds,
             TrackRailId = TrackA,
         };
-        train.StopTimes[new StopKey(StB, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(StB, 0)] = new StopTime
         {
             IsStop = true,
             ArrivalSeconds = arrivalSeconds,
@@ -190,7 +190,7 @@ public class StationConnectionSegmentOccupancyProviderTests
         var train = NewTrain(1, "1000M");
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = ScAB });
         // 出発StopTimeのみ設定、到着StopTimeは未設定のまま
-        train.StopTimes[new StopKey(StA, 0)] = new StopTime
+        train.StopTimesInternal[new StopKey(StA, 0)] = new StopTime
         {
             IsStop = true,
             DepartureSeconds = 1000,
