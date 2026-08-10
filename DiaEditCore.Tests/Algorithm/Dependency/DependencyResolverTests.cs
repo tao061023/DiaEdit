@@ -1,6 +1,6 @@
-namespace DiaEditCore.Tests.Algorithm;
+namespace DiaEditCore.Tests.Algorithm.Dependency;
 
-using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable;
 using Xunit;

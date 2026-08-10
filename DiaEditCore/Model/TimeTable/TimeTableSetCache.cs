@@ -36,6 +36,15 @@ public sealed class TimeTableSetCache
     // 構築はServiceRouteStationOrderResolver.BuildServiceRoutesByMainRouteIndex()側の責務とする。
     public Dictionary<MainRouteId, List<ServiceRouteId>> ServiceRoutesByMainRouteIndex { get; } = new();
 
+    // FloorUnitId → そのFloorUnit配下に属するオブジェクト（BoundaryPoint／EntryPoint／BufferStop／
+    // Switcher／Platform／StationPath）のObjectId一覧（v12.16新設）。
+    // 前5者はFloorUnitObjectBase.FloorUnitId経由、StationPathのみFloorUnitIdを直接保持するが、
+    // いずれも「FloorUnit削除時に直接参照元として存在チェックすべき対象」という点で同列に扱う。
+    // 構築はFloorUnitDependentIndexBuilder.Build()側の責務とする。
+    // 用途：DependencyResolver.ResolveDirectDependents（FloorUnitObjectIdケース）、
+    // DeleteFloorUnitCommandの削除可否判定（6.1節ハード制約）。
+    public Dictionary<FloorUnitId, List<ObjectId>> FloorUnitDependentIndex { get; } = new();
+
     // -----------------------------
     // (b) 重量キャッシュ系（遅延再構築）
     // -----------------------------
@@ -95,6 +104,7 @@ public sealed class TimeTableSetCache
         DepartureByStationTrackIndex.Clear();
         ServiceRoutesByMainRouteIndex.Clear();
         StopKeyReferenceIndex.Clear();
+        FloorUnitDependentIndex.Clear();
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
 

@@ -1,4 +1,4 @@
-namespace DiaEditCore.Algorithm;
+namespace DiaEditCore.Algorithm.Dependency;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable;
@@ -80,6 +80,14 @@ public static class DependencyResolver
                     ? scByRoute.Select(id => (ObjectId)new StationConnectionObjectId(id))
                     : [],
 
+            // FloorUnit → 配下オブジェクト（BoundaryPoint/EntryPoint/BufferStop/Switcher/Platform/StationPath）
+            // v12.16追加。FloorUnitDependentIndexはFloorUnitDependentIndexBuilder.Build()が構築する
+            // （TimeTableSetCache新設インデックス、他の軽量Indexと同じ責務分離パターン）。
+            FloorUnitObjectId f =>
+                cache.FloorUnitDependentIndex.TryGetValue(f.Id, out var floorUnitDependents)
+                    ? floorUnitDependents
+                    : [],
+
             // 以下は現時点でこのグラフの終端（他オブジェクトを波及させるルールが未定義）
             StationConnectionObjectId => [],
             TemporaryRestrictionObjectId => [],
@@ -89,6 +97,8 @@ public static class DependencyResolver
             RailObjectId => [],
             VirtualConflictObjectIdObject => [],
             TrainObjectId => [],
+            PlatformObjectId => [], // v12.16追加。現時点で他オブジェクトへの波及ルールが未定義
+            StationPathObjectId => [], // v12.16追加。同上
 
             // CS8509（error化済み）は参照型switchでnullケースも網羅対象とするため明示。
             // ResolveAffected()側はchangedIds/queueにnullを積まない前提だが、
