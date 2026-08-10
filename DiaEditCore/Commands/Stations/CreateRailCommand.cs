@@ -1,0 +1,70 @@
+namespace DiaEditCore.Commands.Stations;
+
+using DiaEditCore.Model;
+using DiaEditCore.Model.Stations;
+
+/// <summary>
+/// 6.1節「新規登録（Create）」パターンのRail向け実装。CreateStationCommand（v12.11）と同じ設計。
+///
+/// EndpointA/EndpointB（接続トポロジー）は新規作成時点では未接続（NoneEndpointRef）で生成する。
+/// 接続の確立はSwitcherコマンド実装時にあわせて設計する専用コマンドの責務とする（6.1節参照）。
+/// ControlPointsも同様に空リストで生成し、形状編集は専用コマンドの責務とする。
+///
+/// ID採番はCreateStationCommandと同じ方針（セッション中は最大IdValue+1、欠番は詰めない。
+/// §9.2項目11でコンパクションは別タスク化済み）。
+///
+/// AffectedIdsは新規登録パターンの規約通り空集合（6.1節）。
+/// </summary>
+public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
+{
+    private readonly string _name;
+    private readonly double _lengthM;
+    private readonly double _speedLimitKph;
+    private readonly RailRole _role;
+
+    /// <summary>Execute()実行後、生成されたRailを呼び出し元が参照するためのプロパティ。</summary>
+    public Rail? Created { get; private set; }
+
+    public CreateRailCommand(
+        List<Rail> rails,
+        string name,
+        double lengthM,
+        double speedLimitKph,
+        RailRole role)
+        : base(rails, new HashSet<ObjectId>()) // 新規登録：AffectedIdsは空集合（6.1節）
+    {
+        _name = name;
+        _lengthM = lengthM;
+        _speedLimitKph = speedLimitKph;
+        _role = role;
+    }
+
+    protected override Rail? CaptureSnapshot(List<Rail> target) => null;
+
+    protected override void Apply(List<Rail> target)
+    {
+        var id = AllocateNextId(target);
+        Created = new Rail
+        {
+            Id = id,
+            Name = _name,
+            LengthM = _lengthM,
+            SpeedLimitKph = _speedLimitKph,
+            Role = _role,
+            EndpointA = new NoneEndpointRef(),
+            EndpointB = new NoneEndpointRef()
+        };
+        target.Add(Created);
+    }
+
+    protected override void Restore(List<Rail> target, Rail? snapshot)
+    {
+        if (Created is not null)
+        {
+            target.Remove(Created);
+        }
+    }
+
+    private static RailId AllocateNextId(IReadOnlyList<Rail> existing) =>
+        new(existing.Count == 0 ? 1 : existing.Max(r => r.Id.Value) + 1);
+}
