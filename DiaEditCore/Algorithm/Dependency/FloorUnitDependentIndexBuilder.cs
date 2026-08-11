@@ -2,7 +2,6 @@ namespace DiaEditCore.Algorithm.Dependency;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-using DiaEditCore.Model.TimeTable;
 
 /// <summary>
 /// TimeTableSetCache.FloorUnitDependentIndex（v12.16新設）の構築を担う。

@@ -2,7 +2,6 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Algorithm;
-using DiaEditCore.Serialization.Validation;
 
 using Xunit;
 

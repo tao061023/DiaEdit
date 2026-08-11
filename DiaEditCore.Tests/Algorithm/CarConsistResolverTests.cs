@@ -1,4 +1,3 @@
-// CarConsistResolverTests.cs
 using DiaEditCore.Model;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.Routes;

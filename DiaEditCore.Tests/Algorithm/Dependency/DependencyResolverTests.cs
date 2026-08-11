@@ -2,7 +2,7 @@ namespace DiaEditCore.Tests.Algorithm.Dependency;
 
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
-using DiaEditCore.Model.TimeTable;
+
 using Xunit;
 
 public class DependencyResolverTests

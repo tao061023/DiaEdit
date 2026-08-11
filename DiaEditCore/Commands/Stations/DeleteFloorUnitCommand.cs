@@ -3,7 +3,6 @@ namespace DiaEditCore.Commands.Stations;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-using DiaEditCore.Model.TimeTable;
 
 /// <summary>
 /// 6.1節「削除（Delete）」パターンのFloorUnit向け実装。

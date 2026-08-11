@@ -1,7 +1,6 @@
 namespace DiaEditCore.Algorithm.Dependency;
 
 using DiaEditCore.Model;
-using DiaEditCore.Model.TimeTable;
 
 /// <summary>
 /// 変更対象オブジェクト群から、依存関係グラフ（TimeTableSetCacheの逆引きインデックス）を辿って

@@ -3,7 +3,7 @@ namespace DiaEditCore.Tests.Algorithm.Dependency;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-using DiaEditCore.Model.TimeTable;
+
 using Xunit;
 
 public sealed class FloorUnitDependentIndexBuilderTests

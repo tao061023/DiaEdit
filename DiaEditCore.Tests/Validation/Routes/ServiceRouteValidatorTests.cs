@@ -1,4 +1,3 @@
-using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;

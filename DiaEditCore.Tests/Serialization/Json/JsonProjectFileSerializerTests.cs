@@ -1,7 +1,6 @@
 using DiaEditCore.Model;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Serialization.Json;
-using DiaEditCore.Serialization.Validation;
 
 using Xunit;
 

@@ -3,7 +3,6 @@ namespace DiaEditCore.Tests.Commands.Stations;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-using DiaEditCore.Model.TimeTable;
 using Xunit;
 
 public sealed class ChangeRailAttributesCommandTests
