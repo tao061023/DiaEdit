@@ -15,7 +15,7 @@ public sealed class CommandInvoker
 {
     private readonly Stack<IUndoableCommand> _undoStack = new();
     private readonly Stack<IUndoableCommand> _redoStack = new();
-    private readonly List<ICacheChangeObserver> _observers = new();
+    private readonly HashSet<ICacheChangeObserver> _observers = new();
 
     public bool CanUndo => _undoStack.Count > 0;
     public bool CanRedo => _redoStack.Count > 0;

@@ -2,6 +2,7 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.CacheBuilder;
 
 using Xunit;
 
@@ -118,7 +119,7 @@ public class TrainConnectionResolverTests
     }
 
     private static Dictionary<(StationId, RailId), List<(int, TrainId)>> BuildIndex(params Train[] departingTrains)
-        => TrainConnectionResolver.BuildDepartureIndex(departingTrains);
+        => DepartureByStationTrackIndexBuilder.Build(departingTrains);
 
     // -----------------------------
     // ResolveNextTrainCandidates
@@ -312,59 +313,6 @@ public class TrainConnectionResolverTests
     }
 
     // -----------------------------
-    // BuildDepartureIndex
-    // -----------------------------
-
-    [Fact]
-    public void BuildDepartureIndexは始発StopTimeのDepartureSecondsが未設定のTrainを除外する()
-    {
-        var station = new StationId(1);
-        var rail = new RailId(1);
-        var departing = MakeDepartingTrain(1, station, departureSeconds: -1, rail); // 未設定
-
-        var index = TrainConnectionResolver.BuildDepartureIndex([departing]);
-
-        Assert.False(index.ContainsKey((station, rail)));
-    }
-
-    [Fact]
-    public void BuildDepartureIndexは始発StopTimeのTrackRailIdが未設定のTrainを除外する()
-    {
-        var station = new StationId(1);
-        var departing = MakeDepartingTrain(1, station, departureSeconds: 1000, trackRailId: null);
-
-        var index = TrainConnectionResolver.BuildDepartureIndex([departing]);
-
-        Assert.Empty(index);
-    }
-
-    [Fact]
-    public void BuildDepartureIndexはRunSegmentsが空のTrainをスキップし例外を投げない()
-    {
-        var train = NewTrain(1, "1000M"); // RunSegments空
-
-        var exception = Record.Exception(() => TrainConnectionResolver.BuildDepartureIndex([train]));
-
-        Assert.Null(exception);
-    }
-
-    [Fact]
-    public void BuildDepartureIndexは同一駅同一番線のTrainを発車時刻昇順にまとめる()
-    {
-        var station = new StationId(1);
-        var rail = new RailId(1);
-        var later = MakeDepartingTrain(1, station, departureSeconds: 1500, rail);
-        var earlier = MakeDepartingTrain(2, station, departureSeconds: 1200, rail);
-
-        var index = TrainConnectionResolver.BuildDepartureIndex([later, earlier]);
-
-        var list = index[(station, rail)];
-        Assert.Equal(2, list.Count);
-        Assert.Equal(earlier.Id, list[0].TrainId);
-        Assert.Equal(later.Id, list[1].TrainId);
-    }
-
-    // -----------------------------
     // ResolveUniqueNextTrainMap / ResolveUniquePrevTrainMap
     // -----------------------------
 
@@ -449,7 +397,7 @@ public class TrainConnectionResolverTests
             arrivalSeconds: 1800, arrivalRail: new RailId(88));
 
         var trains = new[] { trainA, trainB };
-        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var index = DepartureByStationTrackIndexBuilder.Build(trains);
         var settings = MakeSettings(minTurnaroundSec: 0);
 
         var nextMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, index, settings);

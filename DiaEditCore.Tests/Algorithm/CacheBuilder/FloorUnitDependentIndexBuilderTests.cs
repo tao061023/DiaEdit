@@ -1,6 +1,6 @@
-namespace DiaEditCore.Tests.Algorithm.Dependency;
+namespace DiaEditCore.Tests.Algorithm.CacheBuilder;
 
-using DiaEditCore.Algorithm.Dependency;
+using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 
@@ -51,7 +51,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
             }
         };
 
-        FloorUnitDependentIndexBuilder.Build(cache, boundaryPoints, entryPoints, bufferStops, switchers, platforms, stationPaths);
+        FloorUnitDependentIndexBuilder.Build(boundaryPoints, entryPoints, bufferStops, switchers, platforms, stationPaths);
 
         Assert.True(cache.FloorUnitDependentIndex.TryGetValue(new FloorUnitId(10), out var deps));
         Assert.Equal(6, deps!.Count);
@@ -73,7 +73,6 @@ public sealed class FloorUnitDependentIndexBuilderTests
         };
 
         FloorUnitDependentIndexBuilder.Build(
-            cache,
             Array.Empty<BoundaryPoint>(),
             Array.Empty<EntryPoint>(),
             Array.Empty<BufferStop>(),
@@ -95,7 +94,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
         };
 
         FloorUnitDependentIndexBuilder.Build(
-            cache, boundaryPoints,
+            boundaryPoints,
             Array.Empty<EntryPoint>(), Array.Empty<BufferStop>(),
             Array.Empty<Switcher>(), Array.Empty<Platform>(), Array.Empty<StationPath>());
 

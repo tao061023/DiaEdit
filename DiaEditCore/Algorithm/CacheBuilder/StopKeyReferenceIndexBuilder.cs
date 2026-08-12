@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm.CacheBuilder;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// SplitOriginRef／CouplingWork.PartnerStopKeyによる、Train間のStopKey参照を逆引きできる

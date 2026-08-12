@@ -36,5 +36,5 @@ public sealed class Train
     /// </summary>
     internal Dictionary<StopKey, StopTime> StopTimesInternal => _stopTimes;
 
-    public bool IsProvisional { get; set; } = true;
+    public bool IsProvisional { get; set; } = false;
 }

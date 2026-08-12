@@ -11,8 +11,6 @@ public sealed class Station
     public string TelegraphCode { get; set; } = "";
     public bool? ShowsInStationTimetableOverride { get; set; }
 
-    // floorUnitIdsは持たない（軽量インデックスとして都度導出。5.3節参照）
-
     public bool ResolveShowsInStationTimetable()
     {
         if (ShowsInStationTimetableOverride.HasValue)

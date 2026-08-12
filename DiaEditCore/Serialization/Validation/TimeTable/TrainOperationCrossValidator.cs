@@ -1,6 +1,6 @@
 using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
-using DiaEditCore.Model.TimeTable.Trains;
 
 namespace DiaEditCore.Serialization.Validation.Timetable;
 
@@ -16,7 +16,7 @@ public static class TrainOperationCrossValidator
 {
     public static IReadOnlyList<IValidationIssue> Run(ValidationContext context, ProjectSettings settings)
     {
-        var departureIndex = TrainConnectionResolver.BuildDepartureIndex(context.Trains);
+        var departureIndex = DepartureByStationTrackIndexBuilder.Build(context.Trains);
         var prevTrainMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(context.Trains, departureIndex, settings);
         var trainOperationIndex = TrainOperationChainResolver.Resolve(context.Trains, departureIndex, settings);
 

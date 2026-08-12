@@ -3,6 +3,7 @@ namespace DiaEditCore.Composition;
 using Microsoft.Extensions.DependencyInjection;
 
 using DiaEditCore.Commands;
+using DiaEditCore.Session;
 
 /// <summary>
 /// DiaEditCore側のDIコンテナ登録（7.3節・8.2節旧項目9）。
@@ -22,6 +23,7 @@ public static class CoreServiceCollectionExtensions
         // CommandInvokerはUndo/Redo履歴・ICacheChangeObserver購読者一覧をアプリ全体で共有するため、
         // Singletonとして登録する（論点K）。
         services.AddSingleton<CommandInvoker>();
+        services.AddSingleton<ProjectSession>(); 
 
         return services;
     }

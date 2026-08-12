@@ -12,7 +12,6 @@ public sealed class TimeTableSetCache
     // -----------------------------
 
     public Dictionary<string, TrainId> TrainNumberIndex { get; } = new();
-    public Dictionary<TrainId, TrainOperationId> TrainOperationIndex { get; } = new();
     public Dictionary<EntryPointId, List<StationConnectionId>> EntryPointConnectionIndex { get; } = new();
     public Dictionary<StationId, List<StationConnectionId>> StationConnectionIndex { get; } = new();
     public Dictionary<MainRouteId, List<StationConnectionId>> MainRouteConnectionIndex { get; } = new();
@@ -94,7 +93,6 @@ public sealed class TimeTableSetCache
         IEnumerable<TemporaryRestriction> restrictions)
     {
         TrainNumberIndex.Clear();
-        TrainOperationIndex.Clear();
         EntryPointConnectionIndex.Clear();
         StationConnectionIndex.Clear();
         MainRouteConnectionIndex.Clear();

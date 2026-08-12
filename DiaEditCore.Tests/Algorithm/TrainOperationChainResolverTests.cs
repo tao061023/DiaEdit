@@ -1,8 +1,8 @@
 using DiaEditCore.Model;
-using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.CacheBuilder;
 
 using Xunit;
 
@@ -89,7 +89,7 @@ public class TrainOperationChainResolverTests
         train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(100)] };
         train.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime();
 
-        var index = TrainConnectionResolver.BuildDepartureIndex([train]);
+        var index = DepartureByStationTrackIndexBuilder.Build([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train.Id, Comp1)]);
@@ -101,7 +101,7 @@ public class TrainOperationChainResolverTests
         var train = NewTrain(1);
         AddRunSegment(train, 1, 2);
 
-        var index = TrainConnectionResolver.BuildDepartureIndex([train]);
+        var index = DepartureByStationTrackIndexBuilder.Build([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
 
         Assert.DoesNotContain(result.Keys, k => k.TrainId == train.Id);
@@ -114,7 +114,7 @@ public class TrainOperationChainResolverTests
         AddRunSegment(train, 1, 2);
         train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { Works = [StartOp(null)] };
 
-        var index = TrainConnectionResolver.BuildDepartureIndex([train]);
+        var index = DepartureByStationTrackIndexBuilder.Build([train]);
         var result = TrainOperationChainResolver.Resolve([train], index, MakeSettings());
 
         Assert.DoesNotContain(result.Keys, k => k.TrainId == train.Id);
@@ -133,7 +133,7 @@ public class TrainOperationChainResolverTests
         AddRunSegment(train2, 2, 3);
         train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
 
-        var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
+        var index = DepartureByStationTrackIndexBuilder.Build([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1, train2], index, MakeSettings(minTurnaroundSec: 0));
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
@@ -159,7 +159,7 @@ public class TrainOperationChainResolverTests
             Works = [PrevTrain(200)],
         };
 
-        var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
+        var index = DepartureByStationTrackIndexBuilder.Build([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1, train2], index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
@@ -192,7 +192,7 @@ public class TrainOperationChainResolverTests
         };
 
         var trains = new[] { train1, train2, train3 };
-        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var index = DepartureByStationTrackIndexBuilder.Build(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
@@ -216,7 +216,7 @@ public class TrainOperationChainResolverTests
         train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = otherRail };
 
         var trains = new[] { train1, train2 };
-        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var index = DepartureByStationTrackIndexBuilder.Build(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
@@ -236,7 +236,7 @@ public class TrainOperationChainResolverTests
         AddRunSegment(train2, 2, 3);
         train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1300, TrackRailId = rail };
 
-        var index = TrainConnectionResolver.BuildDepartureIndex([train1, train2]);
+        var index = DepartureByStationTrackIndexBuilder.Build([train1, train2]);
         var result = TrainOperationChainResolver.Resolve([train1], index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
@@ -257,7 +257,7 @@ public class TrainOperationChainResolverTests
         train2.StopTimesInternal[new StopKey(new StationId(6), 0)] = new StopTime();
 
         var trains = new[] { train1, train2 };
-        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var index = DepartureByStationTrackIndexBuilder.Build(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);
@@ -284,7 +284,7 @@ public class TrainOperationChainResolverTests
         train2.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime { ArrivalSeconds = -1, DepartureSeconds = 1800, TrackRailId = rail };
 
         var trains = new[] { train1, train3, train2 };
-        var index = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var index = DepartureByStationTrackIndexBuilder.Build(trains);
         var result = TrainOperationChainResolver.Resolve(trains, index, MakeSettings());
 
         Assert.Equal(new TrainOperationId(100), result[(train1.Id, Comp1)]);

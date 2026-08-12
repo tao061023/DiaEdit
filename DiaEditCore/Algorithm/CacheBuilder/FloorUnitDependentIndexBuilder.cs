@@ -1,4 +1,4 @@
-namespace DiaEditCore.Algorithm.Dependency;
+namespace DiaEditCore.Algorithm.CacheBuilder;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
@@ -9,11 +9,16 @@ using DiaEditCore.Model.Stations;
 ///
 /// 対象6種：BoundaryPoint／EntryPoint／BufferStop／Switcher／Platform（いずれも
 /// FloorUnitObjectBase.FloorUnitId経由）／StationPath（FloorUnitIdを直接保持）。
+///
+/// v12.18：cacheへの直接書き込みから戻り値を返す方式へ変更（Builder間の方式統一。
+/// TrainConnectionResolver.BuildDepartureIndex／StopKeyReferenceIndexBuilder.Buildと同じ形にすることで、
+/// cacheのモック不要でBuilder単体をユニットテストできるようにするため）。
 /// </summary>
 public static class FloorUnitDependentIndexBuilder
 {
-    public static void Build(
-        TimeTableSetCache cache,
+    // 変更前: public static void Build(TimeTableSetCache cache, IEnumerable<...> ...)
+    // 変更後: cache引数を廃止し、Dictionaryを戻り値として返す
+    public static Dictionary<FloorUnitId, List<ObjectId>> Build(
         IEnumerable<BoundaryPoint> boundaryPoints,
         IEnumerable<EntryPoint> entryPoints,
         IEnumerable<BufferStop> bufferStops,
@@ -21,14 +26,14 @@ public static class FloorUnitDependentIndexBuilder
         IEnumerable<Platform> platforms,
         IEnumerable<StationPath> stationPaths)
     {
-        cache.FloorUnitDependentIndex.Clear();
+        var index = new Dictionary<FloorUnitId, List<ObjectId>>();
 
         void Add(FloorUnitId floorUnitId, ObjectId objectId)
         {
-            if (!cache.FloorUnitDependentIndex.TryGetValue(floorUnitId, out var list))
+            if (!index.TryGetValue(floorUnitId, out var list))
             {
                 list = new List<ObjectId>();
-                cache.FloorUnitDependentIndex[floorUnitId] = list;
+                index[floorUnitId] = list;
             }
             list.Add(objectId);
         }
@@ -39,5 +44,7 @@ public static class FloorUnitDependentIndexBuilder
         foreach (var sw in switchers) Add(sw.Base.FloorUnitId, new SwitcherObjectId(sw.Id));
         foreach (var p in platforms) Add(p.Base.FloorUnitId, new PlatformObjectId(p.Id));
         foreach (var sp in stationPaths) Add(sp.FloorUnitId, new StationPathObjectId(sp.Id));
+
+        return index;
     }
 }

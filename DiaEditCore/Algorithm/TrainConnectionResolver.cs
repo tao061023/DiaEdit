@@ -30,45 +30,8 @@ public static class TrainConnectionResolver
 {
     public sealed record ConnectionCandidate(TrainId TrainId, int DepartureSeconds);
 
-    /// <summary>
-    /// 全Trainから「駅×番線→発車時刻昇順のTrain列」インデックスを構築する。
-    /// TimeTableSetCache.DepartureByStationTrackIndexへの格納値として使う想定。
-    /// 始発駅（VisitSequence=0）のStopTimeが未設定／DepartureSecondsが未設定（-1）／
-    /// TrackRailId未設定のTrainは対象外とする。
-    /// </summary>
-    public static Dictionary<(StationId StationId, RailId RailId), List<(int DepartureSeconds, TrainId TrainId)>> BuildDepartureIndex(
-        IReadOnlyList<Train> allTrains)
-    {
-        var index = new Dictionary<(StationId, RailId), List<(int, TrainId)>>();
-
-        foreach (var train in allTrains)
-        {
-            if (train.RunSegments.Count == 0) continue;
-
-            if (StopKeyAt(train, 0) is not { } departureStopKey) continue;
-            var departureStopTime = FindStopTimeAt(train, departureStopKey);
-            if (departureStopTime is null || departureStopTime.DepartureSeconds < 0 || departureStopTime.TrackRailId is null)
-            {
-                continue;
-            }
-
-            var key = (departureStopKey.StationId, departureStopTime.TrackRailId.Value);
-            if (!index.TryGetValue(key, out var list))
-            {
-                list = new List<(int, TrainId)>();
-                index[key] = list;
-            }
-
-            list.Add((departureStopTime.DepartureSeconds, train.Id));
-        }
-
-        foreach (var list in index.Values)
-        {
-            list.Sort((a, b) => a.Item1.CompareTo(b.Item1));
-        }
-
-        return index;
-    }
+    // BuildDepartureIndex は DepartureByStationTrackIndexBuilder.Build へ移設（v12.18）。
+    // 呼び出し元は Algorithm.CacheBuilder.DepartureByStationTrackIndexBuilder.Build を直接使うこと。
 
     /// <summary>
     /// 到着列車(arrivingTrain)を起点に、接続候補となる出発列車を発車時刻の昇順で返す。
@@ -222,11 +185,9 @@ public static class TrainConnectionResolver
         return result;
     }
 
-    // 変更後
     private static StopTime? FindStopTimeAt(Train train, StopKey stopKey)
         => train.StopTimes.TryGetValue(stopKey, out var st) ? st : null;
 
-    /// <summary>trainのRunSegmentsが定める訪問順における、index番目のStopKeyを返す。</summary>
     private static StopKey? StopKeyAt(Train train, int index)
     {
         var keys = StopKeySequenceBuilder.BuildVisitedStopKeys(train);

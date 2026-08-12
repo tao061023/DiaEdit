@@ -9,16 +9,12 @@ public sealed class FloorUnitObjectBase
 public static class FloorObjectRefExtensions
 {
     // NoneEndpointRefはどの実体も指さないためnullを返す。
-    // 「None同士は常に一致する」という旧Key()実装の挙動（("None",-1)==("None",-1)）は
-    // 意図的に踏襲しない。None同士の一致を「同一地点を共有している」と解釈するのは誤りであるため。
     public static ObjectId? ToObjectId(this RailEndpointRef r) => r switch
     {
         BoundaryPointEndpointRef b => new BoundaryPointObjectId(b.Id),
         EntryPointEndpointRef e => new EntryPointObjectId(e.Id),
         BufferStopEndpointRef bs => new BufferStopObjectId(bs.Id),
         SwitcherEndpointRef sw => new SwitcherObjectId(sw.Id),
-        // PortIndexはここでは捨てる。RailSequenceResolver/ReversalResolverの用途は
-        // 「同一の物理的収束点を共有しているか」の判定であり、どのポート経由かは関心事ではない
         NoneEndpointRef => null,
         null => null,
         // RailEndpointRefはabstract・非sealedのため、コンパイラは派生型の全列挙を証明できない。

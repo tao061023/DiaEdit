@@ -2,6 +2,7 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
+using DiaEditCore.Algorithm.CacheBuilder;
 
 namespace DiaEditCore.Algorithm.Conflicts;
 
@@ -49,7 +50,7 @@ public static class TrackOccupancyProvider
         }
 
         var resolveEp = EntryPointSequenceCache.Build(stationConnections, allSegments);
-        var trainDepartureIndex = TrainConnectionResolver.BuildDepartureIndex(trains);
+        var trainDepartureIndex = DepartureByStationTrackIndexBuilder.Build(trains);
         var prevTrainMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(trains, trainDepartureIndex, projectSettings);
         var nextTrainMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, trainDepartureIndex, projectSettings);
 

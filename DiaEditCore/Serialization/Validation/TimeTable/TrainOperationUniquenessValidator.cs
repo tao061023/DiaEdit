@@ -1,6 +1,6 @@
 using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
-using DiaEditCore.Model.TimeTable.Trains;
 
 namespace DiaEditCore.Serialization.Validation.Timetable;
 
@@ -28,7 +28,7 @@ public static class TrainOperationUniquenessValidator
             if (setTrains.Count == 0)
                 continue;
 
-            var departureIndex = TrainConnectionResolver.BuildDepartureIndex(setTrains);
+            var departureIndex = DepartureByStationTrackIndexBuilder.Build(setTrains);
             var trainOperationIndex = TrainOperationChainResolver.Resolve(setTrains, departureIndex, settings);
 
             var seenByNumber = new Dictionary<string, TrainOperationId>();
