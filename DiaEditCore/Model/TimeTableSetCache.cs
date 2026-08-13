@@ -106,7 +106,6 @@ public sealed class TimeTableSetCache
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
 
-        // 以下、各種インデックス構築（省略）
         // TrainNumberIndex
         foreach (var train in trains)
         {
@@ -114,8 +113,47 @@ public sealed class TimeTableSetCache
                 TrainNumberIndex[train.TrainNumber] = train.Id;
         }
 
-        // TrainOperationIndex は TrainOperationChainResolver が構築する
-        // DepartureByStationTrackIndex は TrainConnectionResolver.BuildDepartureIndex() が構築する
-        // 他のインデックスも同様に Builder が構築する
+        // v12.18で発覚した「RebuildAll空実装」6インデックス（本節で解消、DiaEditCore_Design v9.1項目4対応）。
+        // いずれもAlgorithm/CacheBuilder配下のBuilderへ委譲する既存の責務分離規約を踏襲する。
+        var stationConnectionsList = stationConnections as IReadOnlyList<StationConnection> ?? stationConnections.ToList();
+        var segmentsList = segments as IReadOnlyList<StationConnectionSegment> ?? segments.ToList();
+
+        foreach (var (mainRouteId, list) in
+            DiaEditCore.Algorithm.CacheBuilder.MainRouteConnectionIndexBuilder.Build(stationConnectionsList))
+        {
+            MainRouteConnectionIndex[mainRouteId] = list;
+        }
+
+        foreach (var (segId, list) in
+            DiaEditCore.Algorithm.CacheBuilder.ScsUsedByIndexBuilder.Build(stationConnectionsList))
+        {
+            ScsUsedByIndex[segId] = list;
+        }
+
+        var (stationIdx, entryPointIdx) =
+            DiaEditCore.Algorithm.CacheBuilder.StationAndEntryPointConnectionIndexBuilder.Build(
+                stationConnectionsList, segmentsList);
+        foreach (var (stationId, list) in stationIdx) StationConnectionIndex[stationId] = list;
+        foreach (var (entryPointId, list) in entryPointIdx) EntryPointConnectionIndex[entryPointId] = list;
+
+        foreach (var (trainId, list) in
+            DiaEditCore.Algorithm.CacheBuilder.DerivedTrainsBySourceIdIndexBuilder.Build(trains))
+        {
+            DerivedTrainsBySourceId[trainId] = list;
+        }
+
+        foreach (var (segId, list) in
+            DiaEditCore.Algorithm.CacheBuilder.TemporaryRestrictionBySegmentIndexBuilder.Build(restrictions))
+        {
+            TemporaryRestrictionBySegmentIndex[segId] = list;
+        }
+
+        // TrainOperationIndex は TrainOperationChainResolver が構築する（§9.2項目14：重複プロパティにつき将来削除予定）
+        // DepartureByStationTrackIndex は DepartureByStationTrackIndexBuilder.Build() が構築する
+        // ServiceRoutesByMainRouteIndex は ServiceRouteStationOrderResolver.BuildServiceRoutesByMainRouteIndex() が構築する
+        // StopKeyReferenceIndex は StopKeyReferenceIndexBuilder.Build() が構築する
+        // FloorUnitDependentIndex は FloorUnitDependentIndexBuilder.Build() が構築する
+        // （上記5つはいずれも既に実装済み。ProjectSession.RebuildCacheIfDirty実装時に、
+        //   本メソッドとあわせて呼び出し元で一括配線する方針、5.14.2節）
     }
 }

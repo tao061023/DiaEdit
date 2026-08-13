@@ -3,6 +3,9 @@ using DiaEditCore.Model.Stations;
 
 namespace DiaEditCore.Algorithm;
 
+/// <summary>
+/// StationPathのPathWayPointから通過Rail列を引き当てる。
+/// </summary>
 public sealed class RailSequenceResolver
 {
     private readonly IReadOnlyList<Rail> _rails;

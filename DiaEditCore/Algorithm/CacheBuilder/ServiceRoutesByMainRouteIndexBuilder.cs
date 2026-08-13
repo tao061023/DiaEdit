@@ -4,12 +4,10 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 
 /// <summary>
-/// TimeTableSetCache.ServiceRoutesByMainRouteIndex（MainRouteId→経由するServiceRouteの一覧）の
-/// 構築を担う。元はServiceRouteStationOrderResolver.BuildServiceRoutesByMainRouteIndexだったが、
-/// キャッシュ構築処理と駅順序解決アルゴリズムの責務分離のため分離した（v12.18）。
-///
+/// TimeTableSetCache.ServiceRoutesByMainRouteIndex（MainRouteId→経由するServiceRouteの一覧）の構築を担う。
+/// 
 /// 用途はUI表示専用（MainRoute編集時の影響範囲表示）に限定し、DependencyResolverの
-/// AffectedIds算出には使わない（6.1節参照）。
+/// AffectedIds算出には使わない。
 /// </summary>
 public static class ServiceRoutesByMainRouteIndexBuilder
 {

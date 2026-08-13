@@ -32,6 +32,7 @@ public sealed class ConflictChecker
     /// 計算量：合計O((n + k) log n)。 <br/>
     /// 停止性：ソート・ヒープ操作とも有限要素の1回走査のみで完結し必ず停止する。 <br/>
     /// 一意性：開始時刻が同値の場合の走査順によって戻り値配列内の表示順は変わりうるが、検出される重複ペアの集合自体は入力順序に依存せず一意。 <br/>
+    /// 返り値：支障列車のTrainIdリスト
     /// </summary>
     public IReadOnlyList<(TrainId A, TrainId B)> CheckOverlap()
     {

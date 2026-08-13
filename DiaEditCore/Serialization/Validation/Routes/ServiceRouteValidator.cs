@@ -173,18 +173,7 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
                 toIndexOf: s => s.PairedToStationIndex!.Value,
                 selectedScIdOf: s => s.PairedSelectedStationConnectionId);
         }
-        if (target.Segments.Count > 0 && target.Segments.All(s => s.IsPaired()))
-        {
-            ValidateBoundaryConnectivity(
-                target, context, issues,
-                side: "Paired方向",
-                mainRouteIdOf: s => s.PairedMainRouteId!.Value,
-                fromIndexOf: s => s.PairedFromStationIndex!.Value,
-                toIndexOf: s => s.PairedToStationIndex!.Value,
-                selectedScIdOf: s => s.PairedSelectedStationConnectionId);
-        }
 
-        // ↓ここに③のコードを挿入
         var unidirectionalSegs = target.Segments.Where(s => s.IsUnidirectional).ToList();
         if (unidirectionalSegs.Count > 0)
         {

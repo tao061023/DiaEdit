@@ -4,7 +4,6 @@ using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>Sync前のTrain状態のスナップショット（Undo用）。</summary>

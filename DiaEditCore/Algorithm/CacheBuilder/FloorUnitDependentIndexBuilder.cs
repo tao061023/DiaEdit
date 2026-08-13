@@ -4,20 +4,13 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 
 /// <summary>
-/// TimeTableSetCache.FloorUnitDependentIndex（v12.16新設）の構築を担う。
-/// DepartureByStationTrackIndex等と同じ責務分離規約（構築ロジックをキャッシュ本体から切り離す）に従う。
-///
-/// 対象6種：BoundaryPoint／EntryPoint／BufferStop／Switcher／Platform（いずれも
-/// FloorUnitObjectBase.FloorUnitId経由）／StationPath（FloorUnitIdを直接保持）。
-///
-/// v12.18：cacheへの直接書き込みから戻り値を返す方式へ変更（Builder間の方式統一。
-/// TrainConnectionResolver.BuildDepartureIndex／StopKeyReferenceIndexBuilder.Buildと同じ形にすることで、
-/// cacheのモック不要でBuilder単体をユニットテストできるようにするため）。
+/// TimeTableSetCache.FloorUnitDependentIndexの構築。FloorUnit配下のObjectの依存関係解決。
+/// 
+/// 対象6種：BoundaryPoint／EntryPoint／BufferStop／Switcher／Platform
+/// （いずれもFloorUnitObjectBase.FloorUnitId経由）／StationPath（FloorUnitIdを直接保持）。
 /// </summary>
 public static class FloorUnitDependentIndexBuilder
 {
-    // 変更前: public static void Build(TimeTableSetCache cache, IEnumerable<...> ...)
-    // 変更後: cache引数を廃止し、Dictionaryを戻り値として返す
     public static Dictionary<FloorUnitId, List<ObjectId>> Build(
         IEnumerable<BoundaryPoint> boundaryPoints,
         IEnumerable<EntryPoint> entryPoints,

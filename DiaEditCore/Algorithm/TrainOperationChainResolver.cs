@@ -4,7 +4,7 @@ using DiaEditCore.Model.TimeTable.Trains;
 namespace DiaEditCore.Algorithm;
 
 /// <summary>
-/// 6.12節：CarCompositionがどのTrainOperationに属すかを、StartOpCarSlot.OperationId
+/// CarCompositionがどのTrainOperationに属すかを、StartOpCarSlot.OperationId
 /// （ResolvedOperationRef）を起点とし、PrevTrainOperationOverrideによる明示的な変更を
 /// 反映しながらNextTrainチェーンをたどって導出する。都度導出・非保存。
 ///

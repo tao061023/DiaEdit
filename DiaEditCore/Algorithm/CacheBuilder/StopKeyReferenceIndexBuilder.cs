@@ -4,8 +4,8 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
-/// SplitOriginRef／CouplingWork.PartnerStopKeyによる、Train間のStopKey参照を逆引きできる
-/// Indexを構築する。TimeTableSetCache.StopKeyReferenceIndexへの格納値として使う想定。 <br/>
+/// SplitOriginRef／CouplingWork.PartnerStopKeyによる、Train間のStopKey参照を逆引きできるIndexを構築する。 <br/>
+/// TimeTableSetCache.StopKeyReferenceIndexへの格納値として使う想定。 <br/>
 ///
 /// 用途は2つに限定する： <br/>
 ///   1. RunSegments編集コマンドがAffectedIds算出時に「このStopKeyを参照しているTrain」を

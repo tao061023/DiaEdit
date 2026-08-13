@@ -3,8 +3,7 @@ namespace DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 
 /// <summary>
-/// 変更対象オブジェクト群から、依存関係グラフ（TimeTableSetCacheの逆引きインデックス）を辿って
-/// 影響を受ける全オブジェクトIDを算出する。 <br/>
+/// 変更対象オブジェクト群から、依存関係グラフ（TimeTableSetCacheの逆引きインデックス）を辿って影響を受ける全オブジェクトIDを算出する。 <br/>
 ///
 /// 停止性：プロジェクト内のオブジェクト総数は有限で、visited集合が既訪問ノードの再訪問を防ぐため、
 ///        依存グラフに循環（pairedMainRoute等の双方向参照）が存在しても必ず停止する。 <br/>

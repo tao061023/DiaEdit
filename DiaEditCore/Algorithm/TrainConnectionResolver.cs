@@ -29,10 +29,7 @@ namespace DiaEditCore.Algorithm;
 public static class TrainConnectionResolver
 {
     public sealed record ConnectionCandidate(TrainId TrainId, int DepartureSeconds);
-
-    // BuildDepartureIndex は DepartureByStationTrackIndexBuilder.Build へ移設（v12.18）。
-    // 呼び出し元は Algorithm.CacheBuilder.DepartureByStationTrackIndexBuilder.Build を直接使うこと。
-
+    
     /// <summary>
     /// 到着列車(arrivingTrain)を起点に、接続候補となる出発列車を発車時刻の昇順で返す。
     /// UI上の接続候補表示用途（複数候補をユーザーに提示する）。一意性は保証しない

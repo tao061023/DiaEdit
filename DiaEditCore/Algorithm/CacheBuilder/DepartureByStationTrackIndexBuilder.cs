@@ -4,10 +4,8 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
-/// TimeTableSetCache.DepartureByStationTrackIndex（駅×番線→発車時刻昇順のTrain列）の構築を担う。
-/// 元はTrainConnectionResolver.BuildDepartureIndexだったが、キャッシュ構築処理と接続解決アルゴリズムの
-/// 責務分離のため分離した（Algorithm/CacheBuilder/への集約、v12.18）。
-///
+/// あるStationにおけるTrainのStopTimeから出発順リストを構築する。駅時刻表の表示に利用する予定。
+/// 
 /// 始発駅（VisitSequence=0）のStopTimeが未設定／DepartureSecondsが未設定（-1）／
 /// TrackRailId未設定のTrainは対象外とする。
 /// </summary>
