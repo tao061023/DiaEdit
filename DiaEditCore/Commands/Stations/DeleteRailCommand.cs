@@ -4,25 +4,40 @@ using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
-/// 6.1節「削除（Delete）」パターンのRail向け実装。DeleteStationCommand（v12.11）と同じ設計。
+/// 6.1節「削除（Delete）」パターンのRail向け実装（v12.19再実装）。
 ///
-/// v12.13設計セッションでの確認：現行モデルではStationPath.Waypointsを含め、いかなるオブジェクトも
-/// RailIdを直接参照として保持していない（Rail.EndpointA/EndpointBはRailが他オブジェクトを参照する
-/// 向きであり、逆参照ではない）。DependencyResolverのグラフ定義（RailObjectId => []）はこの実態を
-/// 正しく反映しており、削除時の1ホップチェックは常に空集合を返す（バグではなく仕様通り）。
-/// そのためコンストラクタでの拒否は現状発生しないが、将来Railへの逆参照を持つモデルが追加された際に
-/// DependencyResolver側のルールテーブルへ追加するだけで自動的に効くよう、Stationと同一のロジックを
-/// そのまま適用する（個別モデルごとに削除可否ロジックを再実装しない、という一貫性を優先）。
+/// v12.18で判明した不備の修正：旧実装（v12.13）はDependencyResolverのObjectIdグラフ
+/// （RailObjectId => []）のみをチェックしていたが、Railへの逆参照3経路は
+/// いずれもObjectIdグラフの外側にある生のRailId参照であり、一度もチェックされていなかった：
+///   1. Platform.FacingRailIds（List&lt;RailId&gt;）
+///   2. TemporaryRestriction.Target is RestrictionTarget.Rail
+///   3. Train.StopTimes[...].TrackRailId（RailId?）
+///
+/// これら3経路は、TemporaryRestrictionBySegmentIndexBuilderのコメントで明言した方針
+/// （「Rail起点の逆引き消費者はDeleteRailCommandのみであり、Rail削除時のチェックは
+/// 対象コレクションを直接1回線形走査すれば足りる規模のため、専用インデックス化は見送る」）
+/// に従い、専用キャッシュを設けずコンストラクタ内で直接走査する。
+///
+/// DependencyResolverのObjectIdグラフチェックも引き続き実施する（将来Railへの
+/// ObjectId経由の逆参照を持つモデルが追加された場合に自動的に効くようにするため）。
 /// </summary>
 public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
 {
     private readonly Rail _railToDelete;
 
-    public DeleteRailCommand(List<Rail> rails, Rail railToDelete, TimeTableSetCache cache)
+    public DeleteRailCommand(
+        List<Rail> rails,
+        Rail railToDelete,
+        TimeTableSetCache cache,
+        IReadOnlyList<Platform> allPlatforms,
+        IReadOnlyList<TemporaryRestriction> allRestrictions,
+        IReadOnlyList<Train> allTrains)
         : base(rails, BuildAffectedIds(railToDelete, cache))
     {
+        // 1. ObjectIdグラフ経由の直接参照チェック（現状は常に空だが、将来のモデル追加に備えて維持）
         var directDependents = DependencyResolver
             .ResolveDirectDependents(new RailObjectId(railToDelete.Id), cache)
             .ToList();
@@ -32,6 +47,43 @@ public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
             throw new InvalidOperationException(
                 $"Rail（Id={railToDelete.Id.Value}）は{directDependents.Count}件のオブジェクトから" +
                 $"直接参照されているため削除できません。");
+        }
+
+        // 2. ObjectIdグラフ外の生RailId参照3経路チェック
+        var reasons = new List<string>();
+
+        var referencingPlatforms = allPlatforms
+            .Where(p => p.FacingRailIds.Contains(railToDelete.Id))
+            .Select(p => p.Id.Value)
+            .ToList();
+        if (referencingPlatforms.Count > 0)
+        {
+            reasons.Add($"Platform（Id={string.Join(",", referencingPlatforms)}）のFacingRailIds");
+        }
+
+        var referencingRestrictions = allRestrictions
+            .Where(r => r.Target is RestrictionTarget.Rail rt && rt.RailId == railToDelete.Id)
+            .Select(r => r.Id.Value)
+            .ToList();
+        if (referencingRestrictions.Count > 0)
+        {
+            reasons.Add($"TemporaryRestriction（Id={string.Join(",", referencingRestrictions)}）のTarget");
+        }
+
+        var referencingTrains = allTrains
+            .Where(t => t.StopTimes.Values.Any(st => st.TrackRailId == railToDelete.Id))
+            .Select(t => t.Id.Value)
+            .ToList();
+        if (referencingTrains.Count > 0)
+        {
+            reasons.Add($"Train（Id={string.Join(",", referencingTrains)}）のStopTime.TrackRailId");
+        }
+
+        if (reasons.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Rail（Id={railToDelete.Id.Value}）は以下から参照されているため削除できません：" +
+                string.Join("／", reasons));
         }
 
         _railToDelete = railToDelete;
