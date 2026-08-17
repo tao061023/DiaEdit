@@ -95,7 +95,21 @@ public sealed class ProjectSession : ICacheChangeObserver
         foreach (var kv in stopKeyRefIndex)
             _cache.StopKeyReferenceIndex[kv.Key] = kv.Value;
 
-        // TODO: RailUsedByStopTimeIndex等、Rail向け新設インデックスのBuilder呼び出しをここに追加
+        // ServiceRoutesByMainRouteIndex（v12.6新設、UI表示専用：MainRoute編集時の影響範囲表示）。
+        // RebuildAll側でClear()はされるが構築はRebuildAllの外側（本メソッド）の責務のため、
+        // 他の3インデックスと同様にここで明示的に呼び直す必要がある
+        // （v12.20監査で発覚：この呼び出しが漏れており、GetCache()を1回でも呼ぶと
+        //   本インデックスが二度と再構築されない状態になっていた）。
+        var serviceRoutesByMainRouteIndex = ServiceRoutesByMainRouteIndexBuilder.Build(Current.ServiceRoutes);
+        _cache.ServiceRoutesByMainRouteIndex.Clear();
+        foreach (var kv in serviceRoutesByMainRouteIndex)
+            _cache.ServiceRoutesByMainRouteIndex[kv.Key] = kv.Value;
+
+        // Rail向け専用インデックス（PlatformFacingRailIndex／TemporaryRestrictionByRailIndex／
+        // RailUsedByStopTimeIndex）はv12.20で実装見送りを確定済み（設計書§5.13.4・§5.14.3参照）。
+        // 消費者がDeleteRailCommand唯一・Rail削除頻度の低さを理由に、専用Builderは作らず
+        // DeleteRailCommandのコンストラクタ内で対象コレクションを直接線形走査する方式で代替した。
+        // 本メソッドでの対応は不要（旧TODOコメントは古い設計判断を指していたため削除）。
 
         _cacheDirty = false;
     }
