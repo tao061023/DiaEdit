@@ -5,9 +5,10 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
+using DiaEditCore.Session;
 
 /// <summary>
-/// 6.1節「削除（Delete）」パターンのRail向け実装（v12.19再実装）。
+/// 6.1節「削除（Delete）」パターンのRail向け実装（v12.20再実装、v12.21でProjectSession移行）。
 ///
 /// v12.18で判明した不備の修正：旧実装（v12.13）はDependencyResolverのObjectIdグラフ
 /// （RailObjectId => []）のみをチェックしていたが、Railへの逆参照3経路は
@@ -23,6 +24,12 @@ using DiaEditCore.Model.TimeTable.Trains;
 ///
 /// DependencyResolverのObjectIdグラフチェックも引き続き実施する（将来Railへの
 /// ObjectId経由の逆参照を持つモデルが追加された場合に自動的に効くようにするため）。
+///
+/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
+/// （§9.1項目5、構造的防止の方針）。Platform／TemporaryRestriction／Trainの3コレクションは
+/// TimeTableSetCacheが管理する対象ではない（ProjectFileの生データ）ため、引き続き
+/// 呼び出し側から個別に受け取る（ProjectSessionはこれらのコレクション自体を集約管理しない。
+/// 5.14.2節：ProjectSessionの責務はTimeTableSetCacheのライフサイクル管理に限定）。
 /// </summary>
 public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
 {
@@ -31,12 +38,14 @@ public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
     public DeleteRailCommand(
         List<Rail> rails,
         Rail railToDelete,
-        TimeTableSetCache cache,
+        ProjectSession session,
         IReadOnlyList<Platform> allPlatforms,
         IReadOnlyList<TemporaryRestriction> allRestrictions,
         IReadOnlyList<Train> allTrains)
-        : base(rails, BuildAffectedIds(railToDelete, cache))
+        : base(rails, BuildAffectedIds(railToDelete, session))
     {
+        var cache = session.GetCache();
+
         // 1. ObjectIdグラフ経由の直接参照チェック（現状は常に空だが、将来のモデル追加に備えて維持）
         var directDependents = DependencyResolver
             .ResolveDirectDependents(new RailObjectId(railToDelete.Id), cache)
@@ -89,9 +98,12 @@ public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
         _railToDelete = railToDelete;
     }
 
-    private static IReadOnlySet<ObjectId> BuildAffectedIds(Rail rail, TimeTableSetCache cache) =>
-        DependencyResolver.ResolveAffected(
+    private static IReadOnlySet<ObjectId> BuildAffectedIds(Rail rail, ProjectSession session)
+    {
+        var cache = session.GetCache();
+        return DependencyResolver.ResolveAffected(
             new HashSet<ObjectId> { new RailObjectId(rail.Id) }, cache);
+    }
 
     protected override Rail CaptureSnapshot(List<Rail> target) => _railToDelete;
 

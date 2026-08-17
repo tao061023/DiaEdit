@@ -3,6 +3,7 @@ namespace DiaEditCore.Commands.Stations;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// Station.DisplayName / Type / OperatingCode / TelegraphCode /
@@ -24,16 +25,25 @@ public sealed record StationSnapshot(
 /// 6.1節「属性変更」パターンの最初の具象実装。
 /// AffectedIdsはStation自身のObjectIdからDependencyResolver.ResolveAffectedで算出する
 /// （6.1節の属性変更パターンの規約通り）。
+///
+/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
+/// （§9.1項目5、構造的防止の方針）。
 /// </summary>
 public sealed class ChangeStationAttributesCommand : UndoableCommand<Station, StationSnapshot>
 {
     private readonly StationSnapshot _newValues;
 
-    public ChangeStationAttributesCommand(Station target, StationSnapshot newValues, TimeTableSetCache cache)
-        : base(target, DependencyResolver.ResolveAffected(
-            new HashSet<ObjectId> { new StationObjectId(target.Id) }, cache))
+    public ChangeStationAttributesCommand(Station target, StationSnapshot newValues, ProjectSession session)
+        : base(target, BuildAffectedIds(target, session))
     {
         _newValues = newValues with { DisplayName = newValues.DisplayName.Clone() };
+    }
+
+    private static IReadOnlySet<ObjectId> BuildAffectedIds(Station target, ProjectSession session)
+    {
+        var cache = session.GetCache();
+        return DependencyResolver.ResolveAffected(
+            new HashSet<ObjectId> { new StationObjectId(target.Id) }, cache);
     }
 
     protected override StationSnapshot CaptureSnapshot(Station target) => new(

@@ -3,6 +3,7 @@ namespace DiaEditCore.Commands.Stations;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// Rail.Name / LengthM / SpeedLimitKph / Role のスナップショット。
@@ -30,16 +31,28 @@ public sealed record RailSnapshot(
 /// （6.1節の属性変更パターンの規約通り）。DependencyResolverのグラフ上、RailObjectIdは
 /// 現時点で終端ノード（他オブジェクトへの波及ルールが未定義）のため、AffectedIdsは
 /// 対象自身のみとなる。
+///
+/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
+/// （§9.1項目5、構造的防止の方針）。session.GetCache()は一度だけ呼び出し、以降は
+/// ローカル変数に保持したTimeTableSetCacheをそのままDependencyResolverへ渡す
+/// （コンストラクタ実行中に複数回GetCache()を呼ぶと、その間にdirty化されるケースは無いはずだが、
+/// 同一コンストラクタ内で参照するキャッシュ内容が呼び出しごとにブレる可能性を構造的に排除するため）。
 /// </summary>
 public sealed class ChangeRailAttributesCommand : UndoableCommand<Rail, RailSnapshot>
 {
     private readonly RailSnapshot _newValues;
 
-    public ChangeRailAttributesCommand(Rail target, RailSnapshot newValues, TimeTableSetCache cache)
-        : base(target, DependencyResolver.ResolveAffected(
-            new HashSet<ObjectId> { new RailObjectId(target.Id) }, cache))
+    public ChangeRailAttributesCommand(Rail target, RailSnapshot newValues, ProjectSession session)
+        : base(target, BuildAffectedIds(target, session))
     {
         _newValues = newValues;
+    }
+
+    private static IReadOnlySet<ObjectId> BuildAffectedIds(Rail target, ProjectSession session)
+    {
+        var cache = session.GetCache();
+        return DependencyResolver.ResolveAffected(
+            new HashSet<ObjectId> { new RailObjectId(target.Id) }, cache);
     }
 
     protected override RailSnapshot CaptureSnapshot(Rail target) => new(

@@ -5,6 +5,7 @@ using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
+using DiaEditCore.Session;
 
 /// <summary>Sync前のTrain状態のスナップショット（Undo用）。</summary>
 public sealed record SyncRunSegmentsSnapshot(
@@ -52,11 +53,11 @@ public sealed class SyncRunSegmentsToTrainCommand : UndoableCommand<Train, SyncR
         IReadOnlyList<MainRoute> allMainRoutes,
         IReadOnlyList<StationConnection> allStationConnections,
         IReadOnlyList<StationConnectionSegment> allSegments,
-        TimeTableSetCache cache)
+        ProjectSession session)
     {
         var newRunSegments = BuildNewRunSegments(train, serviceRoute, allMainRoutes, allStationConnections, allSegments);
         var (newStopTimes, orphanedKeys) = BuildNewStopTimes(train, newRunSegments);
-        var affectedIds = BuildAffectedIds(train, orphanedKeys, cache);
+        var affectedIds = BuildAffectedIds(train, orphanedKeys, session);
 
         return new SyncRunSegmentsToTrainCommand(train, affectedIds, newRunSegments, newStopTimes);
     }
@@ -190,8 +191,9 @@ public sealed class SyncRunSegmentsToTrainCommand : UndoableCommand<Train, SyncR
     internal static IReadOnlySet<ObjectId> BuildAffectedIds(
         Train train,
         List<StopKey> orphanedKeys,
-        TimeTableSetCache cache)
+        ProjectSession session)
     {
+        var cache = session.GetCache();
         var changedIds = new HashSet<ObjectId> { new TrainObjectId(train.Id) };
         var affected = new HashSet<ObjectId>(DependencyResolver.ResolveAffected(changedIds, cache));
 

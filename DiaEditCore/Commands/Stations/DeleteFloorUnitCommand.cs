@@ -3,6 +3,7 @@ namespace DiaEditCore.Commands.Stations;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// 6.1節「削除（Delete）」パターンのFloorUnit向け実装。
@@ -16,13 +17,16 @@ using DiaEditCore.Model.Stations;
 ///          ②直接参照元（DependencyResolver.ResolveDirectDependents、汎用の1ホップ拒否ロジック）。
 /// 双方とも「コマンド層とUI層の責務分担」（6.1節）における「ハード制約」に該当するため、
 /// いずれか一方でも該当すればコンストラクタで例外を送出しコマンド生成自体を失敗させる。
+///
+/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
+/// （§9.1項目5、構造的防止の方針）。
 /// </summary>
 public sealed class DeleteFloorUnitCommand : UndoableCommand<List<FloorUnit>, FloorUnit>
 {
     private readonly FloorUnit _floorUnitToDelete;
 
-    public DeleteFloorUnitCommand(List<FloorUnit> floorUnits, FloorUnit floorUnitToDelete, TimeTableSetCache cache)
-        : base(floorUnits, BuildAffectedIds(floorUnitToDelete, cache))
+    public DeleteFloorUnitCommand(List<FloorUnit> floorUnits, FloorUnit floorUnitToDelete, ProjectSession session)
+        : base(floorUnits, BuildAffectedIds(floorUnitToDelete, session))
     {
         var siblingCount = floorUnits.Count(f => f.StationId == floorUnitToDelete.StationId);
         if (siblingCount <= 1)
@@ -32,6 +36,7 @@ public sealed class DeleteFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
                 $"が保持する最後のFloorUnitのため削除できません（n≥1制約、4.2節）。");
         }
 
+        var cache = session.GetCache();
         var directDependents = DependencyResolver
             .ResolveDirectDependents(new FloorUnitObjectId(floorUnitToDelete.Id), cache)
             .ToList();
@@ -47,9 +52,12 @@ public sealed class DeleteFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
         _floorUnitToDelete = floorUnitToDelete;
     }
 
-    private static IReadOnlySet<ObjectId> BuildAffectedIds(FloorUnit floorUnit, TimeTableSetCache cache) =>
-        DependencyResolver.ResolveAffected(
+    private static IReadOnlySet<ObjectId> BuildAffectedIds(FloorUnit floorUnit, ProjectSession session)
+    {
+        var cache = session.GetCache();
+        return DependencyResolver.ResolveAffected(
             new HashSet<ObjectId> { new FloorUnitObjectId(floorUnit.Id) }, cache);
+    }
 
     protected override FloorUnit CaptureSnapshot(List<FloorUnit> target) => _floorUnitToDelete;
 

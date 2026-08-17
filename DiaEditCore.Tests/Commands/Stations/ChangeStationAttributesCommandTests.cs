@@ -1,12 +1,37 @@
 namespace DiaEditCore.Tests.Commands.Stations;
 
+using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 using Xunit;
 
 public sealed class ChangeStationAttributesCommandTests
 {
+    private static readonly ValidationRules DefaultValidationRules = new(
+        MinDwellTimeSec: null,
+        MinHeadwaySec: null,
+        MinTurnaroundSec: null,
+        TrackEntryMarginSec: null,
+        TrackPassMarginSec: null,
+        EnableConflictDetection: true,
+        EnableCarLengthCheck: true);
+
+    private static ProjectFile MakeEmptyProject() => new()
+    {
+        SchemaVersion = 1,
+        ProjectSettings = new ProjectSettings(DefaultValidationRules),
+    };
+
+    // v12.21：TimeTableSetCacheを直接newする方式からProjectSession経由へ移行（§9.1項目5）。
+    private static ProjectSession MakeSession()
+    {
+        var session = new ProjectSession(new CommandInvoker());
+        session.Load(MakeEmptyProject());
+        return session;
+    }
+
     private static Station MakeStation() => new()
     {
         Id = new StationId(1),
@@ -16,8 +41,6 @@ public sealed class ChangeStationAttributesCommandTests
         TelegraphCode = "ﾂｵ",
         ShowsInStationTimetableOverride = null
     };
-
-    private static TimeTableSetCache EmptyCache() => new();
 
     [Fact]
     public void Execute_AppliesAllFields()
@@ -30,7 +53,7 @@ public sealed class ChangeStationAttributesCommandTests
             "ﾂｼ",
             true);
 
-        var command = new ChangeStationAttributesCommand(station, newValues, EmptyCache());
+        var command = new ChangeStationAttributesCommand(station, newValues, MakeSession());
         command.Execute();
 
         Assert.Equal("新名称", station.DisplayName.Name);
@@ -53,7 +76,7 @@ public sealed class ChangeStationAttributesCommandTests
             "ﾂｼ",
             false);
 
-        var command = new ChangeStationAttributesCommand(station, newValues, EmptyCache());
+        var command = new ChangeStationAttributesCommand(station, newValues, MakeSession());
         command.Execute();
         command.Undo();
 
@@ -83,7 +106,7 @@ public sealed class ChangeStationAttributesCommandTests
             "ﾂｼ",
             null);
 
-        var command = new ChangeStationAttributesCommand(station, newValues, EmptyCache());
+        var command = new ChangeStationAttributesCommand(station, newValues, MakeSession());
         command.Execute();
 
         // Apply後のtarget.DisplayNameを外部から破壊的変更
@@ -110,7 +133,7 @@ public sealed class ChangeStationAttributesCommandTests
             "ﾂｼ",
             null);
 
-        var command = new ChangeStationAttributesCommand(station, newValues, EmptyCache());
+        var command = new ChangeStationAttributesCommand(station, newValues, MakeSession());
 
         // コマンド生成後、呼び出し元が引き渡したインスタンスを書き換える
         suppliedDisplayName.Name = "生成後に書き換えた値";

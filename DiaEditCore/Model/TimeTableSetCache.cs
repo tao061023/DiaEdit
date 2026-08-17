@@ -4,6 +4,7 @@ using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
+using DiaEditCore.Algorithm.CacheBuilder;
 
 public sealed class TimeTableSetCache
 {
@@ -119,31 +120,31 @@ public sealed class TimeTableSetCache
         var segmentsList = segments as IReadOnlyList<StationConnectionSegment> ?? segments.ToList();
 
         foreach (var (mainRouteId, list) in
-            DiaEditCore.Algorithm.CacheBuilder.MainRouteConnectionIndexBuilder.Build(stationConnectionsList))
+            MainRouteConnectionIndexBuilder.Build(stationConnectionsList))
         {
             MainRouteConnectionIndex[mainRouteId] = list;
         }
 
         foreach (var (segId, list) in
-            DiaEditCore.Algorithm.CacheBuilder.ScsUsedByIndexBuilder.Build(stationConnectionsList))
+            ScsUsedByIndexBuilder.Build(stationConnectionsList))
         {
             ScsUsedByIndex[segId] = list;
         }
 
         var (stationIdx, entryPointIdx) =
-            DiaEditCore.Algorithm.CacheBuilder.StationAndEntryPointConnectionIndexBuilder.Build(
+            StationAndEntryPointConnectionIndexBuilder.Build(
                 stationConnectionsList, segmentsList);
         foreach (var (stationId, list) in stationIdx) StationConnectionIndex[stationId] = list;
         foreach (var (entryPointId, list) in entryPointIdx) EntryPointConnectionIndex[entryPointId] = list;
 
         foreach (var (trainId, list) in
-            DiaEditCore.Algorithm.CacheBuilder.DerivedTrainsBySourceIdIndexBuilder.Build(trains))
+            DerivedTrainsBySourceIdIndexBuilder.Build(trains))
         {
             DerivedTrainsBySourceId[trainId] = list;
         }
 
         foreach (var (segId, list) in
-            DiaEditCore.Algorithm.CacheBuilder.TemporaryRestrictionBySegmentIndexBuilder.Build(restrictions))
+            TemporaryRestrictionBySegmentIndexBuilder.Build(restrictions))
         {
             TemporaryRestrictionBySegmentIndex[segId] = list;
         }

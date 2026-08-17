@@ -1,12 +1,37 @@
 namespace DiaEditCore.Tests.Commands.Stations;
 
+using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 using Xunit;
 
 public sealed class ChangeRailAttributesCommandTests
 {
+    private static readonly ValidationRules DefaultValidationRules = new(
+        MinDwellTimeSec: null,
+        MinHeadwaySec: null,
+        MinTurnaroundSec: null,
+        TrackEntryMarginSec: null,
+        TrackPassMarginSec: null,
+        EnableConflictDetection: true,
+        EnableCarLengthCheck: true);
+
+    private static ProjectFile MakeEmptyProject() => new()
+    {
+        SchemaVersion = 1,
+        ProjectSettings = new ProjectSettings(DefaultValidationRules),
+    };
+
+    // v12.21：TimeTableSetCacheを直接newする方式からProjectSession経由へ移行（§9.1項目5）。
+    private static ProjectSession MakeSession()
+    {
+        var session = new ProjectSession(new CommandInvoker());
+        session.Load(MakeEmptyProject());
+        return session;
+    }
+
     private static Rail MakeRail() => new()
     {
         Id = new RailId(1),
@@ -18,15 +43,13 @@ public sealed class ChangeRailAttributesCommandTests
         EndpointB = new NoneEndpointRef()
     };
 
-    private static TimeTableSetCache EmptyCache() => new();
-
     [Fact]
     public void Execute_AppliesAllFields()
     {
         var rail = MakeRail();
         var newValues = new RailSnapshot("新線路名", 250.0, 90.0, RailRole.Track);
 
-        var command = new ChangeRailAttributesCommand(rail, newValues, EmptyCache());
+        var command = new ChangeRailAttributesCommand(rail, newValues, MakeSession());
         command.Execute();
 
         Assert.Equal("新線路名", rail.Name);
@@ -41,7 +64,7 @@ public sealed class ChangeRailAttributesCommandTests
         var rail = MakeRail();
         var newValues = new RailSnapshot("新線路名", 250.0, 90.0, RailRole.Shunting);
 
-        var command = new ChangeRailAttributesCommand(rail, newValues, EmptyCache());
+        var command = new ChangeRailAttributesCommand(rail, newValues, MakeSession());
         command.Execute();
         command.Undo();
 
@@ -61,7 +84,7 @@ public sealed class ChangeRailAttributesCommandTests
         var originalEndpointB = rail.EndpointB;
         var newValues = new RailSnapshot("新線路名", 250.0, 90.0, RailRole.Track);
 
-        var command = new ChangeRailAttributesCommand(rail, newValues, EmptyCache());
+        var command = new ChangeRailAttributesCommand(rail, newValues, MakeSession());
         command.Execute();
 
         Assert.Same(originalEndpointA, rail.EndpointA);
@@ -75,7 +98,7 @@ public sealed class ChangeRailAttributesCommandTests
         var rail = MakeRail();
         var newValues = new RailSnapshot("新線路名", 250.0, 90.0, RailRole.Track);
 
-        var command = new ChangeRailAttributesCommand(rail, newValues, EmptyCache());
+        var command = new ChangeRailAttributesCommand(rail, newValues, MakeSession());
 
         Assert.Single(command.AffectedIds);
     }

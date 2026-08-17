@@ -3,7 +3,7 @@ namespace DiaEditCore.Commands.Stations;
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-using DiaEditCore.Model.TimeTable;
+using DiaEditCore.Session;
 
 /// <summary>
 /// 6.1節「削除（Delete）」パターンの最初の具象実装。
@@ -23,14 +23,18 @@ using DiaEditCore.Model.TimeTable;
 /// StationはAppy/Restoreで内部フィールドを書き換えないため、TSnapshotはStation自身の参照を
 /// そのまま保持する（Cloneは不要。属性変更パターンと異なり、削除パターンでは対象を書き換えず
 /// リストへの出し入れのみを行うため、参照共有による事故が起きない）。
+///
+/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
+/// （§9.1項目5、構造的防止の方針）。
 /// </summary>
 public sealed class DeleteStationCommand : UndoableCommand<List<Station>, Station>
 {
     private readonly Station _stationToDelete;
 
-    public DeleteStationCommand(List<Station> stations, Station stationToDelete, TimeTableSetCache cache)
-        : base(stations, BuildAffectedIds(stationToDelete, cache))
+    public DeleteStationCommand(List<Station> stations, Station stationToDelete, ProjectSession session)
+        : base(stations, BuildAffectedIds(stationToDelete, session))
     {
+        var cache = session.GetCache();
         var directDependents = DependencyResolver
             .ResolveDirectDependents(new StationObjectId(stationToDelete.Id), cache)
             .ToList();
@@ -45,9 +49,12 @@ public sealed class DeleteStationCommand : UndoableCommand<List<Station>, Statio
         _stationToDelete = stationToDelete;
     }
 
-    private static IReadOnlySet<ObjectId> BuildAffectedIds(Station station, TimeTableSetCache cache) =>
-        DependencyResolver.ResolveAffected(
+    private static IReadOnlySet<ObjectId> BuildAffectedIds(Station station, ProjectSession session)
+    {
+        var cache = session.GetCache();
+        return DependencyResolver.ResolveAffected(
             new HashSet<ObjectId> { new StationObjectId(station.Id) }, cache);
+    }
 
     protected override Station CaptureSnapshot(List<Station> target) => _stationToDelete;
 

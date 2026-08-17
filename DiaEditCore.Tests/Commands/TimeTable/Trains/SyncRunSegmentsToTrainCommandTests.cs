@@ -1,9 +1,11 @@
 using DiaEditCore.Algorithm;
+using DiaEditCore.Commands;
 using DiaEditCore.Commands.TimeTable.Trains;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
+using DiaEditCore.Session;
 
 using Xunit;
 
@@ -14,6 +16,37 @@ public class SyncRunSegmentsToTrainCommandTests
     // -----------------------------
     // フィクスチャ（TrainValidatorTests.csと同一パターン）
     // -----------------------------
+
+    private static readonly ValidationRules DefaultValidationRules = new(
+        MinDwellTimeSec: null,
+        MinHeadwaySec: null,
+        MinTurnaroundSec: null,
+        TrackEntryMarginSec: null,
+        TrackPassMarginSec: null,
+        EnableConflictDetection: true,
+        EnableCarLengthCheck: true);
+
+    /// <summary>
+    /// 空プロジェクトに指定したTrainのみを積んだProjectSessionを構築する（ProjectSessionTests.csと同一パターン）。
+    /// StopKeyReferenceIndex等のキャッシュはCommand.Create()呼び出し時にこのSessionから
+    /// Model層データ（ここではallTrains）を起点として自然に構築される。
+    /// </summary>
+    private static ProjectSession MakeSession(params Train[] allTrains)
+    {
+        var project = new ProjectFile
+        {
+            SchemaVersion = 1,
+            ProjectSettings = new ProjectSettings(DefaultValidationRules),
+        };
+        foreach (var t in allTrains)
+        {
+            project.Trains.Add(t);
+        }
+
+        var session = new ProjectSession(new CommandInvoker());
+        session.Load(project);
+        return session;
+    }
 
     private static MainRoute MakeMainRoute(int id, params StationId[] stationOrder) => new()
     {
@@ -95,9 +128,9 @@ public class SyncRunSegmentsToTrainCommandTests
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = sc.Id });
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = sc.Id });
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg1, seg2], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg1, seg2], session);
         command.Execute();
 
         Assert.Equal(2, train.RunSegments.Count);
@@ -124,9 +157,9 @@ public class SyncRunSegmentsToTrainCommandTests
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StA, ToStationId = StB, StationConnectionId = sc.Id });
         train.RunSegments.Add(new TrainRunSegment { FromStationId = StB, ToStationId = StC, StationConnectionId = sc.Id }); // 旧ホップ
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg1, seg2, seg3], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg1, seg2, seg3], session);
         command.Execute();
 
         Assert.Equal(3, train.RunSegments.Count);
@@ -155,9 +188,9 @@ public class SyncRunSegmentsToTrainCommandTests
         };
         train.StopTimesInternal[new StopKey(StC, 0)] = new StopTime();
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg], session);
         command.Execute();
 
         Assert.DoesNotContain(new StopKey(StB, 0), train.StopTimes.Keys);
@@ -178,9 +211,9 @@ public class SyncRunSegmentsToTrainCommandTests
         var existingStopTime = new StopTime { ArrivalSeconds = 12345 };
         train.StopTimesInternal[new StopKey(StA, 0)] = existingStopTime;
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg], session);
         command.Execute();
 
         Assert.Same(existingStopTime, train.StopTimesInternal[new StopKey(StA, 0)]);
@@ -208,9 +241,9 @@ public class SyncRunSegmentsToTrainCommandTests
             IsOverriddenFromTemplate = true,
         });
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [defaultSc, overriddenSc], [seg], cache);
+            train, serviceRoute, [mainRoute], [defaultSc, overriddenSc], [seg], session);
         command.Execute();
 
         Assert.Equal(overriddenSc.Id, train.RunSegments[0].StationConnectionId);
@@ -235,9 +268,9 @@ public class SyncRunSegmentsToTrainCommandTests
             IsOverriddenFromTemplate = false,
         });
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [defaultSc, staleSc], [seg], cache);
+            train, serviceRoute, [mainRoute], [defaultSc, staleSc], [seg], session);
         command.Execute();
 
         Assert.Equal(defaultSc.Id, train.RunSegments[0].StationConnectionId);
@@ -257,9 +290,9 @@ public class SyncRunSegmentsToTrainCommandTests
 
         var train = MakeValidTrain(1);
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg], session);
         command.Execute();
 
         Assert.Equal(sc.Id, train.RunSegments[0].StationConnectionId);
@@ -272,10 +305,10 @@ public class SyncRunSegmentsToTrainCommandTests
         var serviceRoute = MakeServiceRoute(1, MakeSrSegment(1, 0, 1, selected: null));
 
         var train = MakeValidTrain(1);
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
 
         Assert.Throws<InvalidOperationException>(() =>
-            SyncRunSegmentsToTrainCommand.Create(train, serviceRoute, [mainRoute], [], [], cache));
+            SyncRunSegmentsToTrainCommand.Create(train, serviceRoute, [mainRoute], [], [], session));
     }
 
     [Fact]
@@ -288,10 +321,10 @@ public class SyncRunSegmentsToTrainCommandTests
         var serviceRoute = MakeServiceRoute(1, MakeSrSegment(1, 0, 1, selected: null));
 
         var train = MakeValidTrain(1);
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
 
         Assert.Throws<InvalidOperationException>(() =>
-            SyncRunSegmentsToTrainCommand.Create(train, serviceRoute, [mainRoute], [scX, scY], [seg], cache));
+            SyncRunSegmentsToTrainCommand.Create(train, serviceRoute, [mainRoute], [scX, scY], [seg], session));
     }
 
     // -----------------------------
@@ -312,9 +345,9 @@ public class SyncRunSegmentsToTrainCommandTests
         var originalStopTime = new StopTime();
         train.StopTimesInternal[new StopKey(StB, 0)] = originalStopTime; // Syncで孤立・破棄される想定のキー
 
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg1, seg2], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg1, seg2], session);
         command.Execute();
 
         Assert.Equal(2, train.RunSegments.Count); // A-B, B-C に増える
@@ -338,10 +371,10 @@ public class SyncRunSegmentsToTrainCommandTests
         var serviceRoute = MakeServiceRoute(1, MakeSrSegment(1, 0, 1, sc.Id));
 
         var train = MakeValidTrain(1);
-        var cache = new TimeTableSetCache();
+        var session = MakeSession();
 
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg], session);
 
         Assert.Contains(new TrainObjectId(train.Id), command.AffectedIds);
     }
@@ -360,13 +393,26 @@ public class SyncRunSegmentsToTrainCommandTests
         var orphanedKey = new StopKey(StB, 0);
         train.StopTimesInternal[orphanedKey] = new StopTime();
 
+        // StopKeyReferenceIndexBuilderはreferrerTrain側のStopTime.Worksを走査してIndexを構築するため、
+        // cacheへ直接書き込む代わりにreferrer役のTrainをPrevTrain/SplitOrigin付きで正しく組み立てる。
         var referrerTrainId = new TrainId(99);
-        var cache = new TimeTableSetCache();
-        cache.StopKeyReferenceIndex[(train.Id, orphanedKey)] =
-            [new StopKeyReferrer(referrerTrainId, StopKeyReferenceKind.SplitOrigin)];
+        var referrerTrain = MakeValidTrain(99, "9999M");
+        referrerTrain.StopTimesInternal[new StopKey(StD, 0)] = new StopTime
+        {
+            Works =
+            [
+                new StationWork
+                {
+                    Type = StationWorkType.PrevTrain,
+                    SplitOrigin = new SplitOriginRef { OriginTrainId = train.Id, OriginStopKey = orphanedKey },
+                }
+            ],
+        };
+
+        var session = MakeSession(referrerTrain);
 
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg], session);
 
         Assert.Contains(new TrainObjectId(referrerTrainId), command.AffectedIds);
     }
@@ -384,13 +430,26 @@ public class SyncRunSegmentsToTrainCommandTests
         var survivingKey = new StopKey(StA, 0); // Syncしても消えないキー
         train.StopTimesInternal[survivingKey] = new StopTime();
 
+        // 残存キーへのCouplingPartner参照はAffectedIdsに影響しないことを確認する。
+        // （孤立キーではないため、そもそもorphanedKeysに含まれずBuildAffectedIdsのループを通らない）
         var unrelatedReferrerId = new TrainId(99);
-        var cache = new TimeTableSetCache();
-        cache.StopKeyReferenceIndex[(train.Id, survivingKey)] =
-            [new StopKeyReferrer(unrelatedReferrerId, StopKeyReferenceKind.CouplingPartner)];
+        var unrelatedReferrerTrain = MakeValidTrain(99, "9999M");
+        unrelatedReferrerTrain.StopTimesInternal[new StopKey(StD, 0)] = new StopTime
+        {
+            Works =
+            [
+                new StationWork
+                {
+                    Type = StationWorkType.Coupling,
+                    CouplingDetail = new CouplingWork { PartnerTrainId = train.Id, PartnerStopKey = survivingKey },
+                }
+            ],
+        };
+
+        var session = MakeSession(unrelatedReferrerTrain);
 
         var command = SyncRunSegmentsToTrainCommand.Create(
-            train, serviceRoute, [mainRoute], [sc], [seg], cache);
+            train, serviceRoute, [mainRoute], [sc], [seg], session);
 
         Assert.DoesNotContain(new TrainObjectId(unrelatedReferrerId), command.AffectedIds);
     }

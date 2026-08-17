@@ -1,12 +1,29 @@
 namespace DiaEditCore.Tests.Commands.Stations;
 
+using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 using Xunit;
 
 public sealed class DeleteFloorUnitCommandTests
 {
+    private static readonly ValidationRules DefaultValidationRules = new(
+        MinDwellTimeSec: null,
+        MinHeadwaySec: null,
+        MinTurnaroundSec: null,
+        TrackEntryMarginSec: null,
+        TrackPassMarginSec: null,
+        EnableConflictDetection: true,
+        EnableCarLengthCheck: true);
+
+    private static ProjectFile MakeEmptyProject() => new()
+    {
+        SchemaVersion = 1,
+        ProjectSettings = new ProjectSettings(DefaultValidationRules),
+    };
+
     private static FloorUnit MakeFloorUnit(int id, int stationId, int displayOrder) => new()
     {
         Id = new FloorUnitId(id),
@@ -14,7 +31,25 @@ public sealed class DeleteFloorUnitCommandTests
         DisplayOrder = displayOrder
     };
 
-    private static TimeTableSetCache EmptyCache() => new();
+    private static FloorUnitObjectBase MakeBase(int floorUnitId) => new()
+    {
+        FloorUnitId = new FloorUnitId(floorUnitId),
+        Position = new Point(0, 0)
+    };
+
+    // v12.21：TimeTableSetCacheを直接newする方式からProjectSession経由へ移行（§9.1項目5）。
+    // 旧版は cache.FloorUnitDependentIndex[...] = ... のようにキャッシュへ直接値を注入できたが、
+    // ProjectSession経由では_cacheが非公開のためこの手法は使えない。代わりに実際のモデル
+    // オブジェクト（BoundaryPoint／StationPath）をProjectFileへ追加してLoad()し、
+    // FloorUnitDependentIndexBuilderに実際にインデックスを構築させる形に統一する。
+    private static ProjectSession MakeSession(ProjectFile project)
+    {
+        var session = new ProjectSession(new CommandInvoker());
+        session.Load(project);
+        return session;
+    }
+
+    private static ProjectSession EmptySession() => MakeSession(MakeEmptyProject());
 
     [Fact]
     public void Execute_RemovesFloorUnit_WhenSiblingExistsAndNoDependents()
@@ -25,7 +60,7 @@ public sealed class DeleteFloorUnitCommandTests
             MakeFloorUnit(2, 100, 1)
         };
 
-        var command = new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptyCache());
+        var command = new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptySession());
         command.Execute();
 
         Assert.Single(floorUnits);
@@ -42,7 +77,7 @@ public sealed class DeleteFloorUnitCommandTests
         };
         var target = floorUnits[0];
 
-        var command = new DeleteFloorUnitCommand(floorUnits, target, EmptyCache());
+        var command = new DeleteFloorUnitCommand(floorUnits, target, EmptySession());
         command.Execute();
         command.Undo();
 
@@ -59,7 +94,7 @@ public sealed class DeleteFloorUnitCommandTests
         };
 
         Assert.Throws<InvalidOperationException>(() =>
-            new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptyCache()));
+            new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptySession()));
     }
 
     [Fact]
@@ -73,7 +108,7 @@ public sealed class DeleteFloorUnitCommandTests
         };
 
         Assert.Throws<InvalidOperationException>(() =>
-            new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptyCache()));
+            new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptySession()));
     }
 
     [Fact]
@@ -86,7 +121,7 @@ public sealed class DeleteFloorUnitCommandTests
             MakeFloorUnit(3, 200, 0)
         };
 
-        var command = new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptyCache());
+        var command = new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptySession());
         command.Execute();
 
         Assert.Equal(2, floorUnits.Count);
@@ -100,14 +135,15 @@ public sealed class DeleteFloorUnitCommandTests
         var floorUnitToDelete = MakeFloorUnit(1, 100, 0);
         var floorUnits = new List<FloorUnit> { floorUnitToDelete, MakeFloorUnit(2, 100, 1) };
 
-        var cache = new TimeTableSetCache();
-        cache.FloorUnitDependentIndex[floorUnitToDelete.Id] = new List<ObjectId>
+        var project = MakeEmptyProject();
+        project.BoundaryPoints.Add(new BoundaryPoint
         {
-            new BoundaryPointObjectId(new BoundaryPointId(1))
-        };
+            Id = new BoundaryPointId(1),
+            Base = MakeBase(floorUnitToDelete.Id.Value)
+        });
 
         Assert.Throws<InvalidOperationException>(() =>
-            new DeleteFloorUnitCommand(floorUnits, floorUnitToDelete, cache));
+            new DeleteFloorUnitCommand(floorUnits, floorUnitToDelete, MakeSession(project)));
     }
 
     [Fact]
@@ -118,14 +154,18 @@ public sealed class DeleteFloorUnitCommandTests
         var floorUnitToDelete = MakeFloorUnit(1, 100, 0);
         var floorUnits = new List<FloorUnit> { floorUnitToDelete, MakeFloorUnit(2, 100, 1) };
 
-        var cache = new TimeTableSetCache();
-        cache.FloorUnitDependentIndex[floorUnitToDelete.Id] = new List<ObjectId>
+        var project = MakeEmptyProject();
+        project.StationPaths.Add(new StationPath
         {
-            new StationPathObjectId(new StationPathId(1))
-        };
+            Id = new StationPathId(1),
+            FloorUnitId = floorUnitToDelete.Id,
+            Name = "test",
+            Direction = StationPathDirection.Arrival,
+            Waypoints = new List<StationPathWaypoint>()
+        });
 
         Assert.Throws<InvalidOperationException>(() =>
-            new DeleteFloorUnitCommand(floorUnits, floorUnitToDelete, cache));
+            new DeleteFloorUnitCommand(floorUnits, floorUnitToDelete, MakeSession(project)));
     }
 
     [Fact]
@@ -134,14 +174,15 @@ public sealed class DeleteFloorUnitCommandTests
         var floorUnitToDelete = MakeFloorUnit(1, 100, 0);
         var floorUnits = new List<FloorUnit> { floorUnitToDelete, MakeFloorUnit(2, 100, 1) };
 
-        var cache = new TimeTableSetCache();
+        var project = MakeEmptyProject();
         // 削除対象ではない別FloorUnit（Id=2）にのみ配下オブジェクトが存在する状態
-        cache.FloorUnitDependentIndex[new FloorUnitId(2)] = new List<ObjectId>
+        project.BoundaryPoints.Add(new BoundaryPoint
         {
-            new BoundaryPointObjectId(new BoundaryPointId(1))
-        };
+            Id = new BoundaryPointId(1),
+            Base = MakeBase(2)
+        });
 
-        var command = new DeleteFloorUnitCommand(floorUnits, floorUnitToDelete, cache);
+        var command = new DeleteFloorUnitCommand(floorUnits, floorUnitToDelete, MakeSession(project));
         Assert.NotNull(command);
     }
 
@@ -154,7 +195,7 @@ public sealed class DeleteFloorUnitCommandTests
             MakeFloorUnit(2, 100, 1)
         };
 
-        var command = new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptyCache());
+        var command = new DeleteFloorUnitCommand(floorUnits, floorUnits[0], EmptySession());
 
         Assert.Single(command.AffectedIds);
     }
