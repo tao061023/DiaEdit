@@ -11,6 +11,51 @@ using Xunit;
 
 public sealed class DeleteRailCommandTests
 {
+    private static Rail MakeRail(int id) => new()
+    {
+        Id = new RailId(id),
+        Name = $"線路{id}",
+        LengthM = 100.0,
+        SpeedLimitKph = 60.0,
+        Role = RailRole.Track,
+        EndpointA = new NoneEndpointRef(),
+        EndpointB = new NoneEndpointRef()
+    };
+
+    private static Platform MakePlatform(int id, params int[] facingRailIds) => new()
+    {
+        Id = new PlatformId(id),
+        Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+        FacingRailIds = facingRailIds.Select(r => new RailId(r)).ToList()
+    };
+
+    private static readonly DateRange SampleRange = new(new DateTime(2026, 1, 1), new DateTime(2026, 1, 2));
+
+    private static TemporaryRestriction MakeRailRestriction(int id, int railId) => new(
+        new TemporaryRestrictionId(id),
+        new RestrictionTarget.Rail(new RailId(railId)),
+        ExtraRunTimeSec: null,
+        SpeedLimitKph: 25,
+        DateRange: SampleRange,
+        Note: "");
+
+    private static Train MakeTrainUsingRail(int trainId, int railId)
+    {
+        var train = new Train
+        {
+            Id = new TrainId(trainId),
+            TimeTableSetId = new TimeTableSetId(1),
+            TrainNumber = $"{trainId}M",
+            ServiceRouteId = new ServiceRouteId(1),
+            TrainTypeId = new TrainTypeId(1),
+            TrainTypeName = new DisplayName { Name = "普通" },
+            Nickname = new DisplayName { Name = "" },
+        };
+        // StopTimesInternalはDiaEditCoreアセンブリ内からのみ書き込み可能（同一アセンブリのテストなので使用可）。
+        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime { TrackRailId = new RailId(railId) };
+        return train;
+    }
+
     private static readonly ValidationRules DefaultValidationRules = new(
         MinDwellTimeSec: null,
         MinHeadwaySec: null,
@@ -20,43 +65,27 @@ public sealed class DeleteRailCommandTests
         EnableConflictDetection: true,
         EnableCarLengthCheck: true);
 
-    private static readonly DateRange SampleDateRange = new(
-        new DateTime(2026, 1, 1), new DateTime(2026, 1, 2));
-
     private static ProjectFile MakeEmptyProject() => new()
     {
         SchemaVersion = 1,
         ProjectSettings = new ProjectSettings(DefaultValidationRules),
     };
 
-    private static ProjectSession MakeSession(ProjectFile project)
+    private static ProjectSession MakeSession()
     {
         var session = new ProjectSession(new CommandInvoker());
-        session.Load(project);
+        session.Load(MakeEmptyProject());
         return session;
     }
 
-    private static ProjectSession EmptySession() => MakeSession(MakeEmptyProject());
-
-    private static Rail MakeRail(int id = 1) => new()
-    {
-        Id = new RailId(id),
-        Name = "テスト線路",
-        LengthM = 100.0,
-        SpeedLimitKph = 60.0,
-        Role = RailRole.Track,
-        EndpointA = new NoneEndpointRef(),
-        EndpointB = new NoneEndpointRef()
-    };
-
     [Fact]
-    public void Execute_RemovesRail_WhenNoReferences()
+    public void Execute_RemovesRail_WhenNoReferencesExist()
     {
-        var rail = MakeRail();
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
 
         var command = new DeleteRailCommand(
-            rails, rail, EmptySession(),
+            rails, rail, MakeSession(),
             allPlatforms: Array.Empty<Platform>(),
             allRestrictions: Array.Empty<TemporaryRestriction>(),
             allTrains: Array.Empty<Train>());
@@ -68,11 +97,11 @@ public sealed class DeleteRailCommandTests
     [Fact]
     public void Undo_RestoresDeletedRail()
     {
-        var rail = MakeRail();
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
 
         var command = new DeleteRailCommand(
-            rails, rail, EmptySession(),
+            rails, rail, MakeSession(),
             Array.Empty<Platform>(), Array.Empty<TemporaryRestriction>(), Array.Empty<Train>());
         command.Execute();
         command.Undo();
@@ -84,138 +113,82 @@ public sealed class DeleteRailCommandTests
     [Fact]
     public void Constructor_Throws_WhenPlatformReferencesRail()
     {
-        var rail = MakeRail();
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
-        var platforms = new List<Platform>
-        {
-            new()
-            {
-                Id = new PlatformId(1),
-                Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(10), Position = new Point(0, 0) },
-                FacingRailIds = new List<RailId> { rail.Id }
-            }
-        };
+        var platforms = new[] { MakePlatform(1, facingRailIds: 1) };
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             new DeleteRailCommand(
-                rails, rail, EmptySession(),
+                rails, rail, MakeSession(),
                 platforms, Array.Empty<TemporaryRestriction>(), Array.Empty<Train>()));
 
-        Assert.Contains("Platform", ex.Message);
         Assert.Contains("FacingRailIds", ex.Message);
     }
 
     [Fact]
     public void Constructor_Throws_WhenTemporaryRestrictionTargetsRail()
     {
-        var rail = MakeRail();
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
-        var restrictions = new List<TemporaryRestriction>
-        {
-            new(
-                new TemporaryRestrictionId(1),
-                new RestrictionTarget.Rail(rail.Id),
-                ExtraRunTimeSec: null,
-                SpeedLimitKph: 25,
-                DateRange: SampleDateRange,
-                Note: "")
-        };
+        var restrictions = new[] { MakeRailRestriction(1, railId: 1) };
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             new DeleteRailCommand(
-                rails, rail, EmptySession(),
+                rails, rail, MakeSession(),
                 Array.Empty<Platform>(), restrictions, Array.Empty<Train>()));
 
         Assert.Contains("TemporaryRestriction", ex.Message);
     }
 
     [Fact]
-    public void Constructor_Throws_WhenStopTimeReferencesRailAsTrackRailId()
+    public void Constructor_Throws_WhenTrainStopTimeReferencesRail()
     {
-        var rail = MakeRail();
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
-
-        var train = new Train
-        {
-            Id = new TrainId(1),
-            TimeTableSetId = new TimeTableSetId(1),
-            TrainNumber = "1M",
-            ServiceRouteId = new ServiceRouteId(1),
-            TrainTypeId = new TrainTypeId(1),
-            TrainTypeName = new DisplayName { Name = "普通" },
-            Nickname = new DisplayName { Name = "" },
-        };
-        // StopTimesInternalはDiaEditCoreアセンブリ内からのみ書き込み可能
-        // （テストのフィクスチャ構築用途として明示的にpublic化されている、Train.cs参照）。
-        train.StopTimesInternal[new StopKey(new StationId(1), 0)] = new StopTime
-        {
-            TrackRailId = rail.Id
-        };
+        var trains = new[] { MakeTrainUsingRail(trainId: 1, railId: 1) };
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
             new DeleteRailCommand(
-                rails, rail, EmptySession(),
-                Array.Empty<Platform>(), Array.Empty<TemporaryRestriction>(), new[] { train }));
+                rails, rail, MakeSession(),
+                Array.Empty<Platform>(), Array.Empty<TemporaryRestriction>(), trains));
 
-        Assert.Contains("Train", ex.Message);
-        Assert.Contains("TrackRailId", ex.Message);
+        Assert.Contains("StopTime.TrackRailId", ex.Message);
     }
 
     [Fact]
-    public void Constructor_Throws_WithAggregatedReasons_WhenMultiplePathsReference()
+    public void Constructor_Throws_WithAllThreeReasonsAggregated_WhenAllThreePathsReference()
     {
-        // 3経路のうち2つ以上が同時に該当する場合、1回の例外に理由が集約されることを確認する
-        // （旧実装の「最初の1件で即throw」から変更した挙動、5.13.4節参照）。
-        var rail = MakeRail();
+        // 3経路すべてに参照がある場合、最初の1件で即throwせず、理由を集約して1回の例外にまとめる
+        // （旧実装からの変更点。v12.20設計判断）。
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
-        var platforms = new List<Platform>
-        {
-            new()
-            {
-                Id = new PlatformId(1),
-                Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(10), Position = new Point(0, 0) },
-                FacingRailIds = new List<RailId> { rail.Id }
-            }
-        };
-        var restrictions = new List<TemporaryRestriction>
-        {
-            new(
-                new TemporaryRestrictionId(1),
-                new RestrictionTarget.Rail(rail.Id),
-                ExtraRunTimeSec: null,
-                SpeedLimitKph: 25,
-                DateRange: SampleDateRange,
-                Note: "")
-        };
+        var platforms = new[] { MakePlatform(1, facingRailIds: 1) };
+        var restrictions = new[] { MakeRailRestriction(1, railId: 1) };
+        var trains = new[] { MakeTrainUsingRail(trainId: 1, railId: 1) };
 
         var ex = Assert.Throws<InvalidOperationException>(() =>
-            new DeleteRailCommand(
-                rails, rail, EmptySession(),
-                platforms, restrictions, Array.Empty<Train>()));
+            new DeleteRailCommand(rails, rail, MakeSession(), platforms, restrictions, trains));
 
-        Assert.Contains("Platform", ex.Message);
+        Assert.Contains("FacingRailIds", ex.Message);
         Assert.Contains("TemporaryRestriction", ex.Message);
+        Assert.Contains("StopTime.TrackRailId", ex.Message);
     }
 
     [Fact]
-    public void Constructor_DoesNotThrow_WhenReferencesBelongToDifferentRail()
+    public void Constructor_DoesNotThrow_WhenReferencesPointToOtherRail()
     {
-        var railToDelete = MakeRail(id: 1);
-        var otherRail = MakeRail(id: 2);
+        // Platform/TemporaryRestriction/TrainがいずれもRailId=2を参照しており、
+        // 削除対象のRailId=1には無関係であることを確認する（誤検知しないことの確認）。
+        var railToDelete = MakeRail(1);
+        var otherRail = MakeRail(2);
         var rails = new List<Rail> { railToDelete, otherRail };
-        var platforms = new List<Platform>
-        {
-            new()
-            {
-                Id = new PlatformId(1),
-                Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(10), Position = new Point(0, 0) },
-                FacingRailIds = new List<RailId> { otherRail.Id } // 削除対象ではない方のRailを参照
-            }
-        };
+
+        var platforms = new[] { MakePlatform(1, facingRailIds: 2) };
+        var restrictions = new[] { MakeRailRestriction(1, railId: 2) };
+        var trains = new[] { MakeTrainUsingRail(trainId: 1, railId: 2) };
 
         var command = new DeleteRailCommand(
-            rails, railToDelete, EmptySession(),
-            platforms, Array.Empty<TemporaryRestriction>(), Array.Empty<Train>());
+            rails, railToDelete, MakeSession(), platforms, restrictions, trains);
 
         Assert.NotNull(command);
     }
@@ -223,11 +196,11 @@ public sealed class DeleteRailCommandTests
     [Fact]
     public void AffectedIds_ContainsOnlySelf_WhenNoReferences()
     {
-        var rail = MakeRail();
+        var rail = MakeRail(1);
         var rails = new List<Rail> { rail };
 
         var command = new DeleteRailCommand(
-            rails, rail, EmptySession(),
+            rails, rail, MakeSession(),
             Array.Empty<Platform>(), Array.Empty<TemporaryRestriction>(), Array.Empty<Train>());
 
         Assert.Single(command.AffectedIds);

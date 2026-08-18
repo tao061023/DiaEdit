@@ -49,11 +49,22 @@ public static class DependencyResolver
     public static IEnumerable<ObjectId> ResolveDirectDependents(ObjectId current, TimeTableSetCache cache) =>
         current switch
         {
-            // Station → StationConnection
+            // Station → StationConnection（間接、SC経由）
+            //        → MainRoute（StationOrder直接参照、§9.1項目6追加）
+            //        → StationConnectionSegment（From/ToStationId直接参照、§9.1項目6追加。
+            //           SC未所属の孤立Segmentも含めて捕捉する）
             StationObjectId s =>
-                cache.StationConnectionIndex.TryGetValue(s.Id, out var scByStation)
+                (cache.StationConnectionIndex.TryGetValue(s.Id, out var scByStation)
                     ? scByStation.Select(id => (ObjectId)new StationConnectionObjectId(id))
-                    : [],
+                    : Enumerable.Empty<ObjectId>())
+                .Concat(
+                    cache.StationUsedByMainRouteIndex.TryGetValue(s.Id, out var mrByStation)
+                        ? mrByStation.Select(id => (ObjectId)new MainRouteObjectId(id))
+                        : [])
+                .Concat(
+                    cache.StationUsedBySegmentIndex.TryGetValue(s.Id, out var segByStation)
+                        ? segByStation.Select(id => (ObjectId)new StationConnectionSegmentObjectId(id))
+                        : []),
 
             // EntryPoint → StationConnection
             EntryPointObjectId e =>

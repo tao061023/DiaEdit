@@ -9,8 +9,8 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
 {
     private readonly DisplayNameValidator _displayNameValidator = new();
 
-    private static StationConnectionDirection DirectionOf(int fromIndex, int toIndex) =>
-        fromIndex < toIndex ? StationConnectionDirection.Down : StationConnectionDirection.Up;
+    // Direction判定はv12.24でBoundaryEntryPointResolver.ResolveBoundaryStationConnection内へ集約し、
+    // 本Validator内での直接算出（旧DirectionOf）は不要になった。
  
     // fromIndex/toIndexで指定される区間（MainRoute.StationOrder上の生インデックス範囲）に
     // 実際に含まれるSCSだけを抽出する。SCS自体のFromStationId/ToStationIdをStationOrder上の
@@ -62,11 +62,18 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
             {
                 var mainRouteForSeg = context.MainRoutes.FirstOrDefault(m => m.Id == seg.MainRouteId);
  
-                // 2a. mainRouteId側の対応StationConnectionが実在すること
-                var expectedDir = DirectionOf(seg.FromStationIndex, seg.ToStationIndex);
-                var mainSc = context.StationConnections.FirstOrDefault(sc => sc.MainRouteId == seg.MainRouteId && sc.Direction == expectedDir);
+                // 2a. mainRouteId側の、fromIndex→toIndex区間を完全にカバーするStationConnectionが
+                //     実在すること（v12.24：区間完全一致を要求するBoundaryEntryPointResolverに統一。
+                //     Direction一致のみの緩い判定だと、後続のValidateBoundaryConnectivity側の
+                //     区間完全一致判定と基準がずれ、矛盾したエラーが出る恐れがあったため）
+                var mainCandidateIds = BoundaryEntryPointResolver.ResolveBoundaryStationConnection(
+                    seg.MainRouteId, seg.FromStationIndex, seg.ToStationIndex,
+                    context.MainRoutes, context.StationConnections, context.StationConnectionSegments);
+                var mainSc = mainCandidateIds.Count > 0
+                    ? context.StationConnections.FirstOrDefault(sc => sc.Id == mainCandidateIds[0])
+                    : null;
                 if (mainSc is null)
-                    issues.Add(new ValidationIssue($"ServiceRoute({target.Id}).Segments[{i}]: MainRouteId({seg.MainRouteId})のDirection={expectedDir}に対応するStationConnectionが存在しない"));
+                    issues.Add(new ValidationIssue($"ServiceRoute({target.Id}).Segments[{i}]: MainRouteId({seg.MainRouteId})の区間{seg.FromStationIndex}→{seg.ToStationIndex}を完全にカバーするStationConnectionが存在しない"));
  
                 StationConnection? pairedSc = null;
                 MainRoute? pairedRoute = null;
@@ -91,10 +98,15 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
                     {
                         pFrom = pf;
                         pTo = pt;
-                        var pairedExpectedDir = DirectionOf(pf, pt);
-                        pairedSc = context.StationConnections.FirstOrDefault(sc => sc.MainRouteId == pairedRouteId && sc.Direction == pairedExpectedDir);
+                        // 2a同様、v12.24で区間完全一致判定に統一
+                        var pairedCandidateIds = BoundaryEntryPointResolver.ResolveBoundaryStationConnection(
+                            pairedRouteId, pf, pt,
+                            context.MainRoutes, context.StationConnections, context.StationConnectionSegments);
+                        pairedSc = pairedCandidateIds.Count > 0
+                            ? context.StationConnections.FirstOrDefault(sc => sc.Id == pairedCandidateIds[0])
+                            : null;
                         if (pairedSc is null)
-                            issues.Add(new ValidationIssue($"ServiceRoute({target.Id}).Segments[{i}]: PairedMainRouteId({pairedRouteId})のDirection={pairedExpectedDir}に対応するStationConnectionが存在しない"));
+                            issues.Add(new ValidationIssue($"ServiceRoute({target.Id}).Segments[{i}]: PairedMainRouteId({pairedRouteId})の区間{pf}→{pt}を完全にカバーするStationConnectionが存在しない"));
                     }
  
                     // 2c. SCS重複禁止（fromIndex〜toIndexの区間に実際に含まれるSCSのみを比較対象とする）
@@ -192,9 +204,15 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
 
     /// <summary>
     /// ルール5：境界駅の整合性条件。mainRouteId側・pairedMainRouteId側で共通のロジック。
-    /// 各segmentについて対応するStationConnectionを解決し（複数候補ならSelectedStationConnectionId必須）、
-    /// EntryPointSequenceResolverの結果をStationOrder上の位置でスライスして結合、
-    /// MainRouteCheckerで境界ごとのTrack集合重複を検証する。
+    /// 各segmentについて、fromIndex→toIndex区間を完全にカバーするStationConnectionを
+    /// BoundaryEntryPointResolver.ResolveBoundaryStationConnectionで解決し（複数候補なら
+    /// SelectedStationConnectionId必須）、EntryPointSequenceResolverの結果をそのまま結合、
+    /// MainRouteCheckerで境界ごとのTrack集合重複を検証する。 <br/>
+    /// v12.24：候補解決を「MainRouteId＋Direction一致（MainRoute全体走破前提）」から
+    /// 「fromIndex→toIndex区間の完全一致」へ変更（§9.1項目9のDRY抽出議論で判明した設計修正）。
+    /// これにより、区間が保証済みとなるためStationOrder上の位置でのスライス処理（ToPosition等）が
+    /// 不要になった。SyncRunSegmentsToTrainCommand.ResolveSegmentStationConnectionIdと
+    /// 同じ候補解決ロジックを共有する。
     /// </summary>
     private static void ValidateBoundaryConnectivity(
         ServiceRoute target,
@@ -219,19 +237,18 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
             if (route is null)
                 return; // 参照整合性エラーは他ルールで既に報告済み。ここでは検証不能として打ち切る
 
-            var expectedDir = DirectionOf(fromIdx, toIdx);
-            var candidates = context.StationConnections
-                .Where(sc => sc.MainRouteId == mainRouteId && sc.Direction == expectedDir)
-                .ToList();
+            var candidateIds = BoundaryEntryPointResolver.ResolveBoundaryStationConnection(
+                mainRouteId, fromIdx, toIdx,
+                context.MainRoutes, context.StationConnections, context.StationConnectionSegments);
 
             StationConnection selectedSc;
-            if (candidates.Count == 0)
+            if (candidateIds.Count == 0)
             {
                 return; // ルール2で既にエラー報告済み。重複報告を避けるため打ち切る
             }
-            else if (candidates.Count == 1)
+            else if (candidateIds.Count == 1)
             {
-                selectedSc = candidates[0];
+                selectedSc = context.StationConnections.First(sc => sc.Id == candidateIds[0]);
             }
             else
             {
@@ -243,36 +260,22 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
                     return;
                 }
 
-                var found = candidates.FirstOrDefault(sc => sc.Id == selId.Value);
-                if (found is null)
+                if (!candidateIds.Contains(selId.Value))
                 {
                     issues.Add(new ValidationIssue(
                         $"ServiceRoute({target.Id}).Segments[{i}]（{side}）: 選択されたStationConnection({selId.Value})が候補集合に含まれない"));
                     return;
                 }
-                selectedSc = found;
+                selectedSc = context.StationConnections.First(sc => sc.Id == selId.Value);
             }
 
+            // candidateIdsはfromIdx→toIdx区間を完全にカバーすることが既に保証されているため、
+            // ToPositionによるスライスは不要。Resolveの結果をそのまま結合すればよい。
             var fullSeq = EntryPointSequenceResolver.Resolve(selectedSc, context.StationConnectionSegments);
-            var stationCount = route.StationOrder.Count;
-
-            int ToPosition(int rawIndex) =>
-                selectedSc.Direction == StationConnectionDirection.Down ? rawIndex : stationCount - 1 - rawIndex;
-
-            var posFrom = ToPosition(fromIdx);
-            var posTo = ToPosition(toIdx);
-            var lo = Math.Min(posFrom, posTo);
-            var hi = Math.Max(posFrom, posTo);
-
-            if (lo < 0 || hi > fullSeq.Count)
+            foreach (var element in fullSeq)
             {
-                return; // 範囲外は他ルール（StationIndex範囲チェック等）で既に報告済みのはず
-            }
-
-            for (var h = lo; h < hi; h++)
-            {
-                combinedEps.Add(fullSeq[h].FromEntryPointId);
-                combinedEps.Add(fullSeq[h].ToEntryPointId);
+                combinedEps.Add(element.FromEntryPointId);
+                combinedEps.Add(element.ToEntryPointId);
             }
         }
 

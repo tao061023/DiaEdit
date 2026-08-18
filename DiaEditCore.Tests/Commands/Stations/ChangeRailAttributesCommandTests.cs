@@ -9,6 +9,17 @@ using Xunit;
 
 public sealed class ChangeRailAttributesCommandTests
 {
+    private static Rail MakeRail() => new()
+    {
+        Id = new RailId(1),
+        Name = "旧線路名",
+        LengthM = 100.0,
+        SpeedLimitKph = 60.0,
+        Role = RailRole.Normal,
+        EndpointA = new NoneEndpointRef(),
+        EndpointB = new NoneEndpointRef()
+    };
+
     private static readonly ValidationRules DefaultValidationRules = new(
         MinDwellTimeSec: null,
         MinHeadwaySec: null,
@@ -24,24 +35,18 @@ public sealed class ChangeRailAttributesCommandTests
         ProjectSettings = new ProjectSettings(DefaultValidationRules),
     };
 
-    // v12.21：TimeTableSetCacheを直接newする方式からProjectSession経由へ移行（§9.1項目5）。
+    /// <summary>
+    /// v12.21：コンストラクタ引数がTimeTableSetCache cache → ProjectSession sessionへ移行したため、
+    /// 旧EmptyCache()（new TimeTableSetCache()を直接構築）をProjectSessionベースへ置き換えた。
+    /// Load()直後はキャッシュが空の状態でクリーン（_cacheDirty=false）になるため、
+    /// 「空キャッシュを渡す」という以前のテスト意図はそのまま踏襲できる。
+    /// </summary>
     private static ProjectSession MakeSession()
     {
         var session = new ProjectSession(new CommandInvoker());
         session.Load(MakeEmptyProject());
         return session;
     }
-
-    private static Rail MakeRail() => new()
-    {
-        Id = new RailId(1),
-        Name = "旧線路名",
-        LengthM = 100.0,
-        SpeedLimitKph = 60.0,
-        Role = RailRole.Normal,
-        EndpointA = new NoneEndpointRef(),
-        EndpointB = new NoneEndpointRef()
-    };
 
     [Fact]
     public void Execute_AppliesAllFields()

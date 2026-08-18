@@ -45,6 +45,17 @@ public sealed class TimeTableSetCache
     // DeleteFloorUnitCommandの削除可否判定（6.1節ハード制約）。
     public Dictionary<FloorUnitId, List<ObjectId>> FloorUnitDependentIndex { get; } = new();
 
+    // StationId → それをStationOrderに含むMainRouteの一覧（§9.1項目6新設）。
+    // StationConnectionIndex（StationConnection経由の間接参照）では捉えられない、
+    // MainRoute.StationOrderからの直接参照をDeleteStationCommandが検知できるようにする。
+    // 構築はStationUsedByMainRouteIndexBuilder.Build()側の責務とする。
+    public Dictionary<StationId, List<MainRouteId>> StationUsedByMainRouteIndex { get; } = new();
+
+    // StationId → それをFrom/ToStationIdに持つStationConnectionSegmentの一覧（§9.1項目6新設）。
+    // どのStationConnectionにも属さない孤立したSegmentからのStation直接参照を捕捉するために新設。
+    // 構築はStationUsedBySegmentIndexBuilder.Build()側の責務とする。
+    public Dictionary<StationId, List<StationConnectionSegmentId>> StationUsedBySegmentIndex { get; } = new();
+
     // -----------------------------
     // (b) 重量キャッシュ系（遅延再構築）
     // -----------------------------
@@ -91,7 +102,8 @@ public sealed class TimeTableSetCache
         IEnumerable<Train> trains,
         IEnumerable<StationConnection> stationConnections,
         IEnumerable<StationConnectionSegment> segments,
-        IEnumerable<TemporaryRestriction> restrictions)
+        IEnumerable<TemporaryRestriction> restrictions,
+        IEnumerable<MainRoute> mainRoutes)
     {
         TrainNumberIndex.Clear();
         EntryPointConnectionIndex.Clear();
@@ -104,6 +116,8 @@ public sealed class TimeTableSetCache
         ServiceRoutesByMainRouteIndex.Clear();
         StopKeyReferenceIndex.Clear();
         FloorUnitDependentIndex.Clear();
+        StationUsedByMainRouteIndex.Clear();
+        StationUsedBySegmentIndex.Clear();
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
 
@@ -147,6 +161,20 @@ public sealed class TimeTableSetCache
             TemporaryRestrictionBySegmentIndexBuilder.Build(restrictions))
         {
             TemporaryRestrictionBySegmentIndex[segId] = list;
+        }
+
+        // StationUsedByMainRouteIndex／StationUsedBySegmentIndex（§9.1項目6新設）。
+        // 他5インデックス同様、Model層生データのみに依存するPattern Aのためここで直接構築する。
+        foreach (var (stationId, list) in
+            StationUsedByMainRouteIndexBuilder.Build(mainRoutes))
+        {
+            StationUsedByMainRouteIndex[stationId] = list;
+        }
+
+        foreach (var (stationId, list) in
+            StationUsedBySegmentIndexBuilder.Build(segmentsList))
+        {
+            StationUsedBySegmentIndex[stationId] = list;
         }
 
         // TrainOperationIndex は TrainOperationChainResolver が構築する（§9.2項目14：重複プロパティにつき将来削除予定）
