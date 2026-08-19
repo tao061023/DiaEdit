@@ -68,4 +68,20 @@ public static class MainRouteChecker
 
         return arrivalTracks.Overlaps(departureTracks);
     }
+
+    /// <summary>
+    /// 到着側EntryPointが経由するTrack集合と、出発側EntryPointが経由するTrack集合が
+    /// 1件以上重複するか（＝物理的に転線可能か）を判定する。CheckBoundaryConnectivityが
+    /// 隣接Segment間の境界判定に使う内部ロジック（HasOverlap）をそのまま公開しただけの
+    /// ラッパーであり、判定基準は完全に同一。
+    /// ServiceRouteToRunSegmentsResolverが、ServiceRouteSegment内部の任意の乗換駅における
+    /// StationConnection切替の妥当性検証に使用する。
+    /// </summary>
+    public static bool CanTransfer(
+        EntryPointId arrivalEp,
+        EntryPointId departureEp,
+        IReadOnlyDictionary<(StationPathTrackIndexBuilder.BoundaryTerminal, RailId), StationPathId> arrivalIndex,
+        IReadOnlyDictionary<(RailId, StationPathTrackIndexBuilder.BoundaryTerminal), StationPathId> departureIndex)
+        => HasOverlap(arrivalEp, departureEp, arrivalIndex, departureIndex);
+
 }
