@@ -1,9 +1,9 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// ホップ（隣接駅1区間）ごとの解決結果。3種のケースを判別共用体で表現する。

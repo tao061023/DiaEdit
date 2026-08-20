@@ -8,9 +8,7 @@ using DiaEditCore.Model.Routes;
 /// StationConnectionSegmentの一覧）の構築を担う。
 ///
 /// StationConnectionSegment.FromStationId/ToStationIdはSegment自身が直接保持する属性のため、
-/// Segment列を1回走査するだけで導出できる。既存のStationConnectionIndex（Station→StationConnection）
-/// はStationConnection経由の間接参照のみを捉えており、どのStationConnectionにも属さない孤立した
-/// SegmentからのStation直接参照を捕捉できていなかった（§9.1項目6の監査で判明）。
+/// Segment列を1回走査するだけで導出できる。
 /// 消費者はDependencyResolver.ResolveDirectDependents（StationObjectIdケース）のみ。
 /// </summary>
 public static class StationUsedBySegmentIndexBuilder

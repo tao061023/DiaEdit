@@ -22,12 +22,8 @@ public sealed record StationSnapshot(
     bool? ShowsInStationTimetableOverride);
 
 /// <summary>
-/// 6.1節「属性変更」パターンの最初の具象実装。
+/// 「属性変更」パターンの最初の具象実装。
 /// AffectedIdsはStation自身のObjectIdからDependencyResolver.ResolveAffectedで算出する
-/// （6.1節の属性変更パターンの規約通り）。
-///
-/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
-/// （§9.1項目5、構造的防止の方針）。
 /// </summary>
 public sealed class ChangeStationAttributesCommand : UndoableCommand<Station, StationSnapshot>
 {

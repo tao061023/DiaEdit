@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// 駅の同一番線を使用する終着・始発列車を時刻順に走査して

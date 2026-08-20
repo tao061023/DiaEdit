@@ -1,9 +1,9 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm;
 
 public enum StopPatternMark { Stop, Pass, OutOfRange } // ●, レ, 空白
 

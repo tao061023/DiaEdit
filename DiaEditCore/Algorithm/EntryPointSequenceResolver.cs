@@ -1,12 +1,14 @@
-using DiaEditCore.Model.Routes;
-
 namespace DiaEditCore.Algorithm;
 
+using DiaEditCore.Model;
+using DiaEditCore.Model.Routes;
+
+
 public sealed record EntryPointSequenceElement(
-    Model.StationId FromStationId,
-    Model.StationId ToStationId,
-    Model.EntryPointId FromEntryPointId,
-    Model.EntryPointId ToEntryPointId);
+    StationId FromStationId,
+    StationId ToStationId,
+    EntryPointId FromEntryPointId,
+    EntryPointId ToEntryPointId);
 
 public static class EntryPointSequenceResolver
 {

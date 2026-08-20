@@ -1,6 +1,6 @@
-using DiaEditCore.Model;
-
 namespace DiaEditCore.Algorithm;
+
+using DiaEditCore.Model;
 
 /// <summary>
 /// 「MainRoute整合性」・「境界駅の整合性条件」共通ロジック。 <br/>

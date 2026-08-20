@@ -7,8 +7,8 @@ using DiaEditCore.Model.TimeTable.Trains;
 /// TimeTableSetCache.DerivedTrainsBySourceIdIndex（TrainId→そのTrainをSourceTrainIdとして
 /// 複製されたTrainの一覧）の構築を担う。
 ///
-/// Train.SourceTrainId（4.9.2節、Train複製Paste時に設定される派生元参照）を1回走査するだけで
-/// 導出できる逆引きインデックス。v12.18で判明した「RebuildAllが空のまま」だった6インデックスのうちの1つ。
+/// Train.SourceTrainId（Train複製Paste時に設定される派生元参照）を1回走査するだけで
+/// 導出できる逆引きインデックス。
 /// 消費者はDependencyResolver.ResolveDirectDependents（TrainObjectIdケース）。
 ///
 /// 注：現行のDependencyResolver.ResolveDirectDependentsはTrainObjectId => [] と終端ノード扱いのため、

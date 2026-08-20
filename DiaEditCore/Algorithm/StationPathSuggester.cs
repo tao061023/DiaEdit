@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// 駅単位で構内探索を行い、StationPath の候補 waypoint 列を返す。

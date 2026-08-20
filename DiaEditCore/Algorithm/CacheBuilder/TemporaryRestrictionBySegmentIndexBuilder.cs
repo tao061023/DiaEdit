@@ -14,7 +14,6 @@ using DiaEditCore.Model.TimeTable;
 /// 逆引き消費者はDeleteRailCommandのみであり、Rail削除時のチェックはTemporaryRestriction列を
 /// 直接1回線形走査すれば足りる規模のため、専用インデックス化は見送る）。
 ///
-/// v12.18で判明した「RebuildAllが空のまま」だった6インデックスのうちの1つ。
 /// 消費者はDependencyResolver.ResolveDirectDependents（StationConnectionSegmentObjectIdケースの
 /// うちTemporaryRestriction逆引き部分）のみ。
 /// </summary>

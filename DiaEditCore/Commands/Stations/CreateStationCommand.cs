@@ -4,14 +4,14 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 
 /// <summary>
-/// 6.1節「新規登録（Create）」パターンの最初の具象実装。
+/// 「新規登録（Create）」パターンの最初の具象実装。
 ///
-/// ID採番方針（v12.11セッションで確定）：セッション中は既存Stationの最大IdValue+1を単純採番する
+/// ID採番方針：セッション中は既存Stationの最大IdValue+1を単純採番する
 /// （欠番は詰めない）。Undo/Redoスタックが生きている間はIDの安定性を優先するため。
 /// 欠番を詰める再採番（コンパクション）はプロジェクト読込時（Undoスタックがまだ存在しない
-/// タイミング）に限定して行う方針とし、別タスクとして切り出す（§9.2参照）。
+/// タイミング）に限定して行う方針とし、別タスクとして切り出す。
 ///
-/// AffectedIdsは6.1節の規約通り「新規オブジェクトは他から参照されないため空」。
+/// AffectedIdsは「新規オブジェクトは他から参照されないため空」。
 ///
 /// TTargetは追加先のList&lt;Station&gt;そのもの（ProjectFile.Stations等、呼び出し元が渡す）。
 /// CaptureSnapshotは「実行前は存在しない」ことを表すためnullを返し、Restoreでは
@@ -37,7 +37,7 @@ public sealed class CreateStationCommand : UndoableCommand<List<Station>, Statio
         StationType type,
         string operatingCode = "",
         string telegraphCode = "")
-        : base(stations, new HashSet<ObjectId>()) // 新規登録：AffectedIdsは対象自身のみ（空集合、6.1節）
+        : base(stations, new HashSet<ObjectId>()) // 新規登録：AffectedIdsは対象自身のみ（空集合）
     {
         _displayName = displayName.Clone();
         _type = type;

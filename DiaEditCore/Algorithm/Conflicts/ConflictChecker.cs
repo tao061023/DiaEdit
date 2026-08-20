@@ -1,6 +1,6 @@
-using DiaEditCore.Model;
-
 namespace DiaEditCore.Algorithm.Conflicts;
+
+using DiaEditCore.Model;
 
 /// <summary>
 /// 交差支障検知：あるオブジェクトを列車が占有しているとき、別の列車が同じオブジェクトを同時に占有していないかを検証する汎用チェッカー。 <br/>

@@ -1,8 +1,8 @@
+namespace DiaEditCore.Algorithm.Conflicts;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
 /// 1回の駅訪問(visitSeq)について、到着StationPath/出発StationPathそれぞれの占有区間 <br/>

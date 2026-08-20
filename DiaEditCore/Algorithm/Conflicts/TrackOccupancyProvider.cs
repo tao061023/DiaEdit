@@ -1,15 +1,16 @@
+namespace DiaEditCore.Algorithm.Conflicts;
+
+using DiaEditCore.Algorithm.CacheBuilder;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
-using DiaEditCore.Algorithm.CacheBuilder;
-
-namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
-/// Track（番線）用途のConflictChecker（6.5節）：全Trainを走査し、番線ごとの占有区間を構築する。
+/// Track（番線）用途のConflictChecker：全Trainを走査し、番線ごとの占有区間を構築する。
 ///
-/// 占有区間 = 「到着StationPathの占有開始」〜「出発StationPathの占有終了」（v11.22変更履歴6項目目）。
+/// 占有区間 = 「到着StationPathの占有開始」〜「出発StationPathの占有終了」
 /// 各訪問の到着/出発StationPath占有はStopVisitOccupancyResolverを再利用する。
 ///
 /// 始発・終着側（片側のStationPath占有が存在しない訪問）の境界：
@@ -21,7 +22,7 @@ namespace DiaEditCore.Algorithm.Conflicts;
 ///     この訪問自体の到着占有終了をそのままTrack占有終了として採用する（後続列車が存在しない以上、
 ///     それ以上先まで占有を仮定する根拠がないため）。
 ///
-/// 一意マッチングの採用理由（v11.24）：ResolveNextTrain（単一列車視点の簡易API）を列車ごとに
+/// 一意マッチングの採用理由：ResolveNextTrain（単一列車視点の簡易API）を列車ごとに
 /// 個別呼び出しすると、複数の到着列車が同じ出発列車を候補として選びうる（非単射）。この場合、
 /// 本来PrevTrain/NextTrain関係にない到着列車同士が同じ出発列車の占有開始まで境界を延長し、
 /// 誤ったTrack占有重複（誤検出）を引き起こす。ResolveUniqueNextTrainMap/ResolveUniquePrevTrainMapは
@@ -154,9 +155,9 @@ public static class TrackOccupancyProvider
     /// <summary>
     /// StationWork.Type == Shunting について、参照先StationPathをRailSequenceResolverで
     /// Rail列に展開し、うちRailRole.Trackのものを対象オブジェクトとしてTrack占有に加える
-    /// （入換作業中に誤ってその番線へ進入する列車との支障を検知するため。8.2節候補から復帰・スコープ内化）。
+    /// （入換作業中に誤ってその番線へ進入する列車との支障を検知するため。）。
     ///
-    /// 前提：StationWork.StationPathId・StartOpSeconds・EndOpSeconds（Shuntingでは両方必須、5.11.5節）。
+    /// 前提：StationWork.StationPathId・StartOpSeconds・EndOpSeconds（Shuntingでは両方必須）。
     /// </summary>
     private static void AddShuntingOccupancy(
         IReadOnlyList<Train> trains,

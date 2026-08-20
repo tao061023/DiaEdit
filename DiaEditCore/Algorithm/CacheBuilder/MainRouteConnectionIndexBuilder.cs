@@ -8,8 +8,6 @@ using DiaEditCore.Model.Routes;
 ///
 /// StationConnection.MainRouteIdはStationConnection自身が直接保持する属性のため、
 /// EntryPointSequenceResolver等の展開処理を経由せず、StationConnection列を1回走査するだけで導出できる
-/// （v12.18で判明した「RebuildAllが空のまま」だった6インデックスのうちの1つ。
-/// 消費者はDependencyResolver.ResolveDirectDependents（MainRouteObjectIdケース）のみ）。
 /// </summary>
 public static class MainRouteConnectionIndexBuilder
 {

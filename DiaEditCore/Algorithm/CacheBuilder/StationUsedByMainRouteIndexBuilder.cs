@@ -7,9 +7,7 @@ using DiaEditCore.Model.Routes;
 /// TimeTableSetCache.StationUsedByMainRouteIndex（StationId→それをStationOrderに含むMainRouteの一覧）の構築を担う。
 ///
 /// MainRoute.StationOrderはMainRoute自身が直接保持する属性のため、MainRoute列を1回走査するだけで導出できる
-/// （§9.1項目6の監査で判明：DeleteStationCommandがMainRoute.StationOrder経由の直接参照を
-/// 一切チェックしていなかった欠落の是正。消費者はDependencyResolver.ResolveDirectDependents
-/// （StationObjectIdケース）のみ）。
+/// 消費者はDependencyResolver.ResolveDirectDependents（StationObjectIdケース）のみ）。
 /// </summary>
 public static class StationUsedByMainRouteIndexBuilder
 {

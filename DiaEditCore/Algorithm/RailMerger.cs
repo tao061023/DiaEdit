@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-
-namespace DiaEditCore.Algorithm;
 
 public enum RailEnd { A, B }
 

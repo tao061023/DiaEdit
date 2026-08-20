@@ -1,7 +1,6 @@
 namespace DiaEditCore.Session;
 
 using DiaEditCore.ChangeNotification;
-using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Commands;
 using DiaEditCore.Model;

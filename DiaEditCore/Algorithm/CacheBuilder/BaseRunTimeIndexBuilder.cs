@@ -5,21 +5,18 @@ using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
-/// 5.6.1節：DiagramRevision.BaseTimeTableSetIdが指すTimeTableSet内のTrain実績から、
-/// 区間ごとの基準所要時分インデックスを構築する（v12.27新設：StationConnectionSegment.BaseRunTimeSec
-/// 廃止に伴う代替実装）。
+/// DiagramRevision.BaseTimeTableSetIdが指すTimeTableSet内のTrain実績から、
+/// 区間ごとの基準所要時分インデックスを構築する。
 ///
 /// 選定キー：(StationConnectionSegmentId, FromIsStop, ToIsStop, DefaultVehicleTypeId)。
 /// 「停車/通過パターン4種」は当該ホップの出発駅側StopTime.IsStop・到着駅側StopTime.IsStopの組み合わせ。
-/// 車両性能差はTrain.DefaultVehicleTypeIdで反映し、ServiceRoute／Directionは選定キーに含めない
-/// （StationConnectionSegmentは複数ServiceRouteから共有されるという既存の設計前提と矛盾するため）。
 ///
 /// 実測所要秒数の算出基準はStopVisitOccupancyResolverの基準時刻ロジックを踏襲する：
 ///   出発側基準 = DepartureSeconds（停車・通過を問わず「その地点を離れる時刻」）
 ///   到着側基準 = IsStop ? ArrivalSeconds : DepartureSeconds（停車なら到着時刻、通過なら通過時刻）
 ///
 /// 一意性（同一選定キーに該当するTrainが2件以上存在してはならない）はここでは検証しない
-/// （検証責務はBaseTimeTableSetTrainDuplicationCrossValidator、§9.1項目21・未実装。
+/// （検証責務はBaseTimeTableSetTrainDuplicationCrossValidator。
 /// 本Builderは「後勝ち」で単純に上書きする防御的実装とし、Calculate側の呼び出し前提として
 /// 保存時に一意性が保証されていることを前提とする）。
 ///

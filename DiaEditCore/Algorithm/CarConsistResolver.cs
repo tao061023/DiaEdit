@@ -1,8 +1,8 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// StartOp.startOpConsist、またはPrevTrain.SplitOrigin経由で他Trainのconsistsequenceを <br/>

@@ -4,7 +4,7 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
-/// あるStationにおけるTrainのStopTimeから出発順リストを構築する。駅時刻表の表示に利用する予定。
+/// あるStationにおけるTrainのStopTimeから出発順リストを構築する。駅時刻表の表示に利用する予定。TrackOccupancyProvider.csに利用される。
 /// 
 /// 始発駅（VisitSequence=0）のStopTimeが未設定／DepartureSecondsが未設定（-1）／
 /// TrackRailId未設定のTrainは対象外とする。

@@ -6,20 +6,12 @@ using DiaEditCore.Model.Stations;
 using DiaEditCore.Session;
 
 /// <summary>
-/// 6.1節「削除（Delete）」パターンのFloorUnit向け実装。
-///
-/// v12.15で1段階目（n≥1制約のみ）を実装、v12.16で2段階目（配下オブジェクトの直接参照元チェック）を追加。
-/// FloorUnitObjectId・PlatformObjectId・StationPathObjectIdの新設とFloorUnitDependentIndex
-/// （TimeTableSetCache、§9.2項目12）が前提として揃ったため、DeleteStationCommand（v12.11）と
-/// 同型の1ホップ拒否ロジックを適用できるようになった。
+/// 「削除（Delete）」パターンのFloorUnit向け実装。
 ///
 /// 検査順序：①n≥1制約（Stationカーディナリティ、コマンド固有のドメインルール）→
 ///          ②直接参照元（DependencyResolver.ResolveDirectDependents、汎用の1ホップ拒否ロジック）。
-/// 双方とも「コマンド層とUI層の責務分担」（6.1節）における「ハード制約」に該当するため、
+/// 双方とも「コマンド層とUI層の責務分担」における「ハード制約」に該当するため、
 /// いずれか一方でも該当すればコンストラクタで例外を送出しコマンド生成自体を失敗させる。
-///
-/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
-/// （§9.1項目5、構造的防止の方針）。
 /// </summary>
 public sealed class DeleteFloorUnitCommand : UndoableCommand<List<FloorUnit>, FloorUnit>
 {
@@ -33,7 +25,7 @@ public sealed class DeleteFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
         {
             throw new InvalidOperationException(
                 $"FloorUnit（Id={floorUnitToDelete.Id.Value}）は、Station（Id={floorUnitToDelete.StationId.Value}）" +
-                $"が保持する最後のFloorUnitのため削除できません（n≥1制約、4.2節）。");
+                $"が保持する最後のFloorUnitのため削除できません（n≥1制約）。");
         }
 
         var cache = session.GetCache();

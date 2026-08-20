@@ -1,6 +1,6 @@
-using DiaEditCore.Model.Routes;
-
 namespace DiaEditCore.Algorithm;
+
+using DiaEditCore.Model.Routes;
 
 /// <summary>
 /// ServiceRoute.segmentsをたどり、各境界駅のEntryPointSequenceElementを連結した

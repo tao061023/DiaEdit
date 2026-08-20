@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// CarCompositionがどのTrainOperationに属すかを、StartOpCarSlot.OperationId

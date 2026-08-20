@@ -1,8 +1,8 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// 編成前後反転の自動導出。単一MainRoute内のスイッチバック判定（ResolveDirectionReversalStations）と、
@@ -15,7 +15,7 @@ namespace DiaEditCore.Algorithm;
 /// 判定する（デルタ線は必ずMainRouteとして登録される制約があるため、使用する番線による向きの差異は
 /// 発生せず、複数StationPath候補間の判定はORでよい）。
 ///
-/// 両メソッドとも、EP引き当ての下請けとしてBoundaryEntryPointResolver（6.1節）・EntryPointSequenceResolver・
+/// 両メソッドとも、EP引き当ての下請けとしてBoundaryEntryPointResolver・EntryPointSequenceResolver・
 /// RailSequenceResolverを共有する。出力（directionReversalStations／ServiceRouteSegment.reversesAtBoundary）は
 /// あくまで保存時のデフォルト値提示の候補であり、確定はユーザーが行う。
 ///

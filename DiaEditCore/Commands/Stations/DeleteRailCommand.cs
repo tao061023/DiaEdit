@@ -8,7 +8,7 @@ using DiaEditCore.Model.TimeTable.Trains;
 using DiaEditCore.Session;
 
 /// <summary>
-/// 6.1節「削除（Delete）」パターンのRail向け実装（v12.20再実装、v12.21でProjectSession移行）。
+/// 「削除（Delete）」パターンのRail向け実装。
 ///
 /// v12.18で判明した不備の修正：旧実装（v12.13）はDependencyResolverのObjectIdグラフ
 /// （RailObjectId => []）のみをチェックしていたが、Railへの逆参照3経路は

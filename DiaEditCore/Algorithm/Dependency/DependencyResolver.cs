@@ -42,16 +42,16 @@ public static class DependencyResolver
     /// 単一オブジェクトの直接の依存先（1ホップ分）を返す。依存関係ルールテーブルの実体。 <br/>
     /// 新しいObjectId派生型を追加した場合、CS8509(error)によりここでのケース追加漏れがビルドエラーとなる <br/>
     /// （.editorconfigでdotnet_diagnostic.CS8509.severity=errorが設定済みのため）。 <br/>
-    /// public化（v12.11）：ResolveAffected内部での波及探索用途に加え、削除系コマンドが
-    /// 「直接の参照元が残っている場合はexecute時点で拒否する」（6.1節）判定に使う1ホップ専用の
+    /// public化：ResolveAffected内部での波及探索用途に加え、削除系コマンドが
+    /// 「直接の参照元が残っている場合はexecute時点で拒否する」判定に使う1ホップ専用の
     /// 問い合わせとしても利用する。
     /// </summary>
     public static IEnumerable<ObjectId> ResolveDirectDependents(ObjectId current, TimeTableSetCache cache) =>
         current switch
         {
             // Station → StationConnection（間接、SC経由）
-            //        → MainRoute（StationOrder直接参照、§9.1項目6追加）
-            //        → StationConnectionSegment（From/ToStationId直接参照、§9.1項目6追加。
+            //        → MainRoute（StationOrder直接参照）
+            //        → StationConnectionSegment（From/ToStationId直接参照。
             //           SC未所属の孤立Segmentも含めて捕捉する）
             StationObjectId s =>
                 (cache.StationConnectionIndex.TryGetValue(s.Id, out var scByStation)
@@ -90,7 +90,7 @@ public static class DependencyResolver
                     : [],
 
             // FloorUnit → 配下オブジェクト（BoundaryPoint/EntryPoint/BufferStop/Switcher/Platform/StationPath）
-            // v12.16追加。FloorUnitDependentIndexはFloorUnitDependentIndexBuilder.Build()が構築する
+            // FloorUnitDependentIndexはFloorUnitDependentIndexBuilder.Build()が構築する
             // （TimeTableSetCache新設インデックス、他の軽量Indexと同じ責務分離パターン）。
             FloorUnitObjectId f =>
                 cache.FloorUnitDependentIndex.TryGetValue(f.Id, out var floorUnitDependents)
@@ -106,8 +106,8 @@ public static class DependencyResolver
             RailObjectId => [],
             VirtualConflictObjectIdObject => [],
             TrainObjectId => [],
-            PlatformObjectId => [], // v12.16追加。現時点で他オブジェクトへの波及ルールが未定義
-            StationPathObjectId => [], // v12.16追加。同上
+            PlatformObjectId => [], //現時点で他オブジェクトへの波及ルールが未定義
+            StationPathObjectId => [], // 同上
 
             // CS8509（error化済み）は参照型switchでnullケースも網羅対象とするため明示。
             // ResolveAffected()側はchangedIds/queueにnullを積まない前提だが、

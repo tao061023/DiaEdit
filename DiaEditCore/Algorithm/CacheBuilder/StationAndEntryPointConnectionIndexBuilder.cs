@@ -14,7 +14,6 @@ using DiaEditCore.Model.Routes;
 /// StationPathTrackIndexBuilder.Build（Arrival/DepartureIndexを同時返却）と同じ「関連する複数の
 /// インデックスを1回の走査で導出する」設計パターンを踏襲し、SCS展開処理の重複実行を避けている。
 ///
-/// v12.18で判明した「RebuildAllが空のまま」だった6インデックスのうち2つ。
 /// 消費者はDependencyResolver.ResolveDirectDependents（StationObjectId／EntryPointObjectIdケース）のみ。
 /// 同一StationConnectionが複数のセグメント区間で同一駅・同一EntryPointを重複して通る場合は
 /// 呼び出し側での重複登録を避けるため、StationConnectionId単位でHashSetを介して一意化する。

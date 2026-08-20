@@ -128,8 +128,7 @@ public sealed class TimeTableSetCache
                 TrainNumberIndex[train.TrainNumber] = train.Id;
         }
 
-        // v12.18で発覚した「RebuildAll空実装」6インデックス（本節で解消、DiaEditCore_Design v9.1項目4対応）。
-        // いずれもAlgorithm/CacheBuilder配下のBuilderへ委譲する既存の責務分離規約を踏襲する。
+
         var stationConnectionsList = stationConnections as IReadOnlyList<StationConnection> ?? stationConnections.ToList();
         var segmentsList = segments as IReadOnlyList<StationConnectionSegment> ?? segments.ToList();
 
@@ -163,8 +162,7 @@ public sealed class TimeTableSetCache
             TemporaryRestrictionBySegmentIndex[segId] = list;
         }
 
-        // StationUsedByMainRouteIndex／StationUsedBySegmentIndex（§9.1項目6新設）。
-        // 他5インデックス同様、Model層生データのみに依存するPattern Aのためここで直接構築する。
+        // StationUsedByMainRouteIndex／StationUsedBySegmentIndex
         foreach (var (stationId, list) in
             StationUsedByMainRouteIndexBuilder.Build(mainRoutes))
         {
@@ -177,12 +175,12 @@ public sealed class TimeTableSetCache
             StationUsedBySegmentIndex[stationId] = list;
         }
 
-        // TrainOperationIndex は TrainOperationChainResolver が構築する（§9.2項目14：重複プロパティにつき将来削除予定）
+        // TrainOperationIndex は TrainOperationChainResolver が構築する（重複プロパティにつき将来削除予定）
         // DepartureByStationTrackIndex は DepartureByStationTrackIndexBuilder.Build() が構築する
         // ServiceRoutesByMainRouteIndex は ServiceRouteStationOrderResolver.BuildServiceRoutesByMainRouteIndex() が構築する
         // StopKeyReferenceIndex は StopKeyReferenceIndexBuilder.Build() が構築する
         // FloorUnitDependentIndex は FloorUnitDependentIndexBuilder.Build() が構築する
         // （上記5つはいずれも既に実装済み。ProjectSession.RebuildCacheIfDirty実装時に、
-        //   本メソッドとあわせて呼び出し元で一括配線する方針、5.14.2節）
+        // 本メソッドとあわせて呼び出し元で一括配線する方針）
     }
 }

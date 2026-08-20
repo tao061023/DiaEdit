@@ -1,8 +1,9 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Algorithm.CacheBuilder;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-
-namespace DiaEditCore.Algorithm;
 
 public enum AnchorMode
 {
@@ -38,7 +39,7 @@ public sealed record RunTimeWarning(
 );
 
 /// <summary>
-/// 5.6節（v12.27改訂）：ホップ単位の所要時分判定結果。EffectiveLengthCheckerの
+/// ホップ単位の所要時分判定結果。EffectiveLengthCheckerの
 /// LengthCheckOk／LengthCheckNotApplicable／LengthCheckOverflowと同型の判別共用体パターンを踏襲する。
 /// </summary>
 public abstract record HopRunTimeResult;
@@ -49,7 +50,7 @@ public sealed record HopRunTimeOk(int Seconds) : HopRunTimeResult;
 /// <summary>
 /// 基準Train実績が見つからない（BaseRunTimeIndexBuilder.SelectionKeyに一致するTrainが
 /// BaseTimeTableSet内に存在しない、またはDiagramRevision.BaseTimeTableSetId自体が未設定）。
-/// UI上はOuDiaSecond互換の薄黄背景で表現する想定（§9.2項目18）。
+/// UI上はOuDiaSecond互換の薄黄背景で表現する想定。
 /// </summary>
 public sealed record HopRunTimeUndefined : HopRunTimeResult;
 
@@ -72,20 +73,15 @@ public sealed record RunTimeHopInput(
     bool ToIsStop);
 
 /// <summary>
-/// 5.6節：区間所要時分算出（v12.27：実績ベース化）。
-///
-/// 方針転換（v12.27）：StationConnectionSegment.BaseRunTimeSec（区間固定スカラー値）を廃止し、
-/// DiagramRevision.BaseTimeTableSetIdが指すTimeTableSet内のTrain実績から都度導出する方式へ転換した
-/// （discard-and-regenerate原則の一貫適用、5.6.1節）。baselineIndexの構築はBaseRunTimeIndexBuilder
-/// （Algorithm/CacheBuilder）の責務とし、本クラスは「確定済みindexを引いてアンカー調整を適用する」
-/// 計算処理に専念する（責務分離）。
+/// 区間所要時分算出：DiagramRevision.BaseTimeTableSetIdが指すTimeTableSet内のTrain実績から都度導出する。
+/// baselineIndexの構築はBaseRunTimeIndexBuilder(Algorithm/CacheBuilder）の責務とし、
+/// 本クラスは「確定済みindexを引いてアンカー調整を適用する」計算処理に専念する（責務分離）。
 ///
 /// 基準実績が見つからないホップ（Undefined）は、アンカー調整の対象から除外する：
 ///   - baseline未確定のためAuto/Manualの差分計算そのものが定義できない
 ///   - そのホップを含む区間へのアンカー到達判定（SumRange）は、Undefinedホップを跨ぐ場合
 ///     「その区間全体もUndefined」として扱い、アンカーによる自動調整・警告の対象から除外する
-///     （5.6節、区間ごとに個別判定する方針。§9.1項目20で確定した「区間ごとに他区間はOkのまま」
-///     方針に従い、Undefinedの伝播は当該アンカー区間内に限定する）
+///     （区間ごとに個別判定する方針。「区間ごとに他区間はOkのまま」方針に従い、Undefinedの伝播は当該アンカー区間内に限定する）
 /// </summary>
 public static class RunTimeCalculator
 {
@@ -180,7 +176,7 @@ public static class RunTimeCalculator
                     var naiveSum = SumRange(baseline, lastAnchorIndex, targetSegment + 1);
 
                     // Undefinedホップを跨ぐ区間は、そのアンカーによる調整自体を行わない
-                    // （§9.1項目20確定方針：Undefinedの伝播は当該アンカー区間内に限定し、
+                    // （方針：Undefinedの伝播は当該アンカー区間内に限定し、
                     // 他のホップのbaseline確定状態には影響させない）。
                     if (naiveSum is { } sum)
                     {
@@ -226,7 +222,7 @@ public static class RunTimeCalculator
 
     /// <summary>
     /// [startInclusive, endExclusive)の合計を返す。範囲内に1つでもUndefined（null）が
-    /// 含まれる場合はnullを返す（そのアンカー区間全体をUndefined扱いとする、§9.1項目20方針）。
+    /// 含まれる場合はnullを返す（そのアンカー区間全体をUndefined扱いとする）。
     /// </summary>
     private static int? SumRange(int?[] arr, int startInclusive, int endExclusive)
     {

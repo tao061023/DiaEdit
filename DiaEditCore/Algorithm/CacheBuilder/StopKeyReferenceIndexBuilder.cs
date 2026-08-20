@@ -8,8 +8,7 @@ using DiaEditCore.Model.TimeTable.Trains;
 /// TimeTableSetCache.StopKeyReferenceIndexへの格納値として使う想定。 <br/>
 ///
 /// 用途は2つに限定する： <br/>
-///   1. RunSegments編集コマンドがAffectedIds算出時に「このStopKeyを参照しているTrain」を
-///      効率的に洗い出す <br/>
+///   1. RunSegments編集コマンドがAffectedIds算出時に「このStopKeyを参照しているTrain」を効率的に洗い出す <br/>
 ///   2. Cross Validator（SplitOriginRef／CouplingWork実在性検証）が検証対象を絞り込む <br/>
 ///
 /// 注意：StopKeyはRunSegments編集により値が変わりうる不安定なキーであり、ObjectIdグラフ

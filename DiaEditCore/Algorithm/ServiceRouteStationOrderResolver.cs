@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// ServiceRouteが通る駅の順序付き全リスト（境界駅だけでなく中間駅も含む）を返す
