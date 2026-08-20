@@ -30,7 +30,6 @@ public class ReversalResolverTests
         FromEntryPointId = new EntryPointId(fromEp),
         ToEntryPointId = new EntryPointId(toEp),
         MainRouteId = new MainRouteId(mainRouteId),
-        BaseRunTimeSec = 60,
     };
 
     private static StationConnection MakeConnection(

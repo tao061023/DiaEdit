@@ -5,7 +5,7 @@ using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Serialization.Validation;
-using DiaEditCore.Serialization.Validation.Timetable;
+using DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 using Xunit;
 
@@ -70,7 +70,6 @@ public class TrainValidatorTests
         FromEntryPointId = new EntryPointId(id * 10 + 1),
         ToEntryPointId = new EntryPointId(id * 10 + 2),
         MainRouteId = new MainRouteId(mainRouteId),
-        BaseRunTimeSec = 60,
     };
 
     private static StationConnection MakeConnection(int id, int mainRouteId, StationConnectionDirection direction, params StationConnectionSegmentId[] segmentIds) => new()

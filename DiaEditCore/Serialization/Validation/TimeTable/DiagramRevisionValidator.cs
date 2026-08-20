@@ -1,6 +1,6 @@
 using DiaEditCore.Model.TimeTable;
 
-namespace DiaEditCore.Serialization.Validation.Timetable;
+namespace DiaEditCore.Serialization.Validation.TimeTable;
 
 /// <summary>
 /// DiagramRevisionの参照整合性を検証する（5.13節）。

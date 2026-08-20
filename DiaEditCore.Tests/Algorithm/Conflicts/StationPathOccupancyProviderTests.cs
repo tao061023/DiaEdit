@@ -131,8 +131,8 @@ public class StationPathOccupancyProviderTests
     {
         var segs = new List<StationConnectionSegment>
         {
-            new() { Id = ScsAB, FromStationId = StA, ToStationId = StB, FromEntryPointId = new EntryPointId(10), ToEntryPointId = EpB, MainRouteId = new MainRouteId(1), BaseRunTimeSec = 300 },
-            new() { Id = ScsBC, FromStationId = StB, ToStationId = StC, FromEntryPointId = EpB, ToEntryPointId = new EntryPointId(40), MainRouteId = new MainRouteId(1), BaseRunTimeSec = 300 },
+            new() { Id = ScsAB, FromStationId = StA, ToStationId = StB, FromEntryPointId = new EntryPointId(10), ToEntryPointId = EpB, MainRouteId = new MainRouteId(1), },
+            new() { Id = ScsBC, FromStationId = StB, ToStationId = StC, FromEntryPointId = EpB, ToEntryPointId = new EntryPointId(40), MainRouteId = new MainRouteId(1), },
         };
         var scs = new List<StationConnection>
         {

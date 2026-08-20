@@ -1,6 +1,6 @@
 using DiaEditCore.Model.TimeTable;
 
-namespace DiaEditCore.Serialization.Validation.Timetable;
+namespace DiaEditCore.Serialization.Validation.TimeTable;
 
 /// <summary>
 /// TemporaryRestrictionの参照整合性・値域を検証する（5.14節）。

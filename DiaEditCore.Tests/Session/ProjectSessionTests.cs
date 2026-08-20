@@ -40,7 +40,6 @@ public class ProjectSessionTests
         FromEntryPointId = new EntryPointId(fromEp),
         ToEntryPointId = new EntryPointId(toEp),
         MainRouteId = new MainRouteId(1),
-        BaseRunTimeSec = 60,
     };
 
     [Fact]

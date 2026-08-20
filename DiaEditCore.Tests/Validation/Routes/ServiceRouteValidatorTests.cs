@@ -144,12 +144,12 @@ public class ServiceRouteValidatorRule5Tests
         var seg0 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epBArr, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epA, ToEntryPointId = epBArr, MainRouteId = mainRouteId,
         };
         var seg1 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stC,
-            FromEntryPointId = epBDep, ToEntryPointId = epC, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epBDep, ToEntryPointId = epC, MainRouteId = mainRouteId,
         };
         var sc = new StationConnection
         {
@@ -224,7 +224,7 @@ public class ServiceRouteValidatorRule5Tests
         var seg2 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(3), FromStationId = stC, ToStationId = stA,
-            FromEntryPointId = epCLoop, ToEntryPointId = epALoop, MainRouteId = route.Id, BaseRunTimeSec = 60,
+            FromEntryPointId = epCLoop, ToEntryPointId = epALoop, MainRouteId = route.Id,
         };
         var loopRoute = MakeRoute(route.Id, isLoop: false, stA, route.StationOrder[1], stC); // ServiceRoute側はMainRoute.IsLoopを見ないため任意
         var scWithLoop = new StationConnection
@@ -259,7 +259,7 @@ public class ServiceRouteValidatorRule5Tests
         var seg1 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA1, ToEntryPointId = epB1Arr, MainRouteId = mainRouteAId, BaseRunTimeSec = 60,
+            FromEntryPointId = epA1, ToEntryPointId = epB1Arr, MainRouteId = mainRouteAId,
         };
         var scA = new StationConnection
         {
@@ -275,7 +275,7 @@ public class ServiceRouteValidatorRule5Tests
         var seg2 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stA,
-            FromEntryPointId = epB2Dep, ToEntryPointId = epA2Arr, MainRouteId = mainRouteBId, BaseRunTimeSec = 60,
+            FromEntryPointId = epB2Dep, ToEntryPointId = epA2Arr, MainRouteId = mainRouteBId,
         };
         var scB = new StationConnection
         {
@@ -334,7 +334,7 @@ public class ServiceRouteValidatorRule5Tests
         var seg1 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA1, ToEntryPointId = epB1Arr, MainRouteId = mainRouteAId, BaseRunTimeSec = 60,
+            FromEntryPointId = epA1, ToEntryPointId = epB1Arr, MainRouteId = mainRouteAId,
         };
         var scA = new StationConnection
         {
@@ -348,7 +348,7 @@ public class ServiceRouteValidatorRule5Tests
         var seg2 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stA,
-            FromEntryPointId = epB2Dep, ToEntryPointId = epA2Arr, MainRouteId = mainRouteBId, BaseRunTimeSec = 60,
+            FromEntryPointId = epB2Dep, ToEntryPointId = epA2Arr, MainRouteId = mainRouteBId,
         };
         var scB = new StationConnection
         {
@@ -406,7 +406,7 @@ public class ServiceRouteValidatorRule5Tests
         var segMain = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epAMain, ToEntryPointId = epBMain, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epAMain, ToEntryPointId = epBMain, MainRouteId = mainRouteId,
         };
         var scMain = new StationConnection
         {
@@ -419,7 +419,7 @@ public class ServiceRouteValidatorRule5Tests
         var segLocal = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epALocal, ToEntryPointId = epBLocal, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epALocal, ToEntryPointId = epBLocal, MainRouteId = mainRouteId,
         };
         var scLocal = new StationConnection
         {
@@ -528,7 +528,7 @@ public class ServiceRouteValidatorRule5Tests
         var segMain = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epB, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epA, ToEntryPointId = epB, MainRouteId = mainRouteId,
         };
         var mainSc = new StationConnection
         {
@@ -542,7 +542,7 @@ public class ServiceRouteValidatorRule5Tests
         var segPaired = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stP, ToStationId = stQ,
-            FromEntryPointId = epP, ToEntryPointId = epQ, MainRouteId = pairedRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epP, ToEntryPointId = epQ, MainRouteId = pairedRouteId,
         };
         var pairedSc = new StationConnection
         {
@@ -591,7 +591,7 @@ public class ServiceRouteValidatorRule5Tests
         var segPaired2 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(3), FromStationId = stP, ToStationId = stQ,
-            FromEntryPointId = epP2, ToEntryPointId = epQ2, MainRouteId = pairedRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epP2, ToEntryPointId = epQ2, MainRouteId = pairedRouteId,
         };
         var pairedSc2 = new StationConnection
         {
@@ -630,7 +630,7 @@ public class ServiceRouteValidatorRule5Tests
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
             FromEntryPointId = new EntryPointId(1), ToEntryPointId = new EntryPointId(2),
-            MainRouteId = mainRouteId1, BaseRunTimeSec = 60,
+            MainRouteId = mainRouteId1,
         };
         var sc1 = new StationConnection
         {
@@ -643,7 +643,7 @@ public class ServiceRouteValidatorRule5Tests
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stC,
             FromEntryPointId = new EntryPointId(3), ToEntryPointId = new EntryPointId(4),
-            MainRouteId = mainRouteId2, BaseRunTimeSec = 60,
+            MainRouteId = mainRouteId2,
         };
         var sc2 = new StationConnection
         {

@@ -10,5 +10,7 @@ public sealed class StationConnectionSegment
     public required MainRouteId MainRouteId { get; set; }
     public double LengthM { get; set; }
     public double SpeedLimitKph { get; set; }
-    public required int BaseRunTimeSec { get; set; } // 駅間の基準所要時分（ユーザー直接入力・正データ）
+    // BaseRunTimeSec は v12.27で廃止（区間固定スカラー値では停車/通過4パターンによる
+    // 実所要時分の差を表現できないため）。所要時分は RunTimeCalculator が
+    // DiagramRevision.BaseTimeTableSetId 内のTrain実績から都度導出する（5.6節参照）。
 }

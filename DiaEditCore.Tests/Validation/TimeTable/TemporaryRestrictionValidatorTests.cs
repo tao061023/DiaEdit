@@ -4,7 +4,7 @@ using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable;
 
 using DiaEditCore.Serialization.Validation;
-using DiaEditCore.Serialization.Validation.Timetable;
+using DiaEditCore.Serialization.Validation.TimeTable;
 
 using Xunit;
 
@@ -39,7 +39,6 @@ public class TemporaryRestrictionValidatorTests
             FromEntryPointId = depEp.Id,
             ToEntryPointId = arrEp.Id,
             MainRouteId = route.Id,
-            BaseRunTimeSec = 120,
         };
 
         return (s1, s2, route, depEp, arrEp, seg);

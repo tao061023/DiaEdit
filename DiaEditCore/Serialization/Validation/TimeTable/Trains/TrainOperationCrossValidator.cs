@@ -2,7 +2,7 @@ using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
 
-namespace DiaEditCore.Serialization.Validation.Timetable;
+namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 /// <summary>
 /// Rule 2（5.11.5節）専用の横断検証ランナー。TrainOperationValidatorの3引数版が要求する

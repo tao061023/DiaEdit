@@ -31,7 +31,6 @@ public class StationConnectionSegmentValidatorTests
             FromEntryPointId = fromEntryPointId ?? EpA,
             ToEntryPointId = toEntryPointId ?? EpB,
             MainRouteId = new MainRouteId(1),
-            BaseRunTimeSec = baseRunTimeSec,
         };
 
     private static EntryPoint MakeEntryPoint(EntryPointId id, FloorUnitId floorUnitId) => new()
@@ -78,16 +77,6 @@ public class StationConnectionSegmentValidatorTests
     }
 
     [Fact]
-    public void BaseRunTimeSecが負値だと不合格()
-    {
-        var target = MakeTarget(StA, StB, -1);
-
-        var issues = new StationConnectionSegmentValidator().Validate(target, ValidContext());
-
-        Assert.Contains(issues, i => i.Message.Contains("BaseRunTimeSec"));
-    }
-
-    [Fact]
     public void FromStationIdとToStationIdが同一だと不合格()
     {
         var target = MakeTarget(StA, StA, 300);
@@ -104,23 +93,6 @@ public class StationConnectionSegmentValidatorTests
 
         Assert.Contains(issues, i => i.Message.Contains("FromStationId"));
         Assert.DoesNotContain(issues, i => i.Message.Contains("EntryPointId"));
-    }
-
-    [Fact]
-    public void BaseRunTimeSec負値かつ駅同一の場合は両方検出される()
-    {
-        var target = MakeTarget(StA, StA, -1);
-        var context = new ValidationContext
-        {
-            EntryPoints = new[] { MakeEntryPoint(EpA, FuA), MakeEntryPoint(EpB, FuA) },
-            FloorUnits = new[] { MakeFloorUnit(FuA, StA) },
-        };
-
-        var issues = new StationConnectionSegmentValidator().Validate(target, context);
-
-        Assert.Equal(2, issues.Count);
-        Assert.Contains(issues, i => i.Message.Contains("BaseRunTimeSec"));
-        Assert.Contains(issues, i => i.Message.Contains("FromStationId"));
     }
 
     // ---- ここから①EntryPoint駅整合性の新規ケース ----

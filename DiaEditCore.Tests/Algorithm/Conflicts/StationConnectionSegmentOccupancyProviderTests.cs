@@ -102,7 +102,7 @@ public class StationConnectionSegmentOccupancyProviderTests
     {
         var segs = new List<StationConnectionSegment>
         {
-            new() { Id = ScsAB, FromStationId = StA, ToStationId = StB, FromEntryPointId = EpA, ToEntryPointId = EpB, MainRouteId = new MainRouteId(1), BaseRunTimeSec = 300 },
+            new() { Id = ScsAB, FromStationId = StA, ToStationId = StB, FromEntryPointId = EpA, ToEntryPointId = EpB, MainRouteId = new MainRouteId(1), },
         };
         var scs = new List<StationConnection>
         {
@@ -223,7 +223,7 @@ public class StationConnectionSegmentOccupancyProviderTests
         var secondSeg = new StationConnectionSegment
         {
             Id = secondScsId, FromStationId = StA, ToStationId = StB,
-            FromEntryPointId = EpA, ToEntryPointId = EpB, MainRouteId = new MainRouteId(1), BaseRunTimeSec = 300,
+            FromEntryPointId = EpA, ToEntryPointId = EpB, MainRouteId = new MainRouteId(1),
         };
         var (baseScs, segs, pathsById, arrivalIndex, departureIndex) = BuildTopology();
         var scWithTwoSegments = new StationConnection

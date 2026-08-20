@@ -30,7 +30,6 @@ public class ServiceRouteToRunSegmentsResolverTests
         FromEntryPointId = fromEp ?? new EntryPointId(id.Value * 10 + 1),
         ToEntryPointId = toEp ?? new EntryPointId(id.Value * 10 + 2),
         MainRouteId = mainRouteId,
-        BaseRunTimeSec = 60,
     };
 
     private static StationConnection MakeConnection(

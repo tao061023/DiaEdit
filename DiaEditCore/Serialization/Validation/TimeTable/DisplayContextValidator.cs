@@ -1,6 +1,6 @@
 using DiaEditCore.Model.TimeTable;
 
-namespace DiaEditCore.Serialization.Validation.Timetable;
+namespace DiaEditCore.Serialization.Validation.TimeTable;
 
 /// <summary>
 /// DisplayContextの参照整合性・範囲妥当性を検証する（5.15節）。

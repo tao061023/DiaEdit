@@ -1,4 +1,5 @@
-using DiaEditCore.Model.Routes;
+using DiaEditCore.Algorithm.CacheBuilder;
+using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 
 namespace DiaEditCore.Algorithm;
@@ -36,22 +37,69 @@ public sealed record RunTimeWarning(
     int ActualElapsedSec
 );
 
+/// <summary>
+/// 5.6節（v12.27改訂）：ホップ単位の所要時分判定結果。EffectiveLengthCheckerの
+/// LengthCheckOk／LengthCheckNotApplicable／LengthCheckOverflowと同型の判別共用体パターンを踏襲する。
+/// </summary>
+public abstract record HopRunTimeResult;
+
+/// <summary>基準実績が見つかり、区間所要時分（アンカー調整適用後、モードに応じた値）が確定した。</summary>
+public sealed record HopRunTimeOk(int Seconds) : HopRunTimeResult;
+
+/// <summary>
+/// 基準Train実績が見つからない（BaseRunTimeIndexBuilder.SelectionKeyに一致するTrainが
+/// BaseTimeTableSet内に存在しない、またはDiagramRevision.BaseTimeTableSetId自体が未設定）。
+/// UI上はOuDiaSecond互換の薄黄背景で表現する想定（§9.2項目18）。
+/// </summary>
+public sealed record HopRunTimeUndefined : HopRunTimeResult;
+
 public sealed record RunTimeCalculationResult(
-    IReadOnlyList<int> SegmentSeconds,
+    IReadOnlyList<HopRunTimeResult> Hops,
     IReadOnlyList<ProposedAdjustment> ProposedAdjustments,
     IReadOnlyList<RunTimeWarning> Warnings
 );
 
+/// <summary>
+/// あるホップ（隣接駅1区間）の基準実績照合に必要な入力。
+/// StationConnectionSegmentIdへの解決は呼び出し側（Train編集コマンド等）の責務とする
+/// （BaseRunTimeIndexBuilderのコメント参照：TrainRunSegment.StationConnectionIdからの解決は
+/// StationConnection.SegmentsとallSegmentsの突き合わせを要するため、Calculate自体はSCSId確定後の
+/// 単純な辞書引きに専念させ、責務を分離する）。
+/// </summary>
+public sealed record RunTimeHopInput(
+    StationConnectionSegmentId SegmentId,
+    bool FromIsStop,
+    bool ToIsStop);
+
+/// <summary>
+/// 5.6節：区間所要時分算出（v12.27：実績ベース化）。
+///
+/// 方針転換（v12.27）：StationConnectionSegment.BaseRunTimeSec（区間固定スカラー値）を廃止し、
+/// DiagramRevision.BaseTimeTableSetIdが指すTimeTableSet内のTrain実績から都度導出する方式へ転換した
+/// （discard-and-regenerate原則の一貫適用、5.6.1節）。baselineIndexの構築はBaseRunTimeIndexBuilder
+/// （Algorithm/CacheBuilder）の責務とし、本クラスは「確定済みindexを引いてアンカー調整を適用する」
+/// 計算処理に専念する（責務分離）。
+///
+/// 基準実績が見つからないホップ（Undefined）は、アンカー調整の対象から除外する：
+///   - baseline未確定のためAuto/Manualの差分計算そのものが定義できない
+///   - そのホップを含む区間へのアンカー到達判定（SumRange）は、Undefinedホップを跨ぐ場合
+///     「その区間全体もUndefined」として扱い、アンカーによる自動調整・警告の対象から除外する
+///     （5.6節、区間ごとに個別判定する方針。§9.1項目20で確定した「区間ごとに他区間はOkのまま」
+///     方針に従い、Undefinedの伝播は当該アンカー区間内に限定する）
+/// </summary>
 public static class RunTimeCalculator
 {
     public static RunTimeCalculationResult Calculate(
         IReadOnlyList<StationPath> stationPaths,
-        IReadOnlyList<StationConnectionSegment> segments,
+        IReadOnlyList<RunTimeHopInput> hops,
+        IReadOnlyDictionary<BaseRunTimeIndexBuilder.SelectionKey, int> baseRunTimeIndex,
+        Model.VehicleTypeId? vehicleTypeId,
         IReadOnlyList<RunTimeAnchor> anchors,
         AnchorMode mode)
     {
         if (stationPaths is null) throw new ArgumentNullException(nameof(stationPaths));
-        if (segments is null) throw new ArgumentNullException(nameof(segments));
+        if (hops is null) throw new ArgumentNullException(nameof(hops));
+        if (baseRunTimeIndex is null) throw new ArgumentNullException(nameof(baseRunTimeIndex));
         if (anchors is null) throw new ArgumentNullException(nameof(anchors));
 
         if (stationPaths.Count < 2)
@@ -59,20 +107,24 @@ public static class RunTimeCalculator
                 "stationPaths must contain at least 2 elements (departure and arrival).",
                 nameof(stationPaths));
 
-        if (stationPaths.Count != segments.Count + 1)
+        if (stationPaths.Count != hops.Count + 1)
             throw new ArgumentException(
-                $"stationPaths.Count ({stationPaths.Count}) must equal segments.Count + 1 ({segments.Count + 1}).",
-                nameof(segments));
+                $"stationPaths.Count ({stationPaths.Count}) must equal hops.Count + 1 ({hops.Count + 1}).",
+                nameof(hops));
 
         int lastStationIndex = stationPaths.Count - 1;
-        int segCount = segments.Count;
+        int hopCount = hops.Count;
 
-        var baseline = new int[segCount];
-        for (int k = 0; k < segCount; k++)
+        // baseline[k]：基準実績が見つかった場合のみ値を持つ（null＝Undefined）
+        var baseline = new int?[hopCount];
+        for (int k = 0; k < hopCount; k++)
         {
-            baseline[k] = segments[k].BaseRunTimeSec
-                        + stationPaths[k].AdjustmentSec
-                        + stationPaths[k + 1].AdjustmentSec;
+            var key = new BaseRunTimeIndexBuilder.SelectionKey(
+                hops[k].SegmentId, hops[k].FromIsStop, hops[k].ToIsStop, vehicleTypeId);
+
+            baseline[k] = baseRunTimeIndex.TryGetValue(key, out var sec)
+                ? sec + stationPaths[k].AdjustmentSec + stationPaths[k + 1].AdjustmentSec
+                : null;
         }
 
         foreach (var a in anchors)
@@ -103,14 +155,14 @@ public static class RunTimeCalculator
             var warnings = new List<RunTimeWarning>();
             foreach (var a in sortedAnchors)
             {
-                int derived = SumRange(baseline, 0, a.StationIndex);
-                if (a.ActualElapsedSec < derived)
-                    warnings.Add(new RunTimeWarning(a, derived, a.ActualElapsedSec));
+                var derived = SumRange(baseline, 0, a.StationIndex);
+                if (derived is { } d && a.ActualElapsedSec < d)
+                    warnings.Add(new RunTimeWarning(a, d, a.ActualElapsedSec));
             }
-            return new RunTimeCalculationResult(baseline.ToList(), Array.Empty<ProposedAdjustment>(), warnings);
+            return new RunTimeCalculationResult(ToHopResults(baseline), Array.Empty<ProposedAdjustment>(), warnings);
         }
 
-        var adjusted = (int[])baseline.Clone();
+        var adjusted = (int?[])baseline.Clone();
         var proposals = new List<ProposedAdjustment>();
 
         int lastAnchorIndex = 0; // 次に確定させるべき区間の先頭index（＝現在の基準点が指す駅index）
@@ -125,15 +177,22 @@ public static class RunTimeCalculator
 
                 if (targetSegment >= lastAnchorIndex)
                 {
-                    int naiveSum = SumRange(baseline, lastAnchorIndex, targetSegment + 1);
-                    int derivedElapsed = lastAnchorTime + naiveSum;
-                    int diff = a.ActualElapsedSec - derivedElapsed;
+                    var naiveSum = SumRange(baseline, lastAnchorIndex, targetSegment + 1);
 
-                    if (diff != 0)
+                    // Undefinedホップを跨ぐ区間は、そのアンカーによる調整自体を行わない
+                    // （§9.1項目20確定方針：Undefinedの伝播は当該アンカー区間内に限定し、
+                    // 他のホップのbaseline確定状態には影響させない）。
+                    if (naiveSum is { } sum)
                     {
-                        int original = adjusted[targetSegment];
-                        adjusted[targetSegment] = original + diff;
-                        proposals.Add(new ProposedAdjustment(targetSegment, original, adjusted[targetSegment], a));
+                        int derivedElapsed = lastAnchorTime + sum;
+                        int diff = a.ActualElapsedSec - derivedElapsed;
+
+                        if (diff != 0 && adjusted[targetSegment] is { } originalValue)
+                        {
+                            var newValue = originalValue + diff;
+                            adjusted[targetSegment] = newValue;
+                            proposals.Add(new ProposedAdjustment(targetSegment, originalValue, newValue, a));
+                        }
                     }
 
                     lastAnchorIndex = targetSegment + 1;
@@ -151,18 +210,32 @@ public static class RunTimeCalculator
             }
         }
 
-        var finalSegments = mode == AnchorMode.Auto ? adjusted.ToList() : baseline.ToList();
+        var finalHops = mode == AnchorMode.Auto ? adjusted : baseline;
         var finalProposals = mode == AnchorMode.Manual
             ? (IReadOnlyList<ProposedAdjustment>)proposals
             : Array.Empty<ProposedAdjustment>();
 
-        return new RunTimeCalculationResult(finalSegments, finalProposals, Array.Empty<RunTimeWarning>());
+        return new RunTimeCalculationResult(ToHopResults(finalHops), finalProposals, Array.Empty<RunTimeWarning>());
     }
 
-    private static int SumRange(int[] arr, int startInclusive, int endExclusive)
+    private static IReadOnlyList<HopRunTimeResult> ToHopResults(int?[] values)
+        => values.Select(v => v is { } sec
+                ? (HopRunTimeResult)new HopRunTimeOk(sec)
+                : new HopRunTimeUndefined())
+            .ToList();
+
+    /// <summary>
+    /// [startInclusive, endExclusive)の合計を返す。範囲内に1つでもUndefined（null）が
+    /// 含まれる場合はnullを返す（そのアンカー区間全体をUndefined扱いとする、§9.1項目20方針）。
+    /// </summary>
+    private static int? SumRange(int?[] arr, int startInclusive, int endExclusive)
     {
         int sum = 0;
-        for (int i = startInclusive; i < endExclusive; i++) sum += arr[i];
+        for (int i = startInclusive; i < endExclusive; i++)
+        {
+            if (arr[i] is not { } v) return null;
+            sum += v;
+        }
         return sum;
     }
 }

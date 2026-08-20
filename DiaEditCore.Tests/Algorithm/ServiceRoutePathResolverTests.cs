@@ -27,7 +27,6 @@ public class ServiceRoutePathResolverTests
             FromEntryPointId = new EntryPointId(id.Value * 10 + 1),
             ToEntryPointId = new EntryPointId(id.Value * 10 + 2),
             MainRouteId = mainRouteId,
-            BaseRunTimeSec = 60,
         };
 
     private static StationConnection MakeConnection(

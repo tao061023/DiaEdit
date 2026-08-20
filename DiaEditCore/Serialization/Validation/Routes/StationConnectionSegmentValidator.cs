@@ -9,9 +9,6 @@ public sealed class StationConnectionSegmentValidator : IValidator<StationConnec
     {
         var issues = new List<IValidationIssue>();
 
-        if (target.BaseRunTimeSec < 0)
-            issues.Add(new ValidationIssue($"StationConnectionSegment({target.Id}): BaseRunTimeSecは0以上でなければならない"));
-
         if (target.FromStationId == target.ToStationId)
             issues.Add(new ValidationIssue($"StationConnectionSegment({target.Id}): FromStationIdとToStationIdが同一"));
 

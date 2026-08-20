@@ -37,7 +37,6 @@ public class StationConnectionValidatorTests
             FromEntryPointId = depEp.Id,
             ToEntryPointId = arrEp.Id,
             MainRouteId = route.Id,
-            BaseRunTimeSec = 120,
         };
 
         return (s1, s2, route, depEp, arrEp, seg);
@@ -139,12 +138,12 @@ public class StationConnectionValidatorTests
         var seg0 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epBArr, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epA, ToEntryPointId = epBArr, MainRouteId = mainRouteId,
         };
         var seg1 = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stC,
-            FromEntryPointId = epBDep, ToEntryPointId = epC, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epBDep, ToEntryPointId = epC, MainRouteId = mainRouteId,
         };
 
         var sc = new StationConnection
@@ -235,7 +234,7 @@ public class StationConnectionValidatorTests
         var seg = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epB, MainRouteId = mainRouteId, BaseRunTimeSec = 60,
+            FromEntryPointId = epA, ToEntryPointId = epB, MainRouteId = mainRouteId,
         };
         var sc = new StationConnection
         {

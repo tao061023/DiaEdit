@@ -16,7 +16,6 @@ public class StationAndEntryPointConnectionIndexBuilderTests
         FromEntryPointId = new EntryPointId(fromEp),
         ToEntryPointId = new EntryPointId(toEp),
         MainRouteId = new MainRouteId(1),
-        BaseRunTimeSec = 60,
     };
 
     private static StationConnection MakeSc(int id, params int[] segIds) => new()

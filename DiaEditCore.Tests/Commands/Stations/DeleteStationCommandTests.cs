@@ -40,7 +40,6 @@ public sealed class DeleteStationCommandTests
         FromEntryPointId = new EntryPointId(fromEp),
         ToEntryPointId = new EntryPointId(toEp),
         MainRouteId = new MainRouteId(1),
-        BaseRunTimeSec = 60,
     };
 
     private static StationConnection MakeSc(int id, int mainRouteId, params int[] segIds) => new()

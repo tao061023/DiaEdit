@@ -3,7 +3,8 @@ using DiaEditCore.Model;
 using DiaEditCore.Serialization.Validation.Cars;
 using DiaEditCore.Serialization.Validation.Routes;
 using DiaEditCore.Serialization.Validation.Stations;
-using DiaEditCore.Serialization.Validation.Timetable;
+using DiaEditCore.Serialization.Validation.TimeTable;
+using DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 namespace DiaEditCore.Serialization.Validation;
 
@@ -79,8 +80,25 @@ public static class SaveValidationRunner
         // TrainConnectionResolverによるTrainCrossValidationData構築込み）のため、それをそのまま使う。
         issues.AddRange(TrainOperationCrossValidator.Run(context, project.ProjectSettings));
 
+        // ── StationConnectionSegment非共有制約検証（4.6.1節・5.13.5節、v12.20新設） ──
+        // 設計書v12.20の変更履歴では配線済みと記載されていたが、本Runner実装には該当呼び出しが
+        // 存在しなかった（v12.27セッションで発覚。SaveValidationRunnerクラスコメントの
+        // 「既知の実装ギャップ」一覧にも記載がなく、意図的なスコープ外化ではなく配線漏れと判断し、
+        // 本セッションで是正した）。複線区間で同一SCSが2つ以上のStationConnectionから
+        // 参照されている状態を検出する。
+        issues.AddRange(StationConnectionSegmentOverlapCrossValidator.Run(context));
+
         // ── TrainOperation横断検証（OperationNumberのTimeTableSet単位一意性、§8.2項目15） ──
         issues.AddRange(TrainOperationUniquenessValidator.Run(context, project.ProjectSettings));
+
+        // ── RunTimeCalculator基準実績の一意性検証（5.6.1節、§9.1項目21、v12.27新設） ──
+        // DiagramRevision.BaseTimeTableSetId内で、同一選定キー
+        // (StationConnectionSegmentId, FromIsStop, ToIsStop, DefaultVehicleTypeId)に
+        // 該当するTrainが2件以上存在しないことを検証する。
+        // StationConnectionSegmentOverlapCrossValidator等と同じ「単一オブジェクトValidatorの
+        // 契約に収まらない検証」向けの静的Runパターンを踏襲し、ProjectSettings非依存のため
+        // contextのみを渡す。
+        issues.AddRange(BaseTimeTableSetTrainDuplicationCrossValidator.Run(context));
 
         return issues;
     }

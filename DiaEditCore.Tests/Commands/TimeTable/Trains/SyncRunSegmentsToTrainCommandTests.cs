@@ -93,7 +93,6 @@ public class SyncRunSegmentsToTrainCommandTests
         FromEntryPointId = new EntryPointId(id * 10 + 1),
         ToEntryPointId = new EntryPointId(id * 10 + 2),
         MainRouteId = new MainRouteId(mainRouteId),
-        BaseRunTimeSec = 60,
     };
 
     private static StationConnection MakeConnection(

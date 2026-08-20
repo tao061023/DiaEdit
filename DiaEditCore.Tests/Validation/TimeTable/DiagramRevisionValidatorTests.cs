@@ -2,7 +2,7 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable;
 
 using DiaEditCore.Serialization.Validation;
-using DiaEditCore.Serialization.Validation.Timetable;
+using DiaEditCore.Serialization.Validation.TimeTable;
 
 using Xunit;
 

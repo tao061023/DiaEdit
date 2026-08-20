@@ -2,7 +2,7 @@ using System.Text.RegularExpressions;
 
 using DiaEditCore.Model.TimeTable.Trains;
 
-namespace DiaEditCore.Serialization.Validation.Timetable;
+namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 public sealed class TrainTypeValidator : IValidator<TrainType>
 {
