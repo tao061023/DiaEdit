@@ -80,16 +80,15 @@ public static class SaveValidationRunner
         // TrainConnectionResolverによるTrainCrossValidationData構築込み）のため、それをそのまま使う。
         issues.AddRange(TrainOperationCrossValidator.Run(context, project.ProjectSettings));
 
-        // ── StationConnectionSegment非共有制約検証（4.6.1節・5.13.5節、v12.20新設） ──
-        // 設計書v12.20の変更履歴では配線済みと記載されていたが、本Runner実装には該当呼び出しが
-        // 存在しなかった（v12.27セッションで発覚。SaveValidationRunnerクラスコメントの
-        // 「既知の実装ギャップ」一覧にも記載がなく、意図的なスコープ外化ではなく配線漏れと判断し、
-        // 本セッションで是正した）。複線区間で同一SCSが2つ以上のStationConnectionから
-        // 参照されている状態を検出する。
-        issues.AddRange(StationConnectionSegmentOverlapCrossValidator.Run(context));
-
         // ── TrainOperation横断検証（OperationNumberのTimeTableSet単位一意性、§8.2項目15） ──
         issues.AddRange(TrainOperationUniquenessValidator.Run(context, project.ProjectSettings));
+
+        // ── StationConnectionSegment非共有制約の横断検証（4.6.1節、5.13.5節） ──
+        // 設計書v12.20の変更履歴では「SaveValidationRunner.ValidateAllへ配線済み」と記載されて
+        // いたが、v12.27セッションでの実装作業中に本Runnerへの実際の呼び出しが存在しないことが
+        // 判明した（配線漏れ、原因未特定）。複線区間で同一StationConnectionSegmentが2件以上の
+        // StationConnectionから参照される不整合を検出できていなかった状態のため、本セッションで復旧する。
+        issues.AddRange(StationConnectionSegmentOverlapCrossValidator.Run(context));
 
         // ── RunTimeCalculator基準実績の一意性検証（5.6.1節、§9.1項目21、v12.27新設） ──
         // DiagramRevision.BaseTimeTableSetId内で、同一選定キー
