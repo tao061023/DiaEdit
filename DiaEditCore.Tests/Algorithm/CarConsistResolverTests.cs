@@ -62,16 +62,16 @@ public class CarConsistResolverTests
     private static Dictionary<CarCompositionId, CarComposition> MakeCompositionDict(params CarComposition[] compositions)
         => compositions.ToDictionary(c => c.Id);
 
-    // テストでは運用IDの実在チェックはCarConsistResolverの対象外（Validator層の責務）なので、
-    // 適当なResolvedOperationRefを都度払い出すだけでよい。
-    private static OperationRef Op(int id) => new ResolvedOperationRef(new TrainOperationId(id));
+    // テストでは運用番号の実在チェックはCarConsistResolverの対象外（Validator層の責務）なので、
+    // 適当な文字列を都度払い出すだけでよい。
+    private static string OpNum(int id) => id.ToString();
 
-    private static StartOpCarSlot Slot(int position, int carCompositionId, OperationRef? operationId = null)
-        => new() { Position = position, CarCompositionId = new CarCompositionId(carCompositionId), OperationId = operationId ?? Op(carCompositionId) };
+    private static StartOpCarSlot Slot(int position, int carCompositionId, string? operationNumber = null)
+        => new() { Position = position, CarCompositionId = new CarCompositionId(carCompositionId), OperationNumber = operationNumber ?? OpNum(carCompositionId) };
 
     // vNEXT：GroupIndexを持たないCutGroupEntry
-    private static CutGroupEntry Entry(int carCompositionId, OperationRef? operationId = null)
-        => new() { CarCompositionId = new CarCompositionId(carCompositionId), OperationId = operationId ?? Op(carCompositionId) };
+    private static CutGroupEntry Entry(int carCompositionId, string? operationNumber = null)
+        => new() { CarCompositionId = new CarCompositionId(carCompositionId), OperationNumber = operationNumber ?? OpNum(carCompositionId) };
 
     private static ConsistResolutionContext SimpleContext(
         Dictionary<CarConsistId, CarConsist> consists,
@@ -414,7 +414,6 @@ public class CarConsistResolverTests
     [Fact]
     public void SplitOriginRef経由の新Trainは分割元TrainのDecouplingから継続側と逆のグループを引き継ぐ()
     {
-        // origin: Train(1)がStation2でDecoupling（front=継続, rear=新Train行き）
         var origin = NewTrain(1);
         AddRunSegment(origin, 1, 2);
         AddRunSegment(origin, 2, 3);
@@ -437,7 +436,6 @@ public class CarConsistResolverTests
             }],
         };
 
-        // 新Train(2)：SplitOriginRef経由でrear（Composition=20）を引き継ぐ
         var newTrain = NewTrain(2);
         AddRunSegment(newTrain, 2, 4);
         newTrain.StopTimesInternal[new StopKey(new StationId(2), 0)] = new StopTime

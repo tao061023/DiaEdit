@@ -13,8 +13,6 @@ public class StopTimeValidatorTests
     private static readonly StopTimeValidator Validator = new();
     private static readonly ValidationContext EmptyContext = new();
 
-    private static OperationRef DummyProvisional() => new ProvisionalOperationRef("履歴");
-
     [Fact]
     public void Worksが空ならエラーなし()
     {

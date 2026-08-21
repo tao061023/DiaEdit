@@ -23,18 +23,24 @@ using DiaEditCore.Model.TimeTable.Trains;
 /// </summary>
 public static class TrainOperationChainResolver
 {
-    /// <summary>
-    /// (TrainId, CarCompositionId) → その時点でのTrainOperationId。
-    /// </summary>
     public static Dictionary<(TrainId TrainId, CarCompositionId CarCompositionId), TrainOperationId> Resolve(
         IReadOnlyList<Train> allTrains,
         IReadOnlyDictionary<(StationId StationId, RailId RailId), List<(int DepartureSeconds, TrainId TrainId)>> departureIndex,
+        IReadOnlyList<TrainOperation> trainOperations,
         ProjectSettings settings)
     {
         var trainsById = allTrains.ToDictionary(t => t.Id);
         var nextTrainMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(allTrains, departureIndex, settings);
         var splitChildIndex = BuildSplitChildIndex(allTrains);
         var couplingPartnerIndex = BuildCouplingPartnerIndex(allTrains);
+
+        // OperationNumber → TrainOperationId。重複NumberはTrainOperationUniquenessValidator側の
+        // 検証対象のため、ここでは先勝ちで解決し例外は投げない（都度導出の頑健性優先）。
+        var operationNumberIndex = trainOperations
+            .Where(o => !string.IsNullOrWhiteSpace(o.OperationNumber))
+            .GroupBy(o => o.OperationNumber)
+            .ToDictionary(g => g.Key, g => g.First().Id);
+
         var result = new Dictionary<(TrainId, CarCompositionId), TrainOperationId>();
 
         foreach (var startTrain in allTrains)
@@ -44,9 +50,9 @@ public static class TrainOperationChainResolver
 
             foreach (var slot in startOp.StartOpConsist)
             {
-                if (slot.OperationId is not ResolvedOperationRef resolved) continue; // Provisionalは対象外
-                WalkChain(slot.CarCompositionId, resolved.Id, startTrain,
-                    trainsById, nextTrainMap, splitChildIndex, couplingPartnerIndex, result);
+                if (!operationNumberIndex.TryGetValue(slot.OperationNumber, out var opId)) continue; // 未解決（対応するTrainOperation未作成）は対象外
+                WalkChain(slot.CarCompositionId, opId, startTrain,
+                    trainsById, nextTrainMap, splitChildIndex, couplingPartnerIndex, operationNumberIndex, result);
             }
         }
 
@@ -61,6 +67,7 @@ public static class TrainOperationChainResolver
         IReadOnlyDictionary<TrainId, TrainId> nextTrainMap,
         IReadOnlyDictionary<(TrainId, StopKey), Train> splitChildIndex,
         IReadOnlyDictionary<(TrainId, StopKey), (Train HostTrain, StopKey HostStopKey)> couplingPartnerIndex,
+        IReadOnlyDictionary<string, TrainOperationId> operationNumberIndex,
         Dictionary<(TrainId, CarCompositionId), TrainOperationId> result)
     {
         var current = startTrain;
@@ -72,10 +79,10 @@ public static class TrainOperationChainResolver
             result[(current.Id, compositionId)] = currentOpId;
 
             var (decTrain, decOpId, decRedirected) =
-                TryFollowDecoupling(current, compositionId, currentOpId, splitChildIndex);
+                TryFollowDecoupling(current, compositionId, currentOpId, splitChildIndex, operationNumberIndex);
             if (decRedirected)
             {
-                if (decTrain is null) break; // 子Train未解決＝データ不整合。SplitOriginCrossValidator側検出対象
+                if (decTrain is null) break;
                 current = decTrain;
                 currentOpId = decOpId;
                 continue;
@@ -84,7 +91,6 @@ public static class TrainOperationChainResolver
             var coupHit = TryFollowCoupling(current, couplingPartnerIndex);
             if (coupHit is { } hit)
             {
-                // OperationIdは合流で変化しない（CarCompositionに紐づく属性のため据え置き）
                 current = hit.HostTrain;
                 continue;
             }
@@ -92,10 +98,8 @@ public static class TrainOperationChainResolver
             if (!nextTrainMap.TryGetValue(current.Id, out var nextTrainId)) break;
             if (!trainsById.TryGetValue(nextTrainId, out var normalNext)) break;
 
-            var prevTrainWork = FindWork(normalNext, StationWorkType.PrevTrain);
-            var overrideEntry = prevTrainWork?.PrevTrainOperationOverrides
-                .FirstOrDefault(o => o.CarCompositionId == compositionId);
-            if (overrideEntry is not null) currentOpId = overrideEntry.NewOperationId;
+            // PrevTrainOperationOverride（NewOpNumber）はチェーン追跡に一切影響しない（表示専用のため）。
+            // Rule 2の検証はTrainOperationValidator側で別途行う。
 
             current = normalNext;
         }
@@ -110,7 +114,8 @@ public static class TrainOperationChainResolver
         Train current,
         CarCompositionId compositionId,
         TrainOperationId currentOpId,
-        IReadOnlyDictionary<(TrainId, StopKey), Train> splitChildIndex)
+        IReadOnlyDictionary<(TrainId, StopKey), Train> splitChildIndex,
+        IReadOnlyDictionary<string, TrainOperationId> operationNumberToId)
     {
         foreach (var (stopKey, stopTime) in current.StopTimes)
         {
@@ -123,7 +128,7 @@ public static class TrainOperationChainResolver
 
             var isContinuingSide = dw.IsRearBase ? inRear is not null : inFront is not null;
             var entry = inFront ?? inRear!;
-            var newOpId = entry.OperationId is ResolvedOperationRef r ? r.Id : currentOpId; // Provisionalなら現状維持
+            var newOpId = operationNumberToId.TryGetValue(entry.OperationNumber, out var id) ? id : currentOpId;
 
             if (isContinuingSide) return (current, newOpId, false);
 

@@ -29,7 +29,7 @@ public static class TrainOperationUniquenessValidator
                 continue;
 
             var departureIndex = DepartureByStationTrackIndexBuilder.Build(setTrains);
-            var trainOperationIndex = TrainOperationChainResolver.Resolve(setTrains, departureIndex, settings);
+            var trainOperationIndex = TrainOperationChainResolver.Resolve(setTrains, departureIndex, context.TrainOperations, settings);
 
             var seenByNumber = new Dictionary<string, TrainOperationId>();
 

@@ -5,14 +5,13 @@ namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 public sealed class TrainCrossValidationData
 {
-    // v11.44改訂：CarComposition単位に変更。TrainOperationChainResolver.Resolve()の出力そのもの
-    // （(Train,CarComposition)ホップごとのスナップショット）。
     public IReadOnlyDictionary<(TrainId TrainId, CarCompositionId CarCompositionId), TrainOperationId> TrainOperationIndex { get; init; }
         = new Dictionary<(TrainId, CarCompositionId), TrainOperationId>();
     public IReadOnlyDictionary<TrainId, TrainId> PrevTrainMap { get; init; }
         = new Dictionary<TrainId, TrainId>();
+    public IReadOnlyDictionary<TrainOperationId, TrainOperation> TrainOperationsById { get; init; }
+        = new Dictionary<TrainOperationId, TrainOperation>();
 }
-
 /// <summary>
 /// Rule 2（改訂）：PrevTrainOperationOverrideの各NewOperationIdは、直前Trainにおける同一
 /// CarCompositionIdの運用（TrainOperationIndex、Composition単位）と異なっていなければならない。
@@ -45,13 +44,19 @@ public sealed class TrainOperationValidator : IValidator<Train>
 
         foreach (var ovr in prevTrainWork.PrevTrainOperationOverrides)
         {
-            if (crossData.TrainOperationIndex.TryGetValue((prevTrainId, ovr.CarCompositionId), out var prevOpId) &&
-                ovr.NewOperationId.Value == prevOpId.Value)
+            if (crossData.TrainOperationIndex.TryGetValue((prevTrainId, ovr.CarCompositionId), out var prevOpId))
             {
-                issues.Add(new ValidationIssue(
-                    $"Train({target.Id}): PrevTrainOperationOverride(CarCompositionId={ovr.CarCompositionId})の" +
-                    $"NewOperationId({ovr.NewOperationId})が直前のTrain({prevTrainId})における同一Compositionの" +
-                    $"運用番号と同一（Rule 2違反：無意味な運用番号変更）"));
+                var prevOpNumber = crossData.TrainOperationsById.TryGetValue(prevOpId, out var prevOp)
+                    ? prevOp.OperationNumber
+                    : null;
+
+                if (prevOpNumber == ovr.NewOpNumber)
+                {
+                    issues.Add(new ValidationIssue(
+                        $"Train({target.Id}): PrevTrainOperationOverride(CarCompositionId={ovr.CarCompositionId})の" +
+                        $"NewOpNumber({ovr.NewOpNumber})が直前のTrain({prevTrainId})における同一Compositionの" +
+                        $"運用番号({prevOpNumber})と同一（Rule 2違反：無意味な運用番号表示上書き）"));
+                }
             }
         }
 

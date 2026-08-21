@@ -13,17 +13,12 @@ public enum NextTrainType
     Coupling, // 次に発車する列車が本Trainの一部として併合される関係（Conflict除外の判定キー。6.5節ConflictFilter参照）
 }
 
-// 確定運用への参照／未確定の仮ラベルを型で区別する（判別共用体）
-public abstract record OperationRef;
-public sealed record ResolvedOperationRef(TrainOperationId Id) : OperationRef;
-public sealed record ProvisionalOperationRef(string Label) : OperationRef;
-
 // StartOp専用：出区時点のconsistSequence内1要素。
 public sealed class StartOpCarSlot
 {
     public required int Position { get; set; }
     public required CarCompositionId CarCompositionId { get; set; }
-    public required OperationRef OperationId { get; set; }
+    public required string OperationNumber { get; set; }
 }
 
 // vNEXT改訂：Coupling/Decoupling共通で使っていた CutGroup（GroupIndexフラット配列）を廃止し、
@@ -42,14 +37,7 @@ public sealed class StartOpCarSlot
 public sealed class CutGroupEntry
 {
     public required CarCompositionId CarCompositionId { get; set; }
-
-    // Decoupling必須（Resolved必須。Rule 5）。
-    // 「OperationNumberはCarCompositionに紐づく」という原則により、分割で新しく意識しなければ
-    // ならなくなるCarCompositionに対して運用番号を明示的に再指定させるためのフィールド。
-    // front/rear（継続側／離脱側）を問わず必須：継続側であっても、このCarCompositionが
-    // 分割後に持つ運用番号を明示するのはこのフィールドの役割である
-    // （TrainOperationChainResolver.TryFollowDecoupling参照）。
-    public required OperationRef OperationId { get; set; }
+    public required string OperationNumber { get; set; }
 }
 
 public sealed class DecouplingWork
@@ -82,7 +70,7 @@ public sealed class CouplingWork
 public sealed class PrevTrainOperationOverride
 {
     public required CarCompositionId CarCompositionId { get; set; }
-    public required TrainOperationId NewOperationId { get; set; }
+    public required string NewOpNumber { get; set; }
 }
 
 // 分割で生じた新Train側が、自身の起点を示す。

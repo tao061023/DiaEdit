@@ -90,19 +90,14 @@ public sealed class StationWorkValidator : IValidator<StationWork>
                 issues.Add(new ValidationIssue($"StationWork(StartOp): StartOpConsist内のCarCompositionId({slot.CarCompositionId})が存在しない"));
         }
 
-        // StartOpCarSlot.OperationId（Rule 5系）の検証
-        //   ・ResolvedOperationRef：TrainOperation実体とのId一致を要求
-        //   ・ProvisionalOperationRef：TODO（要Tao様確認、旧コードから持ち越し）－出区時点で未確定運用の
-        //     ラベルを許容してよいか確定できないため、現状はチェックをスキップ
+        // StartOpCarSlot.OperationNumber（Rule 5系）の検証
         foreach (var slot in target.StartOpConsist)
         {
-            if (slot.OperationId is ResolvedOperationRef resolved &&
-                !context.TrainOperations.Any(o => o.Id == resolved.Id))
-            {
+            if (string.IsNullOrWhiteSpace(slot.OperationNumber))
                 issues.Add(new ValidationIssue(
-                    $"StationWork(StartOp): StartOpConsist(Position={slot.Position})のOperationId({resolved.Id})が実在するTrainOperationと一致しない"));
-            }
+                    $"StationWork(StartOp): StartOpConsist(Position={slot.Position})のOperationNumberが未設定"));
         }
+        
 
         // PrevTrainOperationOverrides内のCarCompositionId実在チェック
         foreach (var ovr in target.PrevTrainOperationOverrides)
@@ -110,9 +105,6 @@ public sealed class StationWorkValidator : IValidator<StationWork>
             if (!context.CarCompositions.Any(c => c.Id == ovr.CarCompositionId))
                 issues.Add(new ValidationIssue(
                     $"StationWork(PrevTrain): PrevTrainOperationOverrides内のCarCompositionId({ovr.CarCompositionId})が存在しない"));
-            if (!context.TrainOperations.Any(o => o.Id == ovr.NewOperationId))
-                issues.Add(new ValidationIssue(
-                    $"StationWork(PrevTrain): PrevTrainOperationOverrides内のNewOperationId({ovr.NewOperationId})が実在するTrainOperationと一致しない"));
         }
 
         return issues;
@@ -154,26 +146,9 @@ public sealed class StationWorkValidator : IValidator<StationWork>
         // Rule 5：OperationId(Resolved)の実在確認
         foreach (var entry in allEntries)
         {
-            if (entry.OperationId is ResolvedOperationRef resolved &&
-                !context.TrainOperations.Any(o => o.Id == resolved.Id))
-            {
+            if (string.IsNullOrWhiteSpace(entry.OperationNumber))
                 issues.Add(new ValidationIssue(
-                    $"StationWork(Decoupling): CarCompositionId({entry.CarCompositionId})のOperationId({resolved.Id})が実在するTrainOperationと一致しない"));
-            }
-        }
-
-        // Provisionalラベル重複禁止：front/rear合算で見る（同一StationWork内で重複禁止という
-        // 現行コメントの意図を踏襲。TODO：front/rear別々にすべきか要確認）
-        var duplicatedLabels = allEntries
-            .Select(e => e.OperationId)
-            .OfType<ProvisionalOperationRef>()
-            .GroupBy(r => r.Label)
-            .Where(g => g.Count() > 1)
-            .Select(g => g.Key);
-        foreach (var dup in duplicatedLabels)
-        {
-            issues.Add(new ValidationIssue(
-                $"StationWork(Decoupling): ProvisionalOperationRefのLabel({dup})がFrontGroup/RearGroup間で重複している"));
+                    $"StationWork(Decoupling): CarCompositionId({entry.CarCompositionId})のOperationNumberが未設定"));
         }
     }
 

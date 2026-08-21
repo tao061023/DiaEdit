@@ -12,18 +12,21 @@ namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 /// 束ねる汎用SaveValidationRunnerではない（8.2節項目4はStationConnectionSegmentValidator、
 /// 項目5はServiceRouteValidatorへ直接実装済みのため、横断検証として残るのはRule 2のみ）。
 /// </summary>
+
 public static class TrainOperationCrossValidator
 {
     public static IReadOnlyList<IValidationIssue> Run(ValidationContext context, ProjectSettings settings)
     {
         var departureIndex = DepartureByStationTrackIndexBuilder.Build(context.Trains);
         var prevTrainMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(context.Trains, departureIndex, settings);
-        var trainOperationIndex = TrainOperationChainResolver.Resolve(context.Trains, departureIndex, settings);
+        var trainOperationIndex = TrainOperationChainResolver.Resolve(
+            context.Trains, departureIndex, context.TrainOperations, settings);
 
         var crossData = new TrainCrossValidationData
         {
             TrainOperationIndex = trainOperationIndex,
             PrevTrainMap = prevTrainMap,
+            TrainOperationsById = context.TrainOperations.ToDictionary(o => o.Id),
         };
 
         var issues = new List<IValidationIssue>();

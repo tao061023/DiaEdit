@@ -30,8 +30,6 @@ public class EffectiveLengthCheckerTests
         LengthM = lengthM,
     };
 
-    private static OperationRef DummyOp() => new ResolvedOperationRef(new TrainOperationId(1));
-
     private static ConsistResolutionContext Ctx(
         Dictionary<CarConsistId, CarConsist> consists,
         Dictionary<CarCompositionId, CarComposition> compositions)
@@ -90,7 +88,7 @@ public class EffectiveLengthCheckerTests
                 new StationWork
                 {
                     Type = StationWorkType.StartOp,
-                    StartOpConsist = { new StartOpCarSlot { Position = 0, CarCompositionId = CompositionId, OperationId = DummyOp() } },
+                    StartOpConsist = { new StartOpCarSlot { Position = 0, CarCompositionId = CompositionId, OperationNumber = "1" } },
                 },
             },
         };
@@ -302,7 +300,7 @@ public class EffectiveLengthCheckerTests
                 new StationWork
                 {
                     Type = StationWorkType.StartOp,
-                    StartOpConsist = { new StartOpCarSlot { Position = 0, CarCompositionId = CompositionId, OperationId = DummyOp() } },
+                    StartOpConsist = { new StartOpCarSlot { Position = 0, CarCompositionId = CompositionId, OperationNumber = "1" } },
                 },
             },
         };
