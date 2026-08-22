@@ -150,4 +150,72 @@ public class DependencyResolverTests
         Assert.Contains(new StationConnectionObjectId(sc2), result);
         Assert.Equal(5, result.Count); // StationA, StationB, MainRoute, SC1, SC2
     }
+
+    [Fact]
+    public void ResolveAffected_EntryPoint_ResolvesOrphanedStationConnectionSegment()
+    {
+        // どのStationConnectionにも属さない孤立SegmentからのEntryPoint直接参照を
+        // EntryPointUsedBySegmentIndex経由で捕捉できることを検証する（グラフ完成セッション新設分）。
+        var cache = MakeCache();
+        var entryPointId = new EntryPointId(1);
+        var scsId = new StationConnectionSegmentId(50);
+        cache.EntryPointUsedBySegmentIndex[entryPointId] = [scsId];
+    
+        var changed = new HashSet<ObjectId> { new EntryPointObjectId(entryPointId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+    
+        Assert.Contains(new StationConnectionSegmentObjectId(scsId), result);
+    }
+    
+    [Fact]
+    public void ResolveAffected_EntryPoint_ResolvesBothStationConnectionAndOrphanedSegment()
+    {
+        // EntryPointConnectionIndex（SC経由）とEntryPointUsedBySegmentIndex（孤立Segment直接参照）が
+        // 同時に存在するケースで、両方が合成されて返ることを検証する。
+        var cache = MakeCache();
+        var entryPointId = new EntryPointId(1);
+        var scId = new StationConnectionId(10);
+        var scsId = new StationConnectionSegmentId(50);
+        cache.EntryPointConnectionIndex[entryPointId] = [scId];
+        cache.EntryPointUsedBySegmentIndex[entryPointId] = [scsId];
+    
+        var changed = new HashSet<ObjectId> { new EntryPointObjectId(entryPointId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+    
+        Assert.Contains(new StationConnectionObjectId(scId), result);
+        Assert.Contains(new StationConnectionSegmentObjectId(scsId), result);
+    }
+    
+    [Fact]
+    public void ResolveAffected_MainRoute_ResolvesOrphanedStationConnectionSegment()
+    {
+        // どのStationConnectionにも属さない孤立SegmentからのMainRoute直接参照を
+        // MainRouteUsedBySegmentIndex経由で捕捉できることを検証する（グラフ完成セッション新設分）。
+        var cache = MakeCache();
+        var mainRouteId = new MainRouteId(100);
+        var scsId = new StationConnectionSegmentId(50);
+        cache.MainRouteUsedBySegmentIndex[mainRouteId] = [scsId];
+    
+        var changed = new HashSet<ObjectId> { new MainRouteObjectId(mainRouteId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+    
+        Assert.Contains(new StationConnectionSegmentObjectId(scsId), result);
+    }
+    
+    [Fact]
+    public void ResolveAffected_MainRoute_ResolvesBothStationConnectionAndOrphanedSegment()
+    {
+        var cache = MakeCache();
+        var mainRouteId = new MainRouteId(100);
+        var scId = new StationConnectionId(10);
+        var scsId = new StationConnectionSegmentId(50);
+        cache.MainRouteConnectionIndex[mainRouteId] = [scId];
+        cache.MainRouteUsedBySegmentIndex[mainRouteId] = [scsId];
+    
+        var changed = new HashSet<ObjectId> { new MainRouteObjectId(mainRouteId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+    
+        Assert.Contains(new StationConnectionObjectId(scId), result);
+        Assert.Contains(new StationConnectionSegmentObjectId(scsId), result);
+    }
 }

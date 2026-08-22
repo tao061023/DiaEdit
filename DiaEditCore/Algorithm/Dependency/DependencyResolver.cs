@@ -66,11 +66,16 @@ public static class DependencyResolver
                         ? segByStation.Select(id => (ObjectId)new StationConnectionSegmentObjectId(id))
                         : []),
 
-            // EntryPoint → StationConnection
+            // EntryPoint → StationConnection（既存）
+            //           → StationConnectionSegment（新規。孤立Segmentからの直接参照を捕捉）
             EntryPointObjectId e =>
-                cache.EntryPointConnectionIndex.TryGetValue(e.Id, out var scByEntry)
+                (cache.EntryPointConnectionIndex.TryGetValue(e.Id, out var scByEntry)
                     ? scByEntry.Select(id => (ObjectId)new StationConnectionObjectId(id))
-                    : [],
+                    : Enumerable.Empty<ObjectId>())
+                .Concat(
+                    cache.EntryPointUsedBySegmentIndex.TryGetValue(e.Id, out var segByEntry)
+                        ? segByEntry.Select(id => (ObjectId)new StationConnectionSegmentObjectId(id))
+                        : []),
 
             // StationConnectionSegment → StationConnection（逆引き。共有時は複数SC）
             //                        → TemporaryRestriction
@@ -83,11 +88,16 @@ public static class DependencyResolver
                         ? trBySegment.Select(id => (ObjectId)new TemporaryRestrictionObjectId(id))
                         : []),
 
-            // MainRoute → StationConnection
+            // MainRoute → StationConnection（既存）
+            //          → StationConnectionSegment（新規。孤立Segmentからの直接参照を捕捉）
             MainRouteObjectId m =>
-                cache.MainRouteConnectionIndex.TryGetValue(m.Id, out var scByRoute)
+                (cache.MainRouteConnectionIndex.TryGetValue(m.Id, out var scByRoute)
                     ? scByRoute.Select(id => (ObjectId)new StationConnectionObjectId(id))
-                    : [],
+                    : Enumerable.Empty<ObjectId>())
+                .Concat(
+                    cache.MainRouteUsedBySegmentIndex.TryGetValue(m.Id, out var segByRoute)
+                        ? segByRoute.Select(id => (ObjectId)new StationConnectionSegmentObjectId(id))
+                        : []),
 
             // FloorUnit → 配下オブジェクト（BoundaryPoint/EntryPoint/BufferStop/Switcher/Platform/StationPath）
             // FloorUnitDependentIndexはFloorUnitDependentIndexBuilder.Build()が構築する

@@ -55,6 +55,17 @@ public sealed class TimeTableSetCache
     // どのStationConnectionにも属さない孤立したSegmentからのStation直接参照を捕捉するために新設。
     // 構築はStationUsedBySegmentIndexBuilder.Build()側の責務とする。
     public Dictionary<StationId, List<StationConnectionSegmentId>> StationUsedBySegmentIndex { get; } = new();
+    // EntryPointId → それをFrom/ToEntryPointIdに持つStationConnectionSegmentの一覧（グラフ完成セッションで新設）。
+    // EntryPointConnectionIndex（StationConnection経由の間接参照）では捉えられない、
+    // StationConnectionSegmentからの直接参照をDependencyResolverが検知できるようにする。
+    // 構築はEntryPointUsedBySegmentIndexBuilder.Build()側の責務とする。
+    public Dictionary<EntryPointId, List<StationConnectionSegmentId>> EntryPointUsedBySegmentIndex { get; } = new();
+
+    // MainRouteId → それをMainRouteIdに持つStationConnectionSegmentの一覧（グラフ完成セッションで新設）。
+    // MainRouteConnectionIndex（StationConnection経由の間接参照）では捉えられない、
+    // StationConnectionSegmentからの直接参照をDependencyResolverが検知できるようにする。
+    // 構築はMainRouteUsedBySegmentIndexBuilder.Build()側の責務とする。
+    public Dictionary<MainRouteId, List<StationConnectionSegmentId>> MainRouteUsedBySegmentIndex { get; } = new();
 
     // -----------------------------
     // (b) 重量キャッシュ系（遅延再構築）
@@ -120,6 +131,8 @@ public sealed class TimeTableSetCache
         StationUsedBySegmentIndex.Clear();
         ConflictObjectGroupingCache.Clear();
         _conflictDirty.Clear();
+        EntryPointUsedBySegmentIndex.Clear();
+        MainRouteUsedBySegmentIndex.Clear();
 
         // TrainNumberIndex
         foreach (var train in trains)
@@ -173,6 +186,18 @@ public sealed class TimeTableSetCache
             StationUsedBySegmentIndexBuilder.Build(segmentsList))
         {
             StationUsedBySegmentIndex[stationId] = list;
+        }
+
+        foreach (var (entryPointId, list) in
+            EntryPointUsedBySegmentIndexBuilder.Build(segmentsList))
+        {
+            EntryPointUsedBySegmentIndex[entryPointId] = list;
+        }
+
+        foreach (var (mainRouteId, list) in
+            MainRouteUsedBySegmentIndexBuilder.Build(segmentsList))
+        {
+            MainRouteUsedBySegmentIndex[mainRouteId] = list;
         }
 
         // TrainOperationIndex は TrainOperationChainResolver が構築する（重複プロパティにつき将来削除予定）
