@@ -88,10 +88,10 @@ public class SyncRunSegmentsToTrainCommandTests
     private static StationConnectionSegment MakeSegment(int id, StationId from, StationId to, int mainRouteId = 1) => new()
     {
         Id = new StationConnectionSegmentId(id),
-        FromStationId = from,
-        ToStationId = to,
-        FromEntryPointId = new EntryPointId(id * 10 + 1),
-        ToEntryPointId = new EntryPointId(id * 10 + 2),
+        StationIdA = from,
+        StationIdB = to,
+        EntryPointIdA = new EntryPointId(id * 10 + 1),
+        EntryPointIdB = new EntryPointId(id * 10 + 2),
         MainRouteId = new MainRouteId(mainRouteId),
     };
 

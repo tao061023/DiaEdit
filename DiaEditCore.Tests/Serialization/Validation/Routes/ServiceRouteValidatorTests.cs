@@ -143,13 +143,13 @@ public class ServiceRouteValidatorRule5Tests
 
         var seg0 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epBArr, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epA, EntryPointIdB = epBArr, MainRouteId = mainRouteId,
         };
         var seg1 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stC,
-            FromEntryPointId = epBDep, ToEntryPointId = epC, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(2), StationIdA = stB, StationIdB = stC,
+            EntryPointIdA = epBDep, EntryPointIdB = epC, MainRouteId = mainRouteId,
         };
         var sc = new StationConnection
         {
@@ -223,8 +223,8 @@ public class ServiceRouteValidatorRule5Tests
         var epALoop = new EntryPointId(6);
         var seg2 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(3), FromStationId = stC, ToStationId = stA,
-            FromEntryPointId = epCLoop, ToEntryPointId = epALoop, MainRouteId = route.Id,
+            Id = new StationConnectionSegmentId(3), StationIdA = stC, StationIdB = stA,
+            EntryPointIdA = epCLoop, EntryPointIdB = epALoop, MainRouteId = route.Id,
         };
         var loopRoute = MakeRoute(route.Id, isLoop: false, stA, route.StationOrder[1], stC); // ServiceRoute側はMainRoute.IsLoopを見ないため任意
         var scWithLoop = new StationConnection
@@ -258,8 +258,8 @@ public class ServiceRouteValidatorRule5Tests
         var epB1Arr = new EntryPointId(2);    // B駅側到着（MainRouteA終点）
         var seg1 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA1, ToEntryPointId = epB1Arr, MainRouteId = mainRouteAId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epA1, EntryPointIdB = epB1Arr, MainRouteId = mainRouteAId,
         };
         var scA = new StationConnection
         {
@@ -274,8 +274,8 @@ public class ServiceRouteValidatorRule5Tests
         var epA2Arr = new EntryPointId(4);    // A駅側到着（MainRouteB終点、ループを閉じる）
         var seg2 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stA,
-            FromEntryPointId = epB2Dep, ToEntryPointId = epA2Arr, MainRouteId = mainRouteBId,
+            Id = new StationConnectionSegmentId(2), StationIdA = stB, StationIdB = stA,
+            EntryPointIdA = epB2Dep, EntryPointIdB = epA2Arr, MainRouteId = mainRouteBId,
         };
         var scB = new StationConnection
         {
@@ -333,8 +333,8 @@ public class ServiceRouteValidatorRule5Tests
         var epB1Arr = new EntryPointId(2);
         var seg1 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA1, ToEntryPointId = epB1Arr, MainRouteId = mainRouteAId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epA1, EntryPointIdB = epB1Arr, MainRouteId = mainRouteAId,
         };
         var scA = new StationConnection
         {
@@ -347,8 +347,8 @@ public class ServiceRouteValidatorRule5Tests
         var epA2Arr = new EntryPointId(4);
         var seg2 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stA,
-            FromEntryPointId = epB2Dep, ToEntryPointId = epA2Arr, MainRouteId = mainRouteBId,
+            Id = new StationConnectionSegmentId(2), StationIdA = stB, StationIdB = stA,
+            EntryPointIdA = epB2Dep, EntryPointIdB = epA2Arr, MainRouteId = mainRouteBId,
         };
         var scB = new StationConnection
         {
@@ -405,8 +405,8 @@ public class ServiceRouteValidatorRule5Tests
         var epBMain = new EntryPointId(2);
         var segMain = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epAMain, ToEntryPointId = epBMain, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epAMain, EntryPointIdB = epBMain, MainRouteId = mainRouteId,
         };
         var scMain = new StationConnection
         {
@@ -418,8 +418,8 @@ public class ServiceRouteValidatorRule5Tests
         var epBLocal = new EntryPointId(4);
         var segLocal = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epALocal, ToEntryPointId = epBLocal, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(2), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epALocal, EntryPointIdB = epBLocal, MainRouteId = mainRouteId,
         };
         var scLocal = new StationConnection
         {
@@ -527,8 +527,8 @@ public class ServiceRouteValidatorRule5Tests
         var epB = new EntryPointId(2);
         var segMain = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epB, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epA, EntryPointIdB = epB, MainRouteId = mainRouteId,
         };
         var mainSc = new StationConnection
         {
@@ -541,8 +541,8 @@ public class ServiceRouteValidatorRule5Tests
         var epQ = new EntryPointId(4);
         var segPaired = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stP, ToStationId = stQ,
-            FromEntryPointId = epP, ToEntryPointId = epQ, MainRouteId = pairedRouteId,
+            Id = new StationConnectionSegmentId(2), StationIdA = stP, StationIdB = stQ,
+            EntryPointIdA = epP, EntryPointIdB = epQ, MainRouteId = pairedRouteId,
         };
         var pairedSc = new StationConnection
         {
@@ -590,8 +590,8 @@ public class ServiceRouteValidatorRule5Tests
         var epQ2 = new EntryPointId(6);
         var segPaired2 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(3), FromStationId = stP, ToStationId = stQ,
-            FromEntryPointId = epP2, ToEntryPointId = epQ2, MainRouteId = pairedRouteId,
+            Id = new StationConnectionSegmentId(3), StationIdA = stP, StationIdB = stQ,
+            EntryPointIdA = epP2, EntryPointIdB = epQ2, MainRouteId = pairedRouteId,
         };
         var pairedSc2 = new StationConnection
         {
@@ -628,8 +628,8 @@ public class ServiceRouteValidatorRule5Tests
 
         var seg1 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = new EntryPointId(1), ToEntryPointId = new EntryPointId(2),
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = new EntryPointId(1), EntryPointIdB = new EntryPointId(2),
             MainRouteId = mainRouteId1,
         };
         var sc1 = new StationConnection
@@ -641,8 +641,8 @@ public class ServiceRouteValidatorRule5Tests
 
         var seg2 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stC,
-            FromEntryPointId = new EntryPointId(3), ToEntryPointId = new EntryPointId(4),
+            Id = new StationConnectionSegmentId(2), StationIdA = stB, StationIdB = stC,
+            EntryPointIdA = new EntryPointId(3), EntryPointIdB = new EntryPointId(4),
             MainRouteId = mainRouteId2,
         };
         var sc2 = new StationConnection

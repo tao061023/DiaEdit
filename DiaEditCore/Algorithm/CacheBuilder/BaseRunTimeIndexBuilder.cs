@@ -101,7 +101,7 @@ public static class BaseRunTimeIndexBuilder
         {
             var seg = allSegments.FirstOrDefault(s => s.Id == segId);
             if (seg is null) continue;
-            if (seg.FromStationId != fromStationId || seg.ToStationId != toStationId) continue;
+            if (seg.StationIdA != fromStationId || seg.StationIdB != toStationId) continue;
 
             if (found is not null) return null; // 複数一致は不整合として扱う
             found = seg.Id;

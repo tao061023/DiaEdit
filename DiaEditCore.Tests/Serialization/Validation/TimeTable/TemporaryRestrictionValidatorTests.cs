@@ -34,10 +34,10 @@ public class TemporaryRestrictionValidatorTests
         var seg = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1),
-            FromStationId = s1.Id,
-            ToStationId = s2.Id,
-            FromEntryPointId = depEp.Id,
-            ToEntryPointId = arrEp.Id,
+            StationIdA = s1.Id,
+            StationIdB = s2.Id,
+            EntryPointIdA = depEp.Id,
+            EntryPointIdB = arrEp.Id,
             MainRouteId = route.Id,
         };
 

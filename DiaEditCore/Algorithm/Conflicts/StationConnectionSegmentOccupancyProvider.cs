@@ -1,21 +1,14 @@
-namespace DiaEditCore.Algorithm.Conflicts;
-
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
 
+namespace DiaEditCore.Algorithm.Conflicts;
+
 /// <summary>
-/// StationConnectionSegment用途のConflictChecker：
-/// 全Trainを走査し、SCSごとの占有区間を構築する。 <br/>
-///
-/// 「1 RunSegment＝1 SCS」が保証されている前提で、StationConnection.Segments[0]をそのまま対象SCSIdとして採用している。 <br/>
-///
-/// 占有区間 = 出発駅側DepartureStationPathの占有終了 〜 到着駅側ArrivalStationPathの占有開始 <br/>
-/// （TrackOccupancyProviderと同様、StopVisitOccupancyResolverの計算をそのまま再利用する）。 <br/>
-///
-/// 注：現時点ではTrack用途と異なりPrevTrain/NextTrainによる境界延長は行わない <br/>
-/// （RunSegmentの内部区間であるため、始発・終着側の欠落は発生しない＝visitI/visitI+1は常にTrain自身のRunSegments内で両方求まる）。
+/// StationConnectionSegment用途のConflictChecker。
+/// v12.29対応：EntryPointSequenceCache.Buildの系統(ii)化に伴い、allMainRoutesを新規に受け取る。
+/// （クラス冒頭の詳細コメントは既存版から変更なし）
 /// </summary>
 public static class StationConnectionSegmentOccupancyProvider
 {
@@ -23,6 +16,7 @@ public static class StationConnectionSegmentOccupancyProvider
         IReadOnlyList<Train> trains,
         IReadOnlyList<StationConnection> stationConnections,
         IReadOnlyList<StationConnectionSegment> allSegments,
+        IReadOnlyList<MainRoute> allMainRoutes,
         IReadOnlyDictionary<StationPathId, StationPath> pathsById,
         IReadOnlyDictionary<(EntryPointId, RailId), StationPathId> arrivalIndex,
         IReadOnlyDictionary<(RailId, EntryPointId), StationPathId> departureIndex)
@@ -36,7 +30,7 @@ public static class StationConnectionSegmentOccupancyProvider
             list.Add(occ);
         }
 
-        var resolveEp = EntryPointSequenceCache.Build(stationConnections, allSegments);
+        var resolveEp = EntryPointSequenceCache.Build(stationConnections, allSegments, allMainRoutes);
         var scById = stationConnections.ToDictionary(sc => sc.Id);
 
         foreach (var train in trains)

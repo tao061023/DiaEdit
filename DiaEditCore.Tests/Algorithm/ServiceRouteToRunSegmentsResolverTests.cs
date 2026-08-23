@@ -25,10 +25,10 @@ public class ServiceRouteToRunSegmentsResolverTests
         EntryPointId? fromEp = null, EntryPointId? toEp = null) => new()
     {
         Id = id,
-        FromStationId = from,
-        ToStationId = to,
-        FromEntryPointId = fromEp ?? new EntryPointId(id.Value * 10 + 1),
-        ToEntryPointId = toEp ?? new EntryPointId(id.Value * 10 + 2),
+        StationIdA = from,
+        StationIdB = to,
+        EntryPointIdA = fromEp ?? new EntryPointId(id.Value * 10 + 1),
+        EntryPointIdB = toEp ?? new EntryPointId(id.Value * 10 + 2),
         MainRouteId = mainRouteId,
     };
 

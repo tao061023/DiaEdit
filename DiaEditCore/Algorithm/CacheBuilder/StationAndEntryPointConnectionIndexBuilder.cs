@@ -8,15 +8,14 @@ using DiaEditCore.Model.Routes;
 /// TimeTableSetCache.EntryPointConnectionIndex（EntryPointId→それを通るStationConnectionの一覧）を
 /// 同時に構築する。
 ///
-/// 両インデックスとも、StationConnection自身は駅・EntryPointを直接保持せず、Segments（SCSId配列）を
-/// 経由してのみ辿れる（EntryPointSequenceResolver.Resolveが担う展開処理）ため、
-/// 1つのStationConnectionにつき1回のResolve呼び出しで双方の駅・EntryPoint集合を同時に取り出せる。
-/// StationPathTrackIndexBuilder.Build（Arrival/DepartureIndexを同時返却）と同じ「関連する複数の
-/// インデックスを1回の走査で導出する」設計パターンを踏襲し、SCS展開処理の重複実行を避けている。
+/// v12.29 SCS direction-agnostic renameセッションでEntryPointSequenceResolver.Resolveが
+/// allMainRoutesを要求するシグネチャへ変更されたことに伴い、本Builderも同様にallMainRoutesを
+/// 受け取る（TimeTableSetCache.RebuildAllが既にmainRoutesを引数に持つため、呼び出し元の追従は軽微）。
 ///
-/// 消費者はDependencyResolver.ResolveDirectDependents（StationObjectId／EntryPointObjectIdケース）のみ。
-/// 同一StationConnectionが複数のセグメント区間で同一駅・同一EntryPointを重複して通る場合は
-/// 呼び出し側での重複登録を避けるため、StationConnectionId単位でHashSetを介して一意化する。
+/// 用途はStation・EntryPointの「集合」を求めるだけで順序に依存しないため、向き解決の失敗
+/// （MainRoute未検出等）でSegmentがスキップされても実害は小さいが、Resolve側の防御的スキップに
+/// 従い、結果的に該当StationConnectionの一部Stationが欠落しうる点は留意する
+/// （EntryPointSequenceResolver.Resolveのコメント参照）。
 /// </summary>
 public static class StationAndEntryPointConnectionIndexBuilder
 {
@@ -25,14 +24,15 @@ public static class StationAndEntryPointConnectionIndexBuilder
         Dictionary<EntryPointId, List<StationConnectionId>> EntryPointConnectionIndex
     ) Build(
         IEnumerable<StationConnection> allStationConnections,
-        IReadOnlyList<StationConnectionSegment> allSegments)
+        IReadOnlyList<StationConnectionSegment> allSegments,
+        IReadOnlyList<MainRoute> allMainRoutes)
     {
         var stationIndex = new Dictionary<StationId, List<StationConnectionId>>();
         var entryPointIndex = new Dictionary<EntryPointId, List<StationConnectionId>>();
 
         void AddStation(StationId stationId, StationConnectionId scId, HashSet<StationId> seen)
         {
-            if (!seen.Add(stationId)) return; // 同一SC内での重複登録を防止
+            if (!seen.Add(stationId)) return;
             if (!stationIndex.TryGetValue(stationId, out var list))
             {
                 list = new List<StationConnectionId>();
@@ -43,7 +43,7 @@ public static class StationAndEntryPointConnectionIndexBuilder
 
         void AddEntryPoint(EntryPointId entryPointId, StationConnectionId scId, HashSet<EntryPointId> seen)
         {
-            if (!seen.Add(entryPointId)) return; // 同一SC内での重複登録を防止
+            if (!seen.Add(entryPointId)) return;
             if (!entryPointIndex.TryGetValue(entryPointId, out var list))
             {
                 list = new List<StationConnectionId>();
@@ -54,7 +54,7 @@ public static class StationAndEntryPointConnectionIndexBuilder
 
         foreach (var sc in allStationConnections)
         {
-            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments);
+            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments, allMainRoutes);
             if (seq.Count == 0) continue;
 
             var seenStations = new HashSet<StationId>();

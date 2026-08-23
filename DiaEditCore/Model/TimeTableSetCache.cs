@@ -157,9 +157,11 @@ public sealed class TimeTableSetCache
             ScsUsedByIndex[segId] = list;
         }
 
+        var mainRoutesList = mainRoutes as IReadOnlyList<MainRoute> ?? mainRoutes.ToList();
         var (stationIdx, entryPointIdx) =
             StationAndEntryPointConnectionIndexBuilder.Build(
-                stationConnectionsList, segmentsList);
+                stationConnectionsList, segmentsList, mainRoutesList);
+
         foreach (var (stationId, list) in stationIdx) StationConnectionIndex[stationId] = list;
         foreach (var (entryPointId, list) in entryPointIdx) EntryPointConnectionIndex[entryPointId] = list;
 

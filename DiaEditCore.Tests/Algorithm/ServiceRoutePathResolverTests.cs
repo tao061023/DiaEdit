@@ -22,10 +22,10 @@ public class ServiceRoutePathResolverTests
         => new()
         {
             Id = id,
-            FromStationId = from,
-            ToStationId = to,
-            FromEntryPointId = new EntryPointId(id.Value * 10 + 1),
-            ToEntryPointId = new EntryPointId(id.Value * 10 + 2),
+            StationIdA = from,
+            StationIdB = to,
+            EntryPointIdA = new EntryPointId(id.Value * 10 + 1),
+            EntryPointIdB = new EntryPointId(id.Value * 10 + 2),
             MainRouteId = mainRouteId,
         };
 

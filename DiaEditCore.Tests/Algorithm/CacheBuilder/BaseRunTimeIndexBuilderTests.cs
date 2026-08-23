@@ -44,10 +44,10 @@ public class BaseRunTimeIndexBuilderTests
         => new()
         {
             Id = new StationConnectionSegmentId(id),
-            FromStationId = new StationId(from),
-            ToStationId = new StationId(to),
-            FromEntryPointId = new EntryPointId(from * 10),
-            ToEntryPointId = new EntryPointId(to * 10),
+            StationIdA = new StationId(from),
+            StationIdB = new StationId(to),
+            EntryPointIdA = new EntryPointId(from * 10),
+            EntryPointIdB = new EntryPointId(to * 10),
             MainRouteId = new MainRouteId(1),
         };
 

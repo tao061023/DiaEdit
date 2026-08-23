@@ -20,8 +20,8 @@ public static class StationUsedBySegmentIndexBuilder
 
         foreach (var seg in allSegments)
         {
-            Add(index, seg.FromStationId, seg.Id);
-            Add(index, seg.ToStationId, seg.Id);
+            Add(index, seg.StationIdA, seg.Id);
+            Add(index, seg.StationIdB, seg.Id);
         }
 
         return index;

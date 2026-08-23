@@ -29,8 +29,8 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
             if (seg is null)
                 continue;
  
-            var fIdx = mainRoute.StationOrder.IndexOf(seg.FromStationId);
-            var tIdx = mainRoute.StationOrder.IndexOf(seg.ToStationId);
+            var fIdx = mainRoute.StationOrder.IndexOf(seg.StationIdA);
+            var tIdx = mainRoute.StationOrder.IndexOf(seg.StationIdB);
             if (fIdx < 0 || tIdx < 0)
                 continue;
  
@@ -271,7 +271,7 @@ public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
 
             // candidateIdsはfromIdx→toIdx区間を完全にカバーすることが既に保証されているため、
             // ToPositionによるスライスは不要。Resolveの結果をそのまま結合すればよい。
-            var fullSeq = EntryPointSequenceResolver.Resolve(selectedSc, context.StationConnectionSegments);
+            var fullSeq = EntryPointSequenceResolver.Resolve(selectedSc, context.StationConnectionSegments, context.MainRoutes);
             foreach (var element in fullSeq)
             {
                 combinedEps.Add(element.FromEntryPointId);

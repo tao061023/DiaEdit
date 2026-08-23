@@ -32,10 +32,10 @@ public class StationConnectionValidatorTests
         var seg = new StationConnectionSegment
         {
             Id = new StationConnectionSegmentId(1),
-            FromStationId = s1.Id,
-            ToStationId = s2.Id,
-            FromEntryPointId = depEp.Id,
-            ToEntryPointId = arrEp.Id,
+            StationIdA = s1.Id,
+            StationIdB = s2.Id,
+            EntryPointIdA = depEp.Id,
+            EntryPointIdB = arrEp.Id,
             MainRouteId = route.Id,
         };
 
@@ -137,13 +137,13 @@ public class StationConnectionValidatorTests
 
         var seg0 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epBArr, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epA, EntryPointIdB = epBArr, MainRouteId = mainRouteId,
         };
         var seg1 = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(2), FromStationId = stB, ToStationId = stC,
-            FromEntryPointId = epBDep, ToEntryPointId = epC, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(2), StationIdA = stB, StationIdB = stC,
+            EntryPointIdA = epBDep, EntryPointIdB = epC, MainRouteId = mainRouteId,
         };
 
         var sc = new StationConnection
@@ -233,8 +233,8 @@ public class StationConnectionValidatorTests
 
         var seg = new StationConnectionSegment
         {
-            Id = new StationConnectionSegmentId(1), FromStationId = stA, ToStationId = stB,
-            FromEntryPointId = epA, ToEntryPointId = epB, MainRouteId = mainRouteId,
+            Id = new StationConnectionSegmentId(1), StationIdA = stA, StationIdB = stB,
+            EntryPointIdA = epA, EntryPointIdB = epB, MainRouteId = mainRouteId,
         };
         var sc = new StationConnection
         {

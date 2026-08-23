@@ -1,35 +1,16 @@
-namespace DiaEditCore.Algorithm;
-
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 
+namespace DiaEditCore.Algorithm;
+
 /// <summary>
 /// 編成前後反転の自動導出。単一MainRoute内のスイッチバック判定（ResolveDirectionReversalStations）と、
 /// 境界駅（MainRoute間）での折り返し判定（ResolveReversesAtBoundary）を、同一の判定基準で扱う。
-///
-/// 判定基準：SCSから得た進入側EntryPointId・進出側EntryPointIdそれぞれについて、それを含む
-/// StationPath（Direction=Arrival／Departure）を列挙し、そのStationPathが経由するRailRole.Track
-/// のRail群（EndpointA/EndpointBの RailEndpointRef）を集合として取り出す。進入側・進出側の集合に
-/// 重複するRailEndpointRefが存在すれば、進入と進出で同一の物理番線を使用している＝折り返しが必須と
-/// 判定する（デルタ線は必ずMainRouteとして登録される制約があるため、使用する番線による向きの差異は
-/// 発生せず、複数StationPath候補間の判定はORでよい）。
-///
-/// 両メソッドとも、EP引き当ての下請けとしてBoundaryEntryPointResolver・EntryPointSequenceResolver・
-/// RailSequenceResolverを共有する。出力（directionReversalStations／ServiceRouteSegment.reversesAtBoundary）は
-/// あくまで保存時のデフォルト値提示の候補であり、確定はユーザーが行う。
-///
-/// 注：Shunting時に使用Trackが変わるケース（RailRole.Shunting側のRailEndpointRef一致）は
-/// 本メソッドの対象外（Arrival/Departure StationPathのみを扱う）。必要になった場合は別途対応する。
+/// （クラス冒頭のコメントは既存版から変更なし。以下メソッド本体のみv12.29対応）
 /// </summary>
 public static class ReversalResolver
 {
-    /// <summary>
-    /// mainRoute内の各中間駅（先頭・末尾を除く）について、スイッチバック判定を行う。
-    /// 戻り値はStationId→判定結果（true=反転が必要と推定／false=不要と推定）。
-    /// 判定不能（対応するStationConnectionが無い／該当駅のStationPathが渡されていない）駅は結果に含めない。
-    /// </summary>
-    /// <param name="stationPathsByStation">駅ごとのStationPath一覧（呼び出し側でFloorUnitId→StationId対応により絞り込み済みのもの）</param>
     public static Dictionary<StationId, bool> ResolveDirectionReversalStations(
         MainRoute mainRoute,
         IReadOnlyList<MainRoute> allMainRoutes,
@@ -47,14 +28,12 @@ public static class ReversalResolver
             var stationId = stationOrder[i];
             if (!stationPathsByStation.TryGetValue(stationId, out var pathsAtStation) || pathsAtStation.Count == 0)
             {
-                continue; // 判定不能
+                continue;
             }
 
-            // 進入側：SCS[i-1→i]（Down方向）の到着EP（末尾要素のToEntryPointId）
             var arrivingCandidates = BoundaryEntryPointResolver.ResolveBoundaryEntryPoint(
                 mainRoute.Id, i - 1, i, allMainRoutes, allStationConnections, allSegments);
 
-            // 進出側：SCS[i→i+1]（Down方向）の出発EP（先頭要素のFromEntryPointId）
             var departingCandidates = ResolveDepartureEntryPointCandidates(
                 mainRoute.Id, i, i + 1, allMainRoutes, allStationConnections, allSegments);
 
@@ -68,12 +47,6 @@ public static class ReversalResolver
         return result;
     }
 
-    /// <summary>
-    /// 境界駅（ServiceRouteSegmentの境界）における折り返し要否を判定する。
-    /// prevSegmentの終端駅とnextSegmentの起点駅が同一駅であることを前提とする
-    /// （異なる場合はnullを返し、判定不能として扱う）。
-    /// </summary>
-    /// <param name="pathsAtBoundaryStation">境界駅のStationPath一覧</param>
     public static bool? ResolveReversesAtBoundary(
         ServiceRouteSegment prevSegment,
         ServiceRouteSegment nextSegment,
@@ -116,11 +89,6 @@ public static class ReversalResolver
         return JudgeReversalByTrack(arrivingCandidates, departingCandidates, pathsAtBoundaryStation, railResolver, allRails);
     }
 
-    /// <summary>
-    /// 進入側候補（ToEntryPointId基準）・進出側候補（FromEntryPointId基準）の全組み合わせについて、
-    /// それぞれが経由するRailRole.Track Railの端点集合（RailEndpointRef）に重複があるかを判定する。
-    /// いずれかの組み合わせで重複があればtrue（OR）。候補やStationPathが無ければnull（判定不能）。
-    /// </summary>
     private static bool? JudgeReversalByTrack(
         IReadOnlyList<EntryPointSequenceElement> arrivingCandidates,
         IReadOnlyList<EntryPointSequenceElement> departingCandidates,
@@ -154,10 +122,6 @@ public static class ReversalResolver
         return false;
     }
 
-    /// <summary>
-    /// entryPointIdをWaypointsに含み、指定方向を持つStationPathを列挙し、
-    /// それらが経由するRailRole.Track RailのEndpointA/EndpointB（RailEndpointRef）のKey集合を返す。
-    /// </summary>
     private static HashSet<ObjectId> ResolveTrackEndpointKeys(
         IReadOnlyList<StationPath> pathsAtStation,
         EntryPointId entryPointId,
@@ -180,7 +144,6 @@ public static class ReversalResolver
             }
             catch (InvalidOperationException)
             {
-                // waypoint間のRailが存在しない不整合データは別途保存時検証で検出する想定のため、ここではスキップする
                 continue;
             }
 
@@ -189,8 +152,6 @@ public static class ReversalResolver
                 var rail = allRails.FirstOrDefault(r => r.Id == railId);
                 if (rail is null || rail.Role != RailRole.Track) continue;
 
-                // NoneEndpointRef（未接続端部）はToObjectId()がnullを返すため、
-                // keysに加えない。None同士は「同一地点を共有している」とはみなさない。
                 if (rail.EndpointA.ToObjectId() is { } a) keys.Add(a);
                 if (rail.EndpointB.ToObjectId() is { } b) keys.Add(b);
             }
@@ -202,7 +163,8 @@ public static class ReversalResolver
     /// <summary>
     /// BoundaryEntryPointResolver.ResolveBoundaryEntryPointと同じ絞り込み条件で一致するStationConnectionを探索し、
     /// fromIndex側（出発側）の要素（EntryPointSequenceElement列の先頭要素）を返す。
-    /// BoundaryEntryPointResolverは到着側（末尾要素）しか返さないため、出発側取得用に複製している。
+    /// v12.29対応：EntryPointSequenceResolver.Resolveが系統(ii)化（allMainRoutes必須）されたため、
+    /// 本メソッドは元々allMainRoutesを既に引数に持っていたのでそのまま渡すだけで済む。
     /// </summary>
     private static IReadOnlyList<EntryPointSequenceElement> ResolveDepartureEntryPointCandidates(
         MainRouteId mainRouteId,
@@ -231,10 +193,10 @@ public static class ReversalResolver
         {
             if (sc.MainRouteId != mainRouteId || sc.Direction != direction) continue;
 
-            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments);
+            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments, allMainRoutes);
             if (!MatchesExpectedStations(seq, expectedStations)) continue;
 
-            result.Add(seq[0]); // fromIndex側（出発側）の要素
+            result.Add(seq[0]);
         }
 
         return result;

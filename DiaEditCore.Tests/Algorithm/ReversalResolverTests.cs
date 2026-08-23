@@ -25,10 +25,10 @@ public class ReversalResolverTests
         int id, int fromStation, int toStation, int fromEp, int toEp, int mainRouteId) => new()
     {
         Id = new StationConnectionSegmentId(id),
-        FromStationId = new StationId(fromStation),
-        ToStationId = new StationId(toStation),
-        FromEntryPointId = new EntryPointId(fromEp),
-        ToEntryPointId = new EntryPointId(toEp),
+        StationIdA = new StationId(fromStation),
+        StationIdB = new StationId(toStation),
+        EntryPointIdA = new EntryPointId(fromEp),
+        EntryPointIdB = new EntryPointId(toEp),
         MainRouteId = new MainRouteId(mainRouteId),
     };
 

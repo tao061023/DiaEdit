@@ -1,7 +1,7 @@
-namespace DiaEditCore.Algorithm;
-
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
+
+namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// 境界駅のEPを、既存のEntryPointSequenceResolverの結果から取り出すためのラッパー。 <br/>
@@ -11,20 +11,6 @@ using DiaEditCore.Model.Routes;
 /// </summary>
 public static class BoundaryEntryPointResolver
 {
-    /// <summary>
-    /// mainRouteId上のfromIndex→toIndexが示す駅間に対応するStationConnectionを探索し、
-    /// 各候補について境界駅（toIndex側）に該当するEntryPointSequenceElementを返す。
-    /// </summary>
-    /// <param name="mainRouteId">対象MainRoute</param>
-    /// <param name="fromIndex">MainRoute.StationOrder上の開始インデックス</param>
-    /// <param name="toIndex">MainRoute.StationOrder上の終了インデックス（from &lt; toなら下り、from &gt; toなら上り）</param>
-    /// <param name="allMainRoutes">MainRoute全体（StationOrder参照用）</param>
-    /// <param name="allStationConnections">StationConnection全体</param>
-    /// <param name="allSegments">StationConnectionSegment全体</param>
-    /// <returns>
-    /// 一致するStationConnectionそれぞれについて、境界駅（toIndex側）に該当するEntryPointSequenceElementを1件ずつ含むリスト。<br/>
-    /// 一致するStationConnectionが存在しない場合は空リスト（呼び出し側で「対応するStationConnectionが実在しない」として扱う）。
-    /// </returns>
     public static IReadOnlyList<EntryPointSequenceElement> ResolveBoundaryEntryPoint(
         MainRouteId mainRouteId,
         int fromIndex,
@@ -44,12 +30,10 @@ public static class BoundaryEntryPointResolver
             return Array.Empty<EntryPointSequenceElement>();
         }
 
-        // fromIndex < toIndex ： 下り（Down）／ fromIndex > toIndex ： 上り（Up）
         var direction = fromIndex < toIndex
             ? StationConnectionDirection.Down
             : StationConnectionDirection.Up;
 
-        // 走行方向に沿った期待駅列（fromIndex→toIndexの経路上の全駅、境界含む）
         var expectedStations = BuildExpectedStations(stationOrder, fromIndex, toIndex);
 
         var result = new List<EntryPointSequenceElement>();
@@ -57,20 +41,16 @@ public static class BoundaryEntryPointResolver
         {
             if (sc.MainRouteId != mainRouteId || sc.Direction != direction) continue;
 
-            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments);
+            // v12.29系統(ii)対応：向き解決にMainRoute.StationOrderを要するためallMainRoutesを渡す
+            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments, allMainRoutes);
             if (!MatchesExpectedStations(seq, expectedStations)) continue;
 
-            // 境界駅（toIndex側）に該当する要素は、期待駅列と一致した列の末尾要素
             result.Add(seq[^1]);
         }
 
         return result;
     }
-    /// <summary>
-    /// ResolveBoundaryEntryPointと同じ照合ロジックで、一致したStationConnection自体のIdを返す版。
-    /// SyncRunSegmentsToTrainCommand等、ホップ単位でどのStationConnectionを使うか確定させたい
-    /// 呼び出し元向け。
-    /// </summary>
+
     public static IReadOnlyList<StationConnectionId> ResolveBoundaryStationConnection(
         MainRouteId mainRouteId,
         int fromIndex,
@@ -101,7 +81,7 @@ public static class BoundaryEntryPointResolver
         {
             if (sc.MainRouteId != mainRouteId || sc.Direction != direction) continue;
 
-            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments);
+            var seq = EntryPointSequenceResolver.Resolve(sc, allSegments, allMainRoutes);
             if (!MatchesExpectedStations(seq, expectedStations)) continue;
 
             result.Add(sc.Id);
@@ -132,7 +112,6 @@ public static class BoundaryEntryPointResolver
         IReadOnlyList<EntryPointSequenceElement> seq,
         IReadOnlyList<StationId> expectedStations)
     {
-        // 期待される区間数はexpectedStations.Count - 1（駅数 - 1 = ホップ数）
         if (seq.Count != expectedStations.Count - 1) return false;
         if (seq.Count == 0) return false;
 

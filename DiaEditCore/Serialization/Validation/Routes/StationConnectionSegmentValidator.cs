@@ -9,18 +9,21 @@ public sealed class StationConnectionSegmentValidator : IValidator<StationConnec
     {
         var issues = new List<IValidationIssue>();
 
-        if (target.FromStationId == target.ToStationId)
-            issues.Add(new ValidationIssue($"StationConnectionSegment({target.Id}): FromStationIdとToStationIdが同一"));
+        if (target.StationIdA == target.StationIdB)
+            issues.Add(new ValidationIssue($"StationConnectionSegment({target.Id}): StationIdAとStationIdBが同一"));
 
-        ValidateEntryPointStationConsistency(target, context, issues, target.FromEntryPointId, target.FromStationId, "FromEntryPointId", "FromStationId");
-        ValidateEntryPointStationConsistency(target, context, issues, target.ToEntryPointId, target.ToStationId, "ToEntryPointId", "ToStationId");
+        ValidateEntryPointStationConsistency(target, context, issues, target.EntryPointIdA, target.StationIdA, "EntryPointIdA", "StationIdA");
+        ValidateEntryPointStationConsistency(target, context, issues, target.EntryPointIdB, target.StationIdB, "EntryPointIdB", "StationIdB");
 
         return issues;
     }
 
-    // §8.2項目4（v11.3実装セッションで判明）：EntryPointが実際にfromStationId/toStationId側のFloorUnit内に
+    // §8.2項目4（v11.3実装セッションで判明）：EntryPointが実際にStationIdA/StationIdB側のFloorUnit内に
     // 存在することを検証する。EntryPoint実体の引き当てを要する横断検証だが、ValidationContextが
     // 必要な参照（EntryPoints/FloorUnits）を既に提供しているため、単一オブジェクトValidatorの範疇で完結する。
+    // v12.29：FromEntryPointId/FromStationId等の有向な語彙をEntryPointIdA/StationIdA等の
+    // 無向な語彙へ機械的に置換。本検証自体はA側・B側それぞれ独立にEP↔Station対応を見るだけで
+    // 向きに依存しないため、意味論上の変更はない。
     private static void ValidateEntryPointStationConsistency(
         StationConnectionSegment target,
         ValidationContext context,

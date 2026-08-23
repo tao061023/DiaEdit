@@ -25,10 +25,10 @@ public class StationConnectionSegmentValidatorTests
         EntryPointId? fromEntryPointId = null, EntryPointId? toEntryPointId = null) => new()
         {
             Id = new StationConnectionSegmentId(1),
-            FromStationId = fromStationId,
-            ToStationId = toStationId,
-            FromEntryPointId = fromEntryPointId ?? EpA,
-            ToEntryPointId = toEntryPointId ?? EpB,
+            StationIdA = fromStationId,
+            StationIdB = toStationId,
+            EntryPointIdA = fromEntryPointId ?? EpA,
+            EntryPointIdB = toEntryPointId ?? EpB,
             MainRouteId = new MainRouteId(1),
         };
 

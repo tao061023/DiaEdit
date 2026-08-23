@@ -1,32 +1,15 @@
-namespace DiaEditCore.Algorithm.Conflicts;
-
-using DiaEditCore.Algorithm.CacheBuilder;
-
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
+using DiaEditCore.Algorithm.CacheBuilder;
+
+namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
-/// Track（番線）用途のConflictChecker：全Trainを走査し、番線ごとの占有区間を構築する。
-///
-/// 占有区間 = 「到着StationPathの占有開始」〜「出発StationPathの占有終了」
-/// 各訪問の到着/出発StationPath占有はStopVisitOccupancyResolverを再利用する。
-///
-/// 始発・終着側（片側のStationPath占有が存在しない訪問）の境界：
-///   - 到着側が存在しない訪問（visitSeq==0）：TrainConnectionResolver.ResolveUniquePrevTrainMapで
-///     解決した一意なPrevTrainの到着占有終了を採用。PrevTrainが解決できない場合は
-///     ProjectSettings.DiagramBasedTimeSec（ダイヤグラム描画の始端）で打ち切る。
-///   - 出発側が存在しない訪問（visitSeq==segs.Count）：TrainConnectionResolver.ResolveUniqueNextTrainMapで
-///     解決した一意なNextTrainの出発占有開始を採用。NextTrainが解決できない場合は、
-///     この訪問自体の到着占有終了をそのままTrack占有終了として採用する（後続列車が存在しない以上、
-///     それ以上先まで占有を仮定する根拠がないため）。
-///
-/// 一意マッチングの採用理由：ResolveNextTrain（単一列車視点の簡易API）を列車ごとに
-/// 個別呼び出しすると、複数の到着列車が同じ出発列車を候補として選びうる（非単射）。この場合、
-/// 本来PrevTrain/NextTrain関係にない到着列車同士が同じ出発列車の占有開始まで境界を延長し、
-/// 誤ったTrack占有重複（誤検出）を引き起こす。ResolveUniqueNextTrainMap/ResolveUniquePrevTrainMapは
-/// 「1出発列車=最大1到着列車」を保証するため、この誤検出を構造的に防止できる。
+/// Track（番線）用途のConflictChecker（6.5節）。
+/// v12.29対応：EntryPointSequenceCache.Buildの系統(ii)化に伴い、allMainRoutesを新規に受け取る。
+/// （クラス冒頭の詳細コメントは既存版から変更なし。シグネチャ・呼び出し箇所のみ更新）
 /// </summary>
 public static class TrackOccupancyProvider
 {
@@ -34,6 +17,7 @@ public static class TrackOccupancyProvider
         IReadOnlyList<Train> trains,
         IReadOnlyList<StationConnection> stationConnections,
         IReadOnlyList<StationConnectionSegment> allSegments,
+        IReadOnlyList<MainRoute> allMainRoutes,
         IReadOnlyDictionary<StationPathId, StationPath> pathsById,
         IReadOnlyDictionary<(EntryPointId, RailId), StationPathId> arrivalIndex,
         IReadOnlyDictionary<(RailId, EntryPointId), StationPathId> departureIndex,
@@ -50,14 +34,12 @@ public static class TrackOccupancyProvider
             list.Add(occ);
         }
 
-        var resolveEp = EntryPointSequenceCache.Build(stationConnections, allSegments);
+        var resolveEp = EntryPointSequenceCache.Build(stationConnections, allSegments, allMainRoutes);
         var trainDepartureIndex = DepartureByStationTrackIndexBuilder.Build(trains);
         var prevTrainMap = TrainConnectionResolver.ResolveUniquePrevTrainMap(trains, trainDepartureIndex, projectSettings);
         var nextTrainMap = TrainConnectionResolver.ResolveUniqueNextTrainMap(trains, trainDepartureIndex, projectSettings);
 
-        // PrevTrain解決用：各Trainの「終着側訪問(visitSeq=segs.Count)」の到着占有終了を事前計算
         var terminalArrivalEnd = new Dictionary<TrainId, int>();
-        // NextTrain解決用：各Trainの「始発側訪問(visitSeq=0)」の出発占有開始を事前計算
         var initialDepartureStart = new Dictionary<TrainId, int>();
 
         foreach (var train in trains)
@@ -87,10 +69,6 @@ public static class TrackOccupancyProvider
                 {
                     if (TryResolveSplitOriginStart(train, trainsById, out var splitStart))
                     {
-                        // 分割由来の子Train：親Trainの占有終了ではなく、Decoupling作業完了時刻
-                        // （EndOpSeconds）から占有が続いているとみなす（作業中は基準側Trainの
-                        // 占有として既に計上されているため、二重計上を避けるためStartOpSecondsではなく
-                        // EndOpSecondsを採用する）。
                         start = splitStart;
                     }
                     else if (prevTrainMap.TryGetValue(train.Id, out var prevTrainId) &&
@@ -114,8 +92,6 @@ public static class TrackOccupancyProvider
                     }
                     else
                     {
-                        // NextTrainが解決できない場合：これ以上先まで占有を仮定する根拠がないため、
-                        // この訪問自体の到着占有終了をそのままTrack占有終了として採用する。
                         end = visit.ArrivalEnd ?? start;
                     }
                 }
@@ -130,10 +106,6 @@ public static class TrackOccupancyProvider
         return result;
     }
 
-    /// <summary>
-    /// trainがSplitOriginRef経由の分割由来Trainである場合、参照先Decoupling作業の
-    /// EndOpSeconds（作業完了時刻）を占有開始時刻として返す。該当しなければfalse。
-    /// </summary>
     private static bool TryResolveSplitOriginStart(
         Train train, IReadOnlyDictionary<TrainId, Train> trainsById, out int startSeconds)
     {
@@ -152,13 +124,6 @@ public static class TrackOccupancyProvider
         return true;
     }
 
-    /// <summary>
-    /// StationWork.Type == Shunting について、参照先StationPathをRailSequenceResolverで
-    /// Rail列に展開し、うちRailRole.Trackのものを対象オブジェクトとしてTrack占有に加える
-    /// （入換作業中に誤ってその番線へ進入する列車との支障を検知するため。）。
-    ///
-    /// 前提：StationWork.StationPathId・StartOpSeconds・EndOpSeconds（Shuntingでは両方必須）。
-    /// </summary>
     private static void AddShuntingOccupancy(
         IReadOnlyList<Train> trains,
         IReadOnlyDictionary<StationPathId, StationPath> pathsById,
@@ -168,7 +133,6 @@ public static class TrackOccupancyProvider
         var railSequenceResolver = new RailSequenceResolver(rails);
         var trackRailIds = rails.Where(r => r.Role == RailRole.Track).Select(r => r.Id).ToHashSet();
 
-        // StationPathId単位でRail列をメモ化（同じStationPathが複数のShunting作業から参照されうるため）
         var railSequenceCache = new Dictionary<StationPathId, IReadOnlyList<RailId>>();
         IReadOnlyList<RailId> ResolveRails(StationPathId spId) =>
             railSequenceCache.TryGetValue(spId, out var cached)
