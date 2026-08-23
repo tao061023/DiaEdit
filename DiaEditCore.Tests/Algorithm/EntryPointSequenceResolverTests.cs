@@ -290,6 +290,7 @@ public class EntryPointSequenceResolverTests
 
         // StationOrder=[stA, stB, stC]（環状。末尾stCの次はstAに戻る）
         var mainRoute = MakeMainRoute(mainRouteId, stA, stB, stC);
+        mainRoute.IsLoop = true;
 
         // 境界Segment：stC→stA（Down方向で末尾から先頭へ戻る）
         var seg = MakeSegment(new StationConnectionSegmentId(1), stC, stA, mainRouteId);

@@ -20,15 +20,16 @@ public class StationConnectionSegmentValidatorTests
     private static readonly FloorUnitId FuB = new(200);
     private static readonly FloorUnitId FuNotExist = new(999);
 
+    // v12.29：BaseRunTimeSec引数はStationConnectionSegmentからの項目削除に伴い廃止。
     private static StationConnectionSegment MakeTarget(
-        StationId fromStationId, StationId toStationId, int baseRunTimeSec,
-        EntryPointId? fromEntryPointId = null, EntryPointId? toEntryPointId = null) => new()
+        StationId stationIdA, StationId stationIdB,
+        EntryPointId? entryPointIdA = null, EntryPointId? entryPointIdB = null) => new()
         {
             Id = new StationConnectionSegmentId(1),
-            StationIdA = fromStationId,
-            StationIdB = toStationId,
-            EntryPointIdA = fromEntryPointId ?? EpA,
-            EntryPointIdB = toEntryPointId ?? EpB,
+            StationIdA = stationIdA,
+            StationIdB = stationIdB,
+            EntryPointIdA = entryPointIdA ?? EpA,
+            EntryPointIdB = entryPointIdB ?? EpB,
             MainRouteId = new MainRouteId(1),
         };
 
@@ -48,7 +49,7 @@ public class StationConnectionSegmentValidatorTests
 
     private static ValidationContext EmptyContext() => new();
 
-    // FromStationId=StA・ToStationId=StBに対して、EpA→FuA(StA)・EpB→FuB(StB)が正しく揃った文脈
+    // StationIdA=StA・StationIdB=StBに対して、EpA→FuA(StA)・EpB→FuB(StB)が正しく揃った文脈
     private static ValidationContext ValidContext() => new()
     {
         EntryPoints = new[] { MakeEntryPoint(EpA, FuA), MakeEntryPoint(EpB, FuB) },
@@ -58,7 +59,7 @@ public class StationConnectionSegmentValidatorTests
     [Fact]
     public void 有効な値であれば合格()
     {
-        var target = MakeTarget(StA, StB, 300);
+        var target = MakeTarget(StA, StB);
 
         var issues = new StationConnectionSegmentValidator().Validate(target, ValidContext());
 
@@ -66,21 +67,11 @@ public class StationConnectionSegmentValidatorTests
     }
 
     [Fact]
-    public void BaseRunTimeSecが0なら合格()
+    public void StationIdAとStationIdBが同一だと不合格()
     {
-        var target = MakeTarget(StA, StB, 0);
+        var target = MakeTarget(StA, StA);
 
-        var issues = new StationConnectionSegmentValidator().Validate(target, ValidContext());
-
-        Assert.Empty(issues);
-    }
-
-    [Fact]
-    public void FromStationIdとToStationIdが同一だと不合格()
-    {
-        var target = MakeTarget(StA, StA, 300);
-
-        // FromStationId=ToStationId=StAなので、EntryPoint整合性の前提が崩れる（EpBはStB向けに作られている）。
+        // StationIdA=StationIdB=StAなので、EntryPoint整合性の前提が崩れる（EpBはStB向けに作られている）。
         // ここではEntryPoint整合性エラーを混入させないよう、両EPともStA所属のFloorUnitに揃えた文脈を使う。
         var context = new ValidationContext
         {
@@ -90,16 +81,16 @@ public class StationConnectionSegmentValidatorTests
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("FromStationId"));
+        Assert.Contains(issues, i => i.Message.Contains("StationIdA"));
         Assert.DoesNotContain(issues, i => i.Message.Contains("EntryPointId"));
     }
 
-    // ---- ここから①EntryPoint駅整合性の新規ケース ----
+    // ---- ここからEntryPoint駅整合性のケース ----
 
     [Fact]
-    public void FromEntryPointIdが存在しないと不合格()
+    public void EntryPointIdAが存在しないと不合格()
     {
-        var target = MakeTarget(StA, StB, 300, fromEntryPointId: EpNotExist);
+        var target = MakeTarget(StA, StB, entryPointIdA: EpNotExist);
         var context = new ValidationContext
         {
             EntryPoints = new[] { MakeEntryPoint(EpB, FuB) },
@@ -108,13 +99,13 @@ public class StationConnectionSegmentValidatorTests
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("FromEntryPointId") && i.Message.Contains("存在しない"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdA") && i.Message.Contains("存在しない"));
     }
 
     [Fact]
-    public void ToEntryPointIdが存在しないと不合格()
+    public void EntryPointIdBが存在しないと不合格()
     {
-        var target = MakeTarget(StA, StB, 300, toEntryPointId: EpNotExist);
+        var target = MakeTarget(StA, StB, entryPointIdB: EpNotExist);
         var context = new ValidationContext
         {
             EntryPoints = new[] { MakeEntryPoint(EpA, FuA) },
@@ -123,13 +114,13 @@ public class StationConnectionSegmentValidatorTests
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("ToEntryPointId") && i.Message.Contains("存在しない"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdB") && i.Message.Contains("存在しない"));
     }
 
     [Fact]
-    public void FromEntryPointIdのFloorUnitが存在しないと不合格()
+    public void EntryPointIdAのFloorUnitが存在しないと不合格()
     {
-        var target = MakeTarget(StA, StB, 300);
+        var target = MakeTarget(StA, StB);
         var context = new ValidationContext
         {
             EntryPoints = new[] { MakeEntryPoint(EpA, FuNotExist), MakeEntryPoint(EpB, FuB) },
@@ -138,13 +129,13 @@ public class StationConnectionSegmentValidatorTests
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("FromEntryPointId") && i.Message.Contains("FloorUnit"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdA") && i.Message.Contains("FloorUnit"));
     }
 
     [Fact]
-    public void ToEntryPointIdのFloorUnitが存在しないと不合格()
+    public void EntryPointIdBのFloorUnitが存在しないと不合格()
     {
-        var target = MakeTarget(StA, StB, 300);
+        var target = MakeTarget(StA, StB);
         var context = new ValidationContext
         {
             EntryPoints = new[] { MakeEntryPoint(EpA, FuA), MakeEntryPoint(EpB, FuNotExist) },
@@ -153,29 +144,29 @@ public class StationConnectionSegmentValidatorTests
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("ToEntryPointId") && i.Message.Contains("FloorUnit"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdB") && i.Message.Contains("FloorUnit"));
     }
 
     [Fact]
-    public void FromEntryPointIdが違う駅のFloorUnitを指すと不合格()
+    public void EntryPointIdAが違う駅のFloorUnitを指すと不合格()
     {
-        var target = MakeTarget(StA, StB, 300);
+        var target = MakeTarget(StA, StB);
         var context = new ValidationContext
         {
-            // EpAはFuA(StC所属)を指す。target.FromStationIdはStAなので不一致
+            // EpAはFuA(StC所属)を指す。target.StationIdAはStAなので不一致
             EntryPoints = new[] { MakeEntryPoint(EpA, FuA), MakeEntryPoint(EpB, FuB) },
             FloorUnits = new[] { MakeFloorUnit(FuA, StC), MakeFloorUnit(FuB, StB) },
         };
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("FromEntryPointId") && i.Message.Contains("FromStationId"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdA") && i.Message.Contains("StationIdA"));
     }
 
     [Fact]
-    public void ToEntryPointIdが違う駅のFloorUnitを指すと不合格()
+    public void EntryPointIdBが違う駅のFloorUnitを指すと不合格()
     {
-        var target = MakeTarget(StA, StB, 300);
+        var target = MakeTarget(StA, StB);
         var context = new ValidationContext
         {
             EntryPoints = new[] { MakeEntryPoint(EpA, FuA), MakeEntryPoint(EpB, FuB) },
@@ -184,13 +175,13 @@ public class StationConnectionSegmentValidatorTests
 
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
-        Assert.Contains(issues, i => i.Message.Contains("ToEntryPointId") && i.Message.Contains("ToStationId"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdB") && i.Message.Contains("StationIdB"));
     }
 
     [Fact]
-    public void FromとTo両方でEntryPoint不整合があると両方報告される()
+    public void AとB両方でEntryPoint不整合があると両方報告される()
     {
-        var target = MakeTarget(StA, StB, 300);
+        var target = MakeTarget(StA, StB);
         var context = new ValidationContext
         {
             EntryPoints = new[] { MakeEntryPoint(EpA, FuNotExist), MakeEntryPoint(EpB, FuNotExist) },
@@ -200,7 +191,7 @@ public class StationConnectionSegmentValidatorTests
         var issues = new StationConnectionSegmentValidator().Validate(target, context);
 
         Assert.Equal(2, issues.Count);
-        Assert.Contains(issues, i => i.Message.Contains("FromEntryPointId"));
-        Assert.Contains(issues, i => i.Message.Contains("ToEntryPointId"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdA"));
+        Assert.Contains(issues, i => i.Message.Contains("EntryPointIdB"));
     }
 }

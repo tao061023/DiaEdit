@@ -81,7 +81,7 @@ public static class EntryPointSequenceResolver
             }
             if (mainRoute is null) continue; // MainRoute未検出＝向き解決不能。このSegmentのみスキップ
 
-            var element = ResolveDirectionByStationOrder(seg, sc.Direction, mainRoute.StationOrder);
+            var element = ResolveDirectionByStationOrder(seg, sc.Direction, mainRoute.StationOrder, mainRoute.IsLoop);
             if (element is not null) result.Add(element);
             // else: StationOrder上で隣接していない＝データ不整合。スキップ
             // （StationConnectionValidatorが保存時に検出する想定）
@@ -91,35 +91,58 @@ public static class EntryPointSequenceResolver
     }
 
     /// <summary>
-    /// 1つのSegmentについて、StationOrder上でsc.Directionの進行方向に1ステップ進んだ先が
-    /// 相手側の駅と一致する方を「発側」として採用する。ループ境界はmod演算で吸収する。
+    /// 1つのSegmentについて、StationOrder上でのIndex差分(diff)から発側を機械的に解決する。
+    ///
+    /// v12.29修正：当初はidxAからstep分進んだ先がidxBと一致するかをmod演算で判定していたが、
+    /// count=2（2駅のみの路線、単純な単線区間で最も頻出する構成）でDown/Upのstepの符号が
+    /// 打ち消し合って区別できなくなるバグがあった（+1 mod 2 と -1 mod 2 が同値になるため）。
+    /// diffベースの判定に切り替えることで、隣接判定（diff==±1）とループ境界判定
+    /// （|diff|==count-1、count>=3でのみ意味を持つ）を明確に分離し、count=2での曖昧さを解消する。
     /// </summary>
     private static EntryPointSequenceElement? ResolveDirectionByStationOrder(
         StationConnectionSegment seg,
         StationConnectionDirection direction,
-        IReadOnlyList<StationId> stationOrder)
+        IReadOnlyList<StationId> stationOrder,
+        bool isLoop)
     {
         var count = stationOrder.Count;
-        if (count == 0) return null;
+        if (count < 2) return null;
 
         var idxA = IndexOfStation(stationOrder, seg.StationIdA);
         var idxB = IndexOfStation(stationOrder, seg.StationIdB);
         if (idxA < 0 || idxB < 0) return null;
 
-        var step = direction == StationConnectionDirection.Down ? 1 : -1;
+        var diff = idxB - idxA;
 
-        var nextOfA = Mod(idxA + step, count);
-        if (nextOfA == idxB)
-            return new EntryPointSequenceElement(seg.StationIdA, seg.StationIdB, seg.EntryPointIdA, seg.EntryPointIdB);
+        bool ascendingIsAtoB;
+        if (diff == 1)
+        {
+            ascendingIsAtoB = true; // 通常の隣接：Aが低index側
+        }
+        else if (diff == -1)
+        {
+            ascendingIsAtoB = false; // 通常の隣接：Bが低index側
+        }
+        else if (isLoop && count >= 3 && Math.Abs(diff) == count - 1)
+        {
+            // ループ境界（index 0とindex count-1のペア）。isLoop==trueの場合のみ有効な
+            // 隣接とみなす（v12.29修正：isLoopを見ずにIndex差分だけで判定すると、
+            // count==3のとき「真ん中の駅を飛ばした不整合データ」と「本物のループ境界」が
+            // 区別できず、前者を誤って正常として受理してしまうバグがあった）。
+            // 昇順（Down）は末尾→先頭へ折り返すため、count-1側を保持する方が「発側」となる。
+            ascendingIsAtoB = idxA == count - 1;
+        }
+        else
+        {
+            return null; // StationOrder上で隣接していない（データ不整合、またはisLoop=falseでの境界誤爆）
+        }
 
-        var nextOfB = Mod(idxB + step, count);
-        if (nextOfB == idxA)
-            return new EntryPointSequenceElement(seg.StationIdB, seg.StationIdA, seg.EntryPointIdB, seg.EntryPointIdA);
+        var aIsFrom = direction == StationConnectionDirection.Down ? ascendingIsAtoB : !ascendingIsAtoB;
 
-        return null; // StationOrder上で隣接していない（データ不整合）
+        return aIsFrom
+            ? new EntryPointSequenceElement(seg.StationIdA, seg.StationIdB, seg.EntryPointIdA, seg.EntryPointIdB)
+            : new EntryPointSequenceElement(seg.StationIdB, seg.StationIdA, seg.EntryPointIdB, seg.EntryPointIdA);
     }
-
-    private static int Mod(int value, int modulus) => ((value % modulus) + modulus) % modulus;
 
     /// <summary>
     /// IReadOnlyList&lt;T&gt;にはIndexOfが定義されていない（List&lt;T&gt;専用）ため、

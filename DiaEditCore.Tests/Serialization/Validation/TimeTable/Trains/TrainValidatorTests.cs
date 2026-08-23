@@ -228,7 +228,7 @@ public class TrainValidatorTests
     // --- 8.2節項目6：baseTimeTableSet内はSourceTrainId=null必須 ---
 
     [Fact]
-    public void baseTimeTableSet所属でSourceTrainIdを持つと不合格()
+    public void BaseTimeTableSet所属でSourceTrainIdを持つと不合格()
     {
         var parent = MakeValidTrain(1, "0001M");
         var child = MakeValidTrain(2, "0002M");
@@ -250,7 +250,7 @@ public class TrainValidatorTests
     }
 
     [Fact]
-    public void baseTimeTableSet所属でもSourceTrainIdが無ければ合格()
+    public void BaseTimeTableSet所属でもSourceTrainIdが無ければ合格()
     {
         var train = MakeValidTrain(1);
 
@@ -356,7 +356,8 @@ public class TrainValidatorTests
         var stB = new StationId(2);
         var seg = MakeSegment(1, stA, stB);
         var sc = MakeConnection(1, 1, StationConnectionDirection.Down, seg.Id);
-
+        var mainRoute = MakeMainRoute(1, stA, stB); // ← 追加：EntryPointSequenceResolver.Resolveの向き解決に必要
+ 
         var train = MakeValidTrain(1);
         train.RunSegments.Add(new TrainRunSegment
         {
@@ -364,10 +365,10 @@ public class TrainValidatorTests
             ToStationId = stB,
             StationConnectionId = sc.Id,
         });
-        var context = MakeBaseContext([train], [sc], [seg]);
-
+        var context = MakeBaseContext([train], [sc], [seg], mainRoutes: [mainRoute]); // ← mainRoutes追加
+ 
         var issues = new TrainValidator().Validate(train, context);
-
+ 
         Assert.Empty(issues);
     }
 
@@ -403,19 +404,19 @@ public class TrainValidatorTests
         var seg1 = MakeSegment(1, stA, stB);
         var seg2 = MakeSegment(2, stB, stC);
         var sc = MakeConnection(1, 1, StationConnectionDirection.Down, seg1.Id, seg2.Id);
-
+        var mainRoute = MakeMainRoute(1, stA, stB, stC); // ← 追加
+ 
         var train = MakeValidTrain(1);
-        // B→CというホップはSC全体の一部（2番目のsegment）としてのみ存在する
         train.RunSegments.Add(new TrainRunSegment
         {
             FromStationId = stB,
             ToStationId = stC,
             StationConnectionId = sc.Id,
         });
-        var context = MakeBaseContext([train], [sc], [seg1, seg2]);
-
+        var context = MakeBaseContext([train], [sc], [seg1, seg2], mainRoutes: [mainRoute]); // ← mainRoutes追加
+ 
         var issues = new TrainValidator().Validate(train, context);
-
+ 
         Assert.Empty(issues);
     }
 

@@ -81,10 +81,14 @@ public class StationConnectionValidatorTests
     }
 
     [Fact]
-    public void SegmentsとStationOrderの順序が矛盾すると不合格()
+    public void 双単線_Down登録のSegmentをUp方向SCが共有しても合格()
     {
+        // StationIdA/StationIdBは無向ペアであり、Down方向で登録されたSegmentを
+        // Up方向のStationConnectionが共有すること自体は正当なデータ（双単線区間の典型例）。
+        // v12.29のA/Bリネーム以前は、SegmentのFrom/ToとSCのDirectionの不一致を
+        // エラーとして弾いていたが、これは双単線の共有を構造的に禁止してしまう誤りだったため、
+        // 無向マッチングへの変更にあわせて本テストも許可する正常系として書き換えた。
         var (s1, s2, route, depEp, arrEp, seg) = MakeSimpleTwoStationSetup();
-        // Directionを逆にする（Up方向として登録）が、segはs1→s2のまま（Downの並び）→矛盾
         var sc = new StationConnection { Id = new StationConnectionId(1), Name = "上り本線", MainRouteId = route.Id, Direction = StationConnectionDirection.Up, Segments = [seg.Id] };
         var context = new ValidationContext
         {
@@ -93,10 +97,10 @@ public class StationConnectionValidatorTests
             EntryPoints = [depEp, arrEp],
             StationConnectionSegments = [seg],
         };
-
+ 
         var issues = new StationConnectionValidator().Validate(sc, context);
-
-        Assert.Contains(issues, i => i.Message.Contains("期待値"));
+ 
+        Assert.DoesNotContain(issues, i => i.Message.Contains("期待値"));
     }
     
     private static Rail TrackRail(int id, RailEndpointRef a, RailEndpointRef b) => new()
