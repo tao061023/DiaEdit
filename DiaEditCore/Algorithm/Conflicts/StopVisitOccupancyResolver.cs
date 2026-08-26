@@ -10,6 +10,16 @@ using DiaEditCore.Model.TimeTable.Trains;
 /// StationPathOccupancyProvider・TrackOccupancyProviderの両方から同一の算出式を共有するために切り出した。 <br/>
 ///
 /// 基準時刻の統一：停車時はarrivalSeconds/departureSeconds、通過時はdepartureSecondsを通過時刻として流用する。いずれも未設定(-1)なら対象外。
+///
+/// v12.29追加修正：arrivalEp/departureEpの取得を、resolveEpが返す配列の位置決め打ち
+/// （[0]・[^1]）から、そのホップ自身の発着駅（TrainRunSegment.FromStationId/ToStationId）と
+/// 一致する要素を検索する方式へ変更した。広域SC（複数ホップを1つのStationConnectionが
+/// カバーする構成。ServiceRouteToRunSegmentsResolverが正式サポート）では、resolveEpが
+/// 2件以上の要素を返すため、位置決め打ちだと中間駅で隣接ホップのEntryPointを誤って
+/// 取得してしまうバグがあった（例：A→B→CをカバーするSCで、B駅到着時に本来必要な
+/// A→B側の到着EPではなく、B→C側の到着EP（C駅側）を誤取得していた）。
+/// FirstOrDefaultが一致要素を見つけられない場合（データ不整合等）はnullを返し、
+/// 占有情報なしとして扱う（例外は投げない）。
 /// </summary>
 public static class StopVisitOccupancyResolver
 {
@@ -43,12 +53,30 @@ public static class StopVisitOccupancyResolver
         if (!train.StopTimes.TryGetValue(stopKey, out var st)) return null;
         if (st.TrackRailId is not { } trackRailId) return null;
 
-        EntryPointId? arrivalEp = visitSeq > 0
-            ? resolveEp(segs[visitSeq - 1].StationConnectionId)[^1].ToEntryPointId
-            : null;
-        EntryPointId? departureEp = visitSeq < segs.Count
-            ? resolveEp(segs[visitSeq].StationConnectionId)[0].FromEntryPointId
-            : null;
+        EntryPointId? arrivalEp = null;
+        if (visitSeq > 0)
+        {
+            var hopPrev = segs[visitSeq - 1];
+            var seq = resolveEp(hopPrev.StationConnectionId);
+            var element = seq.FirstOrDefault(e =>
+                e.FromStationId == hopPrev.FromStationId && e.ToStationId == hopPrev.ToStationId);
+            arrivalEp = element?.ToEntryPointId;
+            // 広域SC（複数ホップを1つのStationConnectionがカバーする構成）では、
+            // seqが2件以上返りうるため、配列の末尾([^1])を機械的に取るのではなく、
+            // このホップ自身のFrom/Toと一致する要素を明示的に検索する必要がある
+            // （v12.29追加修正：末尾固定だと広域SCの中間駅で隣接ホップのEPを誤って
+            // 取得してしまうバグがあった）。
+        }
+
+        EntryPointId? departureEp = null;
+        if (visitSeq < segs.Count)
+        {
+            var hopNext = segs[visitSeq];
+            var seq = resolveEp(hopNext.StationConnectionId);
+            var element = seq.FirstOrDefault(e =>
+                e.FromStationId == hopNext.FromStationId && e.ToStationId == hopNext.ToStationId);
+            departureEp = element?.FromEntryPointId;
+        }
 
         int? arrivalBasis = st.IsStop
             ? (st.ArrivalSeconds >= 0 ? st.ArrivalSeconds : (int?)null)
