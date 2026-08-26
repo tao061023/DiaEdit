@@ -35,7 +35,8 @@ public class TimeTableSetCacheTests
             stationConnections: [], // 孤立＝どのSCからも参照されない
             segments: [seg],
             restrictions: [],
-            mainRoutes: []);
+            mainRoutes: [],
+            serviceRoutes: []);
 
         Assert.True(cache.EntryPointUsedBySegmentIndex.TryGetValue(new EntryPointId(10), out var fromList));
         Assert.Contains(new StationConnectionSegmentId(50), fromList!);
@@ -55,7 +56,8 @@ public class TimeTableSetCacheTests
             stationConnections: [],
             segments: [seg],
             restrictions: [],
-            mainRoutes: []);
+            mainRoutes: [],
+            serviceRoutes: []);
 
         Assert.True(cache.MainRouteUsedBySegmentIndex.TryGetValue(new MainRouteId(100), out var list));
         Assert.Contains(new StationConnectionSegmentId(50), list!);
@@ -70,11 +72,11 @@ public class TimeTableSetCacheTests
         var segB = MakeSeg(id: 51, fromStation: 3, toStation: 4, fromEp: 30, toEp: 40, mainRouteId: 200);
         var cache = new TimeTableSetCache();
 
-        cache.RebuildAll(trains: [], stationConnections: [], segments: [segA], restrictions: [], mainRoutes: []);
+        cache.RebuildAll(trains: [], stationConnections: [], segments: [segA], restrictions: [], mainRoutes: [], serviceRoutes: []);
         Assert.True(cache.EntryPointUsedBySegmentIndex.ContainsKey(new EntryPointId(10)));
 
         // 2回目：segAを含まない新しい入力で再構築
-        cache.RebuildAll(trains: [], stationConnections: [], segments: [segB], restrictions: [], mainRoutes: []);
+        cache.RebuildAll(trains: [], stationConnections: [], segments: [segB], restrictions: [], mainRoutes: [], serviceRoutes: []);
 
         Assert.False(cache.EntryPointUsedBySegmentIndex.ContainsKey(new EntryPointId(10)));
         Assert.True(cache.EntryPointUsedBySegmentIndex.ContainsKey(new EntryPointId(30)));

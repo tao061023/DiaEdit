@@ -218,4 +218,91 @@ public class DependencyResolverTests
         Assert.Contains(new StationConnectionObjectId(scId), result);
         Assert.Contains(new StationConnectionSegmentObjectId(scsId), result);
     }
+    [Fact]
+    public void ResolveAffected_StationConnection_ResolvesReferencingServiceRoute()
+    {
+        var cache = MakeCache();
+        var scId = new StationConnectionId(10);
+        var routeId = new ServiceRouteId(1);
+        cache.StationConnectionUsedByServiceRouteIndex[scId] = [routeId];
+
+        var changed = new HashSet<ObjectId> { new StationConnectionObjectId(scId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+
+        Assert.Equal(2, result.Count);
+        Assert.Contains(new ServiceRouteObjectId(routeId), result);
+    }
+
+    [Fact]
+    public void ResolveAffected_StationConnection_ResolvesMultipleReferencingServiceRoutes()
+    {
+        // PairedSelectedStationConnectionId経由で同一StationConnectionを別ServiceRouteが
+        // 参照するケース（複数ServiceRouteからの参照）を検証する。
+        var cache = MakeCache();
+        var scId = new StationConnectionId(10);
+        var routeIdA = new ServiceRouteId(1);
+        var routeIdB = new ServiceRouteId(2);
+        cache.StationConnectionUsedByServiceRouteIndex[scId] = [routeIdA, routeIdB];
+
+        var changed = new HashSet<ObjectId> { new StationConnectionObjectId(scId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+
+        Assert.Contains(new ServiceRouteObjectId(routeIdA), result);
+        Assert.Contains(new ServiceRouteObjectId(routeIdB), result);
+    }
+
+    [Fact]
+    public void ResolveAffected_StationConnection_NoReferencingServiceRoute_ReturnsOnlyItself()
+    {
+        var cache = MakeCache();
+        var scId = new StationConnectionId(10);
+
+        var changed = new HashSet<ObjectId> { new StationConnectionObjectId(scId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void ResolveAffected_ServiceRoute_IsTerminalNode()
+    {
+        // §9.1項目3残課題：ServiceRoute←Trainの逆引きは§5.14.4棚卸し未着手のため、
+        // 現時点では意図的に終端として振る舞うことを固定する回帰テスト。
+        var cache = MakeCache();
+        var routeId = new ServiceRouteId(1);
+
+        var changed = new HashSet<ObjectId> { new ServiceRouteObjectId(routeId) };
+        var result = DependencyResolver.ResolveAffected(changed, cache);
+
+        Assert.Single(result);
+    }
+
+    [Fact]
+    public void ResolveDirectDependents_AllObjectIdTypes_AreExplicitlyHandled()
+    {
+        // C#のswitch式はsealed record階層の部分型網羅性をコンパイル時に検証できないため
+        // （§9.1項目20参照）、このテストがCS8509の代替となる「新規ObjectId型の
+        // ケース追加漏れ検知」を担う。ObjectId.csに型を追加したのにDependencyResolver側の
+        // switchケース追加を忘れると、このテストが失敗して気づける。
+        var cache = MakeCache();
+
+        var objectIdTypes = typeof(ObjectId).Assembly.GetTypes()
+            .Where(t => typeof(ObjectId).IsAssignableFrom(t) && !t.IsAbstract);
+
+        foreach (var type in objectIdTypes)
+        {
+            // 各ObjectId派生型はId1個のプリミティブ型record structを取るコンストラクタを持つ前提
+            // （既存の全24種と一致するパターン）。デフォルト値でインスタンス化する。
+            var ctor = type.GetConstructors().Single();
+            var idType = ctor.GetParameters()[0].ParameterType;
+            var idInstance = Activator.CreateInstance(idType, [0]);
+            var instance = (ObjectId)ctor.Invoke([idInstance]);
+
+            var exception = Record.Exception(() => DependencyResolver.ResolveDirectDependents(instance, cache).ToList());
+
+            Assert.False(
+                exception is NotSupportedException,
+                $"{type.Name} がDependencyResolver.ResolveDirectDependentsのswitchで明示的にケース化されていません（catch-allに吸収されています）。");
+        }
+    }
 }

@@ -67,6 +67,8 @@ public sealed class TimeTableSetCache
     // 構築はMainRouteUsedBySegmentIndexBuilder.Build()側の責務とする。
     public Dictionary<MainRouteId, List<StationConnectionSegmentId>> MainRouteUsedBySegmentIndex { get; } = new();
 
+    public Dictionary<StationConnectionId, List<ServiceRouteId>> StationConnectionUsedByServiceRouteIndex { get; } = new();
+
     // -----------------------------
     // (b) 重量キャッシュ系（遅延再構築）
     // -----------------------------
@@ -114,7 +116,8 @@ public sealed class TimeTableSetCache
         IEnumerable<StationConnection> stationConnections,
         IEnumerable<StationConnectionSegment> segments,
         IEnumerable<TemporaryRestriction> restrictions,
-        IEnumerable<MainRoute> mainRoutes)
+        IEnumerable<MainRoute> mainRoutes,
+        IEnumerable<ServiceRoute> serviceRoutes)
     {
         TrainNumberIndex.Clear();
         EntryPointConnectionIndex.Clear();
@@ -133,6 +136,7 @@ public sealed class TimeTableSetCache
         _conflictDirty.Clear();
         EntryPointUsedBySegmentIndex.Clear();
         MainRouteUsedBySegmentIndex.Clear();
+        StationConnectionUsedByServiceRouteIndex.Clear();
 
         // TrainNumberIndex
         foreach (var train in trains)
@@ -163,6 +167,7 @@ public sealed class TimeTableSetCache
                 stationConnectionsList, segmentsList, mainRoutesList);
 
         foreach (var (stationId, list) in stationIdx) StationConnectionIndex[stationId] = list;
+
         foreach (var (entryPointId, list) in entryPointIdx) EntryPointConnectionIndex[entryPointId] = list;
 
         foreach (var (trainId, list) in
@@ -201,6 +206,12 @@ public sealed class TimeTableSetCache
         {
             MainRouteUsedBySegmentIndex[mainRouteId] = list;
         }
+
+        foreach (var (scId, list) in
+        StationConnectionUsedByServiceRouteIndexBuilder.Build(serviceRoutes))
+    {
+        StationConnectionUsedByServiceRouteIndex[scId] = list;
+    }
 
         // TrainOperationIndex は TrainOperationChainResolver が構築する（重複プロパティにつき将来削除予定）
         // DepartureByStationTrackIndex は DepartureByStationTrackIndexBuilder.Build() が構築する

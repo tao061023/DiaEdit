@@ -72,7 +72,8 @@ public sealed class ProjectSession : ICacheChangeObserver
             Current.StationConnections,
             Current.StationConnectionSegments,
             Current.TemporaryRestrictions,
-            Current.MainRoutes);
+            Current.MainRoutes,
+            Current.ServiceRoutes);
 
         var floorUnitDependentIndex = FloorUnitDependentIndexBuilder.Build(
             Current.BoundaryPoints,
