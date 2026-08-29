@@ -1,0 +1,49 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DiaEditApp.ViewModels.Stations"
+             xmlns:stations="using:DiaEditCore.Model.Stations"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="450"
+             x:Class="DiaEditApp.Views.Stations.StationListView"
+             x:DataType="vm:StationListViewModel">
+
+    <DockPanel>
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4" Spacing="4">
+            <Button Content="+駅追加" Command="{Binding AddStationCommand}" />
+            <Button Content="削除" Command="{Binding DeleteSelectedStationCommand}" />
+        </StackPanel>
+
+        <!-- UI設計書4.2.1節の列構成：駅名／種別／事業者管理番号／電報略号
+             DataGridはAvalonia.Controls.DataGrid（別NuGetパッケージ、未導入）に依存するため、
+             M2-2のスキャフォールドではAvalonia本体のみで完結するListBox+Gridで代替する。
+             本格的な列ソート等が必要になった段階でDataGrid導入を改めて検討する。 -->
+        <DockPanel LastChildFill="True">
+
+            <Grid DockPanel.Dock="Top" ColumnDefinitions="200,120,150,100" Margin="4,2">
+                <TextBlock Grid.Column="0" Text="駅名" FontWeight="Bold" />
+                <TextBlock Grid.Column="1" Text="種別" FontWeight="Bold" />
+                <TextBlock Grid.Column="2" Text="事業者管理番号" FontWeight="Bold" />
+                <TextBlock Grid.Column="3" Text="電報略号" FontWeight="Bold" />
+            </Grid>
+
+            <ListBox ItemsSource="{Binding Stations}"
+                     SelectedItem="{Binding SelectedStation, Mode=TwoWay}">
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="stations:Station">
+                        <Grid ColumnDefinitions="200,120,150,100">
+                            <TextBlock Grid.Column="0" Text="{Binding DisplayName.Name}" />
+                            <TextBlock Grid.Column="1" Text="{Binding Type}" />
+                            <TextBlock Grid.Column="2" Text="{Binding OperatingCode}" />
+                            <TextBlock Grid.Column="3" Text="{Binding TelegraphCode}" />
+                        </Grid>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+
+        </DockPanel>
+
+    </DockPanel>
+
+</UserControl>

@@ -4,6 +4,8 @@ using Microsoft.Extensions.DependencyInjection;
 
 using DiaEditCore.ChangeNotification;
 
+using DiaEditApp.ViewModels.Stations;
+
 /// <summary>
 /// DiaEditApp.ViewModels側のDIコンテナ登録（7.3節）。
 /// DiaEditCore.Composition.CoreServiceCollectionExtensions.AddDiaEditCore()の後に呼ぶ想定
@@ -24,6 +26,11 @@ public static class ViewModelServiceCollectionExtensions
         // 画面ViewModelは開くたびに新規生成・閉じたら破棄するため、Transientで登録する（論点K）。
         // MainViewModelは現時点でIAffectedByObjectId未実装（監視対象を持たないスキャフォールドのため）。
         services.AddTransient<MainViewModel>();
+
+        // M2-2：StationListViewModelはProjectSession／CommandInvokerをそのままコンストラクタ注入
+        // されるプレーンな型のため、ファクトリラムダは不要（両者は既にAddDiaEditCore()側でSingleton
+        // 登録済みという前提。DI登録側にロジックを持ち込まない案C、前回セッションでの合意）。
+        services.AddTransient<StationListViewModel>();
 
         return services;
     }

@@ -1,9 +1,10 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:DiaEditApp.ViewModels"
+        xmlns:nav="using:DiaEditApp.ViewModels.Navigation"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        mc:Ignorable="d" d:DesignWidth="800" d:DesignHeight="450"
+        mc:Ignorable="d" d:DesignWidth="1000" d:DesignHeight="600"
         x:Class="DiaEditApp.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
@@ -15,8 +16,25 @@
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <TextBox Text="{Binding Greeting}"
-             HorizontalAlignment="Center"
-             VerticalAlignment="Center" />
+    <Grid ColumnDefinitions="240,*">
+
+        <!-- 左ペイン：ナビゲーションツリー（UI設計書2.1節・4.1節） -->
+        <TreeView Grid.Column="0"
+                  ItemsSource="{Binding RootNodes}"
+                  SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+            <TreeView.ItemTemplate>
+                <TreeDataTemplate ItemsSource="{Binding Children}"
+                                   DataType="nav:NavigationNodeViewModel">
+                    <TextBlock Text="{Binding Header}" />
+                </TreeDataTemplate>
+            </TreeView.ItemTemplate>
+        </TreeView>
+
+        <!-- 中央ペイン：メインワークスペース。ViewLocator（命名規則）でView解決 -->
+        <ContentControl Grid.Column="1"
+                         Content="{Binding CurrentContent}"
+                         Margin="8" />
+
+    </Grid>
 
 </Window>
