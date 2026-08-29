@@ -1,11 +1,14 @@
 namespace DiaEditApp.ViewModels.Stations;
 
+using System;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
 using System.Linq;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using DiaEditCore.ChangeNotification;
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
@@ -18,11 +21,12 @@ using DiaEditCore.Session;
 ///
 /// データ取得・更新方針（DI登録方式の検討結果、案C採用）：ProjectSession／CommandInvokerを
 /// そのままコンストラクタ注入する。Stationsは表示専用のObservableCollectionへコピーし、
-/// CommandInvoker通知（M2-4でChangeNotificationBridge経由の配線が入るまでは）本VM内で
-/// 都度Reload()して同期する。ダブルクリックでの駅詳細編集（M2-3）遷移はMainViewModel側の
-/// ナビゲーション責務とし、本VMはSelectedStationを公開するに留める。
+/// CommandInvokerへICacheChangeObserverとして直接購読することで同期する
+/// （M2-4でChangeNotificationBridge経由の配線に置き換えるまでの暫定対応。MainViewModelの
+/// Undo/Redoボタンなど、本VM外から発生した変更もOnChanged経由で拾えるようにするため、
+/// 自分がExecuteしたときだけReload()する方式では不十分だったことがM2-5動作確認で判明した）。
 /// </summary>
-public sealed partial class StationListViewModel : ViewModelBase
+public sealed partial class StationListViewModel : ViewModelBase, ICacheChangeObserver, IDisposable
 {
     private readonly ProjectSession _session;
     private readonly CommandInvoker _invoker;
@@ -36,13 +40,12 @@ public sealed partial class StationListViewModel : ViewModelBase
     {
         _session = session;
         _invoker = invoker;
+        _invoker.Subscribe(this);
         Reload();
     }
 
     /// <summary>
     /// ProjectSession.Current.Stationsの内容でStationsを再同期する。
-    /// M2-4（ChangeNotificationBridge実配線）完了までは、CreateStation/AddStation実行直後に
-    /// 本メソッドを手動で呼ぶことで整合させる（IAffectedByObjectId経由の自動反映は次段対応）。
     /// </summary>
     public void Reload()
     {
@@ -50,6 +53,8 @@ public sealed partial class StationListViewModel : ViewModelBase
         foreach (var station in _session.Current.Stations)
             Stations.Add(station);
     }
+
+    void ICacheChangeObserver.OnChanged(IReadOnlySet<ObjectId> affectedIds) => Reload();
 
     /// <summary>
     /// UI設計書4.2.1節「+駅追加」。StationCreationWorkflowが返すTransactionCommand
@@ -66,9 +71,7 @@ public sealed partial class StationListViewModel : ViewModelBase
             new DisplayName { Name = "新規駅" },
             StationType.Standard);
 
-        _invoker.Execute(command);
-        Reload();
-
+        _invoker.Execute(command); // OnChanged経由でReload()される
         SelectedStation = Stations.LastOrDefault();
     }
 
@@ -83,9 +86,9 @@ public sealed partial class StationListViewModel : ViewModelBase
         if (SelectedStation is null) return;
 
         var command = new DeleteStationCommand(_session.Current.Stations, SelectedStation, _session);
-        _invoker.Execute(command);
-        Reload();
-
+        _invoker.Execute(command); // OnChanged経由でReload()される
         SelectedStation = null;
     }
+
+    public void Dispose() => _invoker.Unsubscribe(this);
 }

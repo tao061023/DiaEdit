@@ -11,30 +11,39 @@
         Title="DiaEditApp">
 
     <Design.DataContext>
-        <!-- This only sets the DataContext for the previewer in an IDE,
-             to set the actual DataContext for runtime, set the DataContext property in code (look at App.axaml.cs) -->
+        <!-- This only sets the DataContext for the previewer in an IDE.
+             To set the actual DataContext for runtime, set the DataContext property in code, see App.axaml.cs. -->
         <vm:MainViewModel />
     </Design.DataContext>
 
-    <Grid ColumnDefinitions="240,*">
+    <DockPanel>
 
-        <!-- 左ペイン：ナビゲーションツリー（UI設計書2.1節・4.1節） -->
-        <TreeView Grid.Column="0"
-                  ItemsSource="{Binding RootNodes}"
-                  SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
-            <TreeView.ItemTemplate>
-                <TreeDataTemplate ItemsSource="{Binding Children}"
-                                   DataType="nav:NavigationNodeViewModel">
-                    <TextBlock Text="{Binding Header}" />
-                </TreeDataTemplate>
-            </TreeView.ItemTemplate>
-        </TreeView>
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4" Spacing="4">
+            <Button Content="元に戻す" Command="{Binding UndoCommand}" />
+            <Button Content="やり直し" Command="{Binding RedoCommand}" />
+        </StackPanel>
 
-        <!-- 中央ペイン：メインワークスペース。ViewLocator（命名規則）でView解決 -->
-        <ContentControl Grid.Column="1"
-                         Content="{Binding CurrentContent}"
-                         Margin="8" />
+        <Grid ColumnDefinitions="240,*">
 
-    </Grid>
+            <!-- 左ペイン：ナビゲーションツリー（UI設計書2.1節・4.1節） -->
+            <TreeView Grid.Column="0"
+                      ItemsSource="{Binding RootNodes}"
+                      SelectedItem="{Binding SelectedNode, Mode=TwoWay}">
+                <TreeView.ItemTemplate>
+                    <TreeDataTemplate ItemsSource="{Binding Children}"
+                                       DataType="nav:NavigationNodeViewModel">
+                        <TextBlock Text="{Binding Header}" />
+                    </TreeDataTemplate>
+                </TreeView.ItemTemplate>
+            </TreeView>
+
+            <!-- 中央ペイン：メインワークスペース。ViewLocator（命名規則）でView解決 -->
+            <ContentControl Grid.Column="1"
+                             Content="{Binding CurrentContent}"
+                             Margin="8" />
+
+        </Grid>
+
+    </DockPanel>
 
 </Window>
