@@ -1,0 +1,81 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DiaEditApp.ViewModels.Stations"
+             xmlns:stations="using:DiaEditCore.Model.Stations"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="600" d:DesignHeight="500"
+             x:Class="DiaEditApp.Views.Stations.StationDetailView"
+             x:DataType="vm:StationDetailViewModel">
+
+    <DockPanel Margin="8">
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4">
+            <Button Content="← 一覧へ戻る" Command="{Binding GoBackCommand}" />
+            <Button Content="保存" Command="{Binding SaveCommand}" />
+        </StackPanel>
+
+        <!-- 上部：Station属性編集（4.2.2節） -->
+        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
+            <DockPanel>
+                <TextBlock Text="駅名" Width="140" VerticalAlignment="Center" />
+                <TextBox Text="{Binding DisplayNameText}" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="種別" Width="140" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding StationTypes}"
+                          SelectedItem="{Binding Type}" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="事業者管理番号" Width="140" VerticalAlignment="Center" />
+                <TextBox Text="{Binding OperatingCode}" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="電報略号" Width="140" VerticalAlignment="Center" />
+                <TextBox Text="{Binding TelegraphCode}" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="駅時刻表への掲載" Width="140" VerticalAlignment="Center" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                    <CheckBox IsChecked="{Binding ShowsInStationTimetableOverride}"
+                              IsThreeState="True"
+                              Content="未設定＝種別から自動判定" />
+                    <TextBlock Text="{Binding ResolvedShowsInStationTimetable, StringFormat='現在の判定値: {0}'}"
+                               Opacity="0.7" />
+                </StackPanel>
+            </DockPanel>
+        </StackPanel>
+
+        <!-- 中央：FloorUnit一覧（並べ替えは今回見送り、追加・削除のみ） -->
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4" Spacing="4">
+            <TextBlock Text="ホーム（FloorUnit）一覧" VerticalAlignment="Center" FontWeight="Bold" />
+            <Button Content="+追加" Command="{Binding AddFloorUnitCommand}" />
+            <Button Content="削除" Command="{Binding DeleteSelectedFloorUnitCommand}" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Top"
+                    Text="{Binding DeleteFloorUnitError}"
+                    Foreground="Red"
+                    IsVisible="{Binding HasDeleteFloorUnitError}"
+                    Margin="0,0,0,4" />
+
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,100" Margin="4,2">
+            <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" />
+            <TextBlock Grid.Column="1" Text="表示順" FontWeight="Bold" />
+        </Grid>
+
+        <ListBox ItemsSource="{Binding FloorUnits}"
+                 SelectedItem="{Binding SelectedFloorUnit, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="stations:FloorUnit">
+                    <Grid ColumnDefinitions="*,100">
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                        <TextBlock Grid.Column="1" Text="{Binding DisplayOrder}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+    </DockPanel>
+
+</UserControl>

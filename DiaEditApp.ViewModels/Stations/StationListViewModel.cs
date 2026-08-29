@@ -36,6 +36,10 @@ public sealed partial class StationListViewModel : ViewModelBase, ICacheChangeOb
     [ObservableProperty]
     public partial Station? SelectedStation { get; set; }
 
+    /// <summary>UI設計書4.2.1節「ダブルクリックで駅詳細編集へ遷移」。MainViewModelが購読し、
+    /// CurrentContentをStationDetailViewModelへ差し替える（M2-3）。</summary>
+    public event Action<Station>? OpenDetailRequested;
+
     public StationListViewModel(ProjectSession session, CommandInvoker invoker)
     {
         _session = session;
@@ -88,6 +92,15 @@ public sealed partial class StationListViewModel : ViewModelBase, ICacheChangeOb
         var command = new DeleteStationCommand(_session.Current.Stations, SelectedStation, _session);
         _invoker.Execute(command); // OnChanged経由でReload()される
         SelectedStation = null;
+    }
+
+    /// <summary>UI設計書4.2.1節「ダブルクリックで駅詳細編集へ遷移」。View側のDoubleTappedハンドラから
+    /// 対象Stationを渡して呼ばれる想定。</summary>
+    [RelayCommand]
+    private void OpenDetail(Station? station)
+    {
+        if (station is not null)
+            OpenDetailRequested?.Invoke(station);
     }
 
     public void Dispose() => _invoker.Unsubscribe(this);

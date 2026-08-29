@@ -6,12 +6,15 @@ using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
+using Microsoft.Extensions.DependencyInjection;
+
 using DiaEditApp.ViewModels.Navigation;
 using DiaEditApp.ViewModels.Stations;
 
 using DiaEditCore.ChangeNotification;
 using DiaEditCore.Commands;
 using DiaEditCore.Model;
+using DiaEditCore.Model.Stations;
 
 /// <summary>
 /// M2-1：ナビゲーションツリー最小実装。UI設計書4.1節のツリー構造のうち、
@@ -57,14 +60,46 @@ public partial class MainViewModel : ViewModelBase, ICacheChangeObserver, IDispo
         };
     }
 
-    partial void OnSelectedNodeChanged(NavigationNodeViewModel? value)
+    partial void OnSelectedNodeChanged(NavigationNodeViewModel? value) => ShowContentForSelectedNode();
+
+    /// <summary>
+    /// SelectedNodeのContentFactoryからCurrentContentを再生成する。M2-3：StationDetailViewModel
+    /// のGoBackコールバックとしても使う（「一覧に戻る」＝選択中ノードの内容を作り直すのと等価）。
+    /// </summary>
+    private void ShowContentForSelectedNode()
     {
         // 前のコンテンツはIAffectedByObjectId/Disposeの規約（§7.3 論点L）に従い破棄する。
         (CurrentContent as IDisposable)?.Dispose();
 
-        CurrentContent = value is { IsLeaf: true, ContentFactory: not null }
-            ? value.ContentFactory(_serviceProvider)
+        var content = SelectedNode is { IsLeaf: true, ContentFactory: not null }
+            ? SelectedNode.ContentFactory(_serviceProvider)
             : null;
+
+        WireUpNavigation(content);
+        CurrentContent = content;
+    }
+
+    /// <summary>
+    /// M2-3：StationListViewModel.OpenDetailRequested（4.2.1節「ダブルクリックで駅詳細編集へ遷移」）を
+    /// 購読し、StationDetailViewModelへの画面切替を行う。他のマスター画面（M2スコープ外）が
+    /// 同種の遷移を持つ場合もここへ同じパターンで追加していく想定。
+    /// </summary>
+    private void WireUpNavigation(ViewModelBase? content)
+    {
+        if (content is StationListViewModel stationList)
+        {
+            stationList.OpenDetailRequested += OnOpenStationDetailRequested;
+        }
+    }
+
+    private void OnOpenStationDetailRequested(Station station)
+    {
+        (CurrentContent as IDisposable)?.Dispose();
+
+        // StationはDIコンテナ管理外の実行時パラメータのため、ActivatorUtilitiesで
+        // session/invokerをDIから解決しつつstation/goBackを追加引数として渡す。
+        CurrentContent = ActivatorUtilities.CreateInstance<StationDetailViewModel>(
+            _serviceProvider, station, (Action)ShowContentForSelectedNode);
     }
 
     [RelayCommand(CanExecute = nameof(CanUndo))]
@@ -73,8 +108,8 @@ public partial class MainViewModel : ViewModelBase, ICacheChangeObserver, IDispo
     [RelayCommand(CanExecute = nameof(CanRedo))]
     private void Redo() => _invoker.Redo();
 
-    private bool CanUndo => _invoker.CanUndo;
-    private bool CanRedo => _invoker.CanRedo;
+    private bool CanUndo() => _invoker.CanUndo;
+    private bool CanRedo() => _invoker.CanRedo;
 
     void ICacheChangeObserver.OnChanged(IReadOnlySet<ObjectId> affectedIds)
     {

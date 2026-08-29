@@ -29,7 +29,8 @@
             </Grid>
 
             <ListBox ItemsSource="{Binding Stations}"
-                     SelectedItem="{Binding SelectedStation, Mode=TwoWay}">
+                     SelectedItem="{Binding SelectedStation, Mode=TwoWay}"
+                     DoubleTapped="OnStationDoubleTapped">
                 <ListBox.ItemTemplate>
                     <DataTemplate x:DataType="stations:Station">
                         <Grid ColumnDefinitions="200,120,150,100">
