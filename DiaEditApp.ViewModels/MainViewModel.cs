@@ -2,6 +2,9 @@ namespace DiaEditApp.ViewModels;
 
 using System;
 using System.Collections.ObjectModel;
+using System.IO;
+using System.Linq;
+using System.Threading.Tasks;
 
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -15,6 +18,8 @@ using DiaEditCore.ChangeNotification;
 using DiaEditCore.Commands;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Serialization.Json;
+using DiaEditCore.Session;
 
 /// <summary>
 /// M2-1：ナビゲーションツリー最小実装。UI設計書4.1節のツリー構造のうち、
@@ -34,6 +39,9 @@ public partial class MainViewModel : ViewModelBase, ICacheChangeObserver, IDispo
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly CommandInvoker _invoker;
+    private readonly ProjectSession _session;
+    private readonly IFileDialogService _fileDialogService;
+    private readonly IAppSettingsService _appSettings;
 
     public ObservableCollection<NavigationNodeViewModel> RootNodes { get; }
 
@@ -43,10 +51,21 @@ public partial class MainViewModel : ViewModelBase, ICacheChangeObserver, IDispo
     [ObservableProperty]
     public partial ViewModelBase? CurrentContent { get; set; }
 
-    public MainViewModel(IServiceProvider serviceProvider, CommandInvoker invoker)
+    [ObservableProperty]
+    public partial string? SaveErrorMessage { get; set; }
+
+    public bool HasSaveError => !string.IsNullOrEmpty(SaveErrorMessage);
+    partial void OnSaveErrorMessageChanged(string? value) => OnPropertyChanged(nameof(HasSaveError));
+
+    public MainViewModel(
+        IServiceProvider serviceProvider, CommandInvoker invoker, ProjectSession session,
+        IFileDialogService fileDialogService, IAppSettingsService appSettings)
     {
         _serviceProvider = serviceProvider;
         _invoker = invoker;
+        _session = session;
+        _fileDialogService = fileDialogService;
+        _appSettings = appSettings;
         _invoker.Subscribe(this);
 
         RootNodes = new ObservableCollection<NavigationNodeViewModel>
@@ -100,6 +119,36 @@ public partial class MainViewModel : ViewModelBase, ICacheChangeObserver, IDispo
         // session/invokerをDIから解決しつつstation/goBackを追加引数として渡す。
         CurrentContent = ActivatorUtilities.CreateInstance<StationDetailViewModel>(
             _serviceProvider, station, (Action)ShowContentForSelectedNode);
+    }
+
+    [RelayCommand]
+    private async Task SaveAsync()
+    {
+        SaveErrorMessage = null;
+
+        var path = _appSettings.LastProjectFilePath;
+        if (string.IsNullOrEmpty(path))
+        {
+            path = await _fileDialogService.PickSaveProjectFileAsync("新規プロジェクト.dedit");
+            if (path is null) return; // ユーザーがキャンセル
+        }
+
+        try
+        {
+            JsonProjectFileSerializer.Save(_session.Current, path);
+            _appSettings.LastProjectFilePath = path;
+            _appSettings.Save();
+        }
+        catch (ProjectFileValidationException ex)
+        {
+            // 保存不可のissueを一括表示（Tao氏合意の暫定方針）。
+            SaveErrorMessage = string.Join(Environment.NewLine, ex.Issues.Select(i => i.Message));
+        }
+        catch (IOException ex)
+        {
+            // ディスク書き込み失敗等。ProjectFileValidationExceptionとは別枠で表示。
+            SaveErrorMessage = $"保存に失敗しました：{ex.Message}";
+        }
     }
 
     [RelayCommand(CanExecute = nameof(CanUndo))]

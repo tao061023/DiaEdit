@@ -33,22 +33,25 @@ public partial class App : Application
 
     public override void OnFrameworkInitializationCompleted()
     {
+        // AppSettingsは起動シーケンスの一部としてDI構築より先に読み込み、
+        // 読み込んだ同一インスタンスをSingletonとして登録する
+        // （MainViewModelがLastProjectFilePathを保存時に書き換えるため、
+        //  「読み込んだもの」と「以後参照するもの」を同一インスタンスにする必要がある）。
+        var appSettings = AppSettings.Load();
+
         var services = new ServiceCollection();
         services.AddDiaEditCore();
         services.AddDiaEditAppViewModels();
+        services.AddDiaEditAppServices();
+        services.AddSingleton(appSettings);
+        services.AddSingleton<IAppSettingsService>(sp => new AppSettingsService(sp.GetRequiredService<AppSettings>()));
 
         Services = services.BuildServiceProvider();
 
-        // M2-4本体：ChangeNotificationBridgeをCommandInvokerへ購読させる配線。
-        // DI登録（AddSingleton<ICacheChangeObserver>(...)）はあくまで型解決規則であり、
-        // Subscribe()の呼び出しそのものは別途明示的に行う必要がある。
-        // bridge・invokerはともにSingletonでアプリ全体の寿命を通じて生存するため、
-        // Unsubscribeは行わない（アプリ終了までこの購読は維持される）。
         var invoker = Services.GetRequiredService<CommandInvoker>();
         var bridge = Services.GetRequiredService<ChangeNotificationBridge>();
         invoker.Subscribe(bridge);
 
-        var appSettings = AppSettings.Load();
         var session = Services.GetRequiredService<ProjectSession>();
         session.Load(LoadLastProjectOrCreateNew(appSettings));
 

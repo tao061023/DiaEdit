@@ -9,6 +9,9 @@
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
         Title="DiaEditApp">
+        <Window.KeyBindings>
+        <KeyBinding Gesture="Ctrl+S" Command="{Binding SaveCommand}" />
+        </Window.KeyBindings>
 
     <Design.DataContext>
         <!-- This only sets the DataContext for the previewer in an IDE.
@@ -21,7 +24,14 @@
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="4" Spacing="4">
             <Button Content="元に戻す" Command="{Binding UndoCommand}" />
             <Button Content="やり直し" Command="{Binding RedoCommand}" />
+            <Button Content="保存"     Command="{Binding SaveCommand}" />
         </StackPanel>
+
+        <Border DockPanel.Dock="Top"
+                IsVisible="{Binding HasSaveError}"
+                Background="#FFDD9999" Padding="8" Margin="0,4">
+            <TextBlock Text="{Binding SaveErrorMessage}" TextWrapping="Wrap" Foreground="DarkRed" />
+        </Border>
 
         <Grid ColumnDefinitions="240,*">
 
