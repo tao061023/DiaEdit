@@ -38,10 +38,23 @@ public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
         _role = role;
     }
 
+    protected override IReadOnlySet<ObjectId> ComputeAffectedIdsAfterApply(List<Rail> target) =>
+    Created is not null
+        ? new HashSet<ObjectId> { new RailObjectId(Created.Id) }
+        : new HashSet<ObjectId>();
+
     protected override Rail? CaptureSnapshot(List<Rail> target) => null;
 
     protected override void Apply(List<Rail> target)
     {
+        if (Created is not null)
+        {
+            // Redo経路：初回Execute時に生成・保持したインスタンスを再挿入する。
+            // AllocateNextIdは呼び直さない（§9.1項目23、CreateStationCommandと同じ理由）。
+            target.Add(Created);
+            return;
+        }
+
         var id = AllocateNextId(target);
         Created = new Rail
         {

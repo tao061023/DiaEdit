@@ -37,50 +37,46 @@ public abstract class UndoableCommand<TTarget, TSnapshot> : IUndoableCommand
 {
     private TSnapshot? _before;
     private bool _executed;
+    private IReadOnlySet<ObjectId> _frozenAffectedIds;
 
     protected TTarget Target { get; }
 
-    /// <summary>このコマンドの実行によって影響を受けるObjectIdの集合（論点N：手動列挙）。</summary>
     public IReadOnlySet<ObjectId> AffectedIds { get; }
 
     protected UndoableCommand(TTarget target, IReadOnlySet<ObjectId> affectedIds)
     {
         Target = target;
         AffectedIds = affectedIds;
+        _frozenAffectedIds = affectedIds;
     }
 
-    /// <summary>Targetの現在の状態を複製したスナップショットを返す。Apply()より前に必ず呼ばれる。</summary>
     protected abstract TSnapshot CaptureSnapshot(TTarget target);
-
-    /// <summary>Targetへ実際の変更を適用する。</summary>
     protected abstract void Apply(TTarget target);
-
-    /// <summary>スナップショットの内容をTargetへ書き戻す（Undo本体）。</summary>
     protected abstract void Restore(TTarget target, TSnapshot snapshot);
 
     /// <summary>
-    /// コマンドを実行する。CaptureSnapshot→Applyの順に呼ぶ。
-    /// 戻り値はAffectedIds（呼び出し元CommandInvokerが通知に使う）。
+    /// Execute()（Apply直後）で呼ばれ、以降Undo()が返すAffectedIdsを確定・凍結する。
+    /// 既定はコンストラクタ渡しのAffectedIdsをそのまま返す（既存の全コマンドと同じ挙動、
+    /// 後方互換）。Create系コマンドなど、Apply()完了までIdが定まらずコンストラクタ時点では
+    /// 自身のObjectIdを含められないケースのみオーバーライドする（§9.1項目23関連の追加対応）。
     /// </summary>
+    protected virtual IReadOnlySet<ObjectId> ComputeAffectedIdsAfterApply(TTarget target) => AffectedIds;
+
     public IReadOnlySet<ObjectId> Execute()
     {
         _before = CaptureSnapshot(Target);
         Apply(Target);
+        _frozenAffectedIds = ComputeAffectedIdsAfterApply(Target);
         _executed = true;
-        return AffectedIds;
+        return _frozenAffectedIds;
     }
 
-    /// <summary>
-    /// コマンドを取り消す。Execute()未実行の状態で呼ぶとInvalidOperationExceptionになる
-    /// （CommandInvoker側がUndoスタックに積まれたコマンドのみUndo対象とするため、通常この例外は
-    /// 発生しないはずだが、コマンド単体を誤って直接Undo()した場合の構造的な誤用検知として残す）。
-    /// </summary>
     public IReadOnlySet<ObjectId> Undo()
     {
         if (!_executed)
             throw new InvalidOperationException($"{GetType().Name}: Execute()より前にUndo()が呼ばれた");
 
         Restore(Target, _before!);
-        return AffectedIds;
+        return _frozenAffectedIds; // 再計算せず、直近のExecute()で確定した値を再利用
     }
 }

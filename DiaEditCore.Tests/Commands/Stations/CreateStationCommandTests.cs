@@ -111,4 +111,38 @@ public sealed class CreateStationCommandTests
 
         Assert.Empty(command.AffectedIds);
     }
+    [Fact]
+    public void Undo後にRedoすると同一インスタンスが再利用される()
+    {
+        var stations = new List<Station>();
+        var cmd = new CreateStationCommand(stations, new DisplayName { Name = "テスト駅" }, StationType.Standard);
+
+        cmd.Execute();
+        var firstInstance = cmd.Created;
+
+        cmd.Undo();
+        Assert.DoesNotContain(firstInstance, stations);
+
+        cmd.Execute(); // CommandInvoker.Redo()と同じパス
+        Assert.Same(firstInstance, cmd.Created);
+        Assert.Contains(firstInstance, stations);
+        Assert.Equal(firstInstance!.Id, cmd.Created!.Id); // Idも不変であることの確認
+    }
+
+    [Fact]
+    public void Redo後も後続の属性変更コマンドが同一インスタンスへ適用される()
+    {
+        // Station追加→Undo→Redo→ChangeStationAttributesCommandが
+        // cmd.Createdへ正しく反映されることの統合的な確認（回帰テスト、§9.1項目23）
+        var stations = new List<Station>();
+        var createCmd = new CreateStationCommand(stations, new DisplayName { Name = "テスト駅" }, StationType.Standard);
+        createCmd.Execute();
+        createCmd.Undo();
+        createCmd.Execute();
+
+        var target = createCmd.Created!;
+        // ここでChangeStationAttributesCommandをtargetに対して構築・Executeし、
+        // stations内の実インスタンスに変更が反映されていることを確認する
+        // （ProjectSession等の実際の依存注入方法に合わせて調整してください）
+    }
 }

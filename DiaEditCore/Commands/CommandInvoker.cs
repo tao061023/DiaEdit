@@ -57,7 +57,10 @@ public sealed class CommandInvoker
 
     private void Notify(IReadOnlySet<ObjectId> affectedIds)
     {
-        foreach (var observer in _observers)
+        // 通知中にOnChanged側がSubscribe/Unsubscribeを行うケース（例：対象消滅を検知した
+        // ViewModelが自身をDisposeする）があるため、スナップショットを取ってから走査する
+        // （ChangeNotificationBridge.OnChangedと同じ対策）。
+        foreach (var observer in _observers.ToArray())
             observer.OnChanged(affectedIds);
     }
 }

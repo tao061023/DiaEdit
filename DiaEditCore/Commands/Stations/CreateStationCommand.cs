@@ -45,10 +45,27 @@ public sealed class CreateStationCommand : UndoableCommand<List<Station>, Statio
         _telegraphCode = telegraphCode;
     }
 
+    protected override IReadOnlySet<ObjectId> ComputeAffectedIdsAfterApply(List<Station> target) =>
+        Created is not null
+            ? new HashSet<ObjectId> { new StationObjectId(Created.Id) }
+            : new HashSet<ObjectId>();
+
     protected override Station? CaptureSnapshot(List<Station> target) => null;
 
     protected override void Apply(List<Station> target)
     {
+        if (Created is not null)
+        {
+            // Redo経路：CommandInvoker.Redo()はExecute()と同一パスを通るため、
+            // ここが「2回目以降のApply呼び出し」＝Redoであることの唯一の判定材料になる。
+            // 初回Execute時に生成・保持したインスタンスをそのまま再挿入することで、
+            // ChangeStationAttributesCommand等が保持する直接参照との同一性を保つ（§9.1項目23）。
+            // AllocateNextIdは呼び直さない：呼び直すとUndo/Redoの往復で別Idを持つ別インスタンスが
+            // 生まれ、参照同一性の問題が再発する。
+            target.Add(Created);
+            return;
+        }
+
         var id = AllocateNextId(target);
         Created = new Station
         {

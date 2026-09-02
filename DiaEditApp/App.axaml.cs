@@ -11,6 +11,7 @@ using DiaEditApp.ViewModels;
 using DiaEditApp.ViewModels.Composition;
 using DiaEditApp.Views;
 using DiaEditCore.Composition;
+using DiaEditCore.Commands;
 using DiaEditCore.Model;
 using DiaEditCore.Serialization.Json;
 using DiaEditCore.Session;
@@ -35,15 +36,18 @@ public partial class App : Application
         var services = new ServiceCollection();
         services.AddDiaEditCore();
         services.AddDiaEditAppViewModels();
-        // 将来DiaEditApp.Services（IFileDialogService等、Avalonia依存の実装）が増えたら
-        // ここに services.AddDiaEditAppServices() 等を追加する（7.3節参照）。
 
         Services = services.BuildServiceProvider();
 
-        // 起動時プロジェクト初期化方針（M2-1ブートストラップ確定分）：
-        // 直近使用ファイルのパスをAppSettingsから読み、開ければそれをLoad()する。
-        // パスが無い／読込失敗（ファイル削除・破損・スキーマ非対応等）の場合は
-        // 空の新規ProjectFileを生成してLoad()する（起動を止めないことを優先）。
+        // M2-4本体：ChangeNotificationBridgeをCommandInvokerへ購読させる配線。
+        // DI登録（AddSingleton<ICacheChangeObserver>(...)）はあくまで型解決規則であり、
+        // Subscribe()の呼び出しそのものは別途明示的に行う必要がある。
+        // bridge・invokerはともにSingletonでアプリ全体の寿命を通じて生存するため、
+        // Unsubscribeは行わない（アプリ終了までこの購読は維持される）。
+        var invoker = Services.GetRequiredService<CommandInvoker>();
+        var bridge = Services.GetRequiredService<ChangeNotificationBridge>();
+        invoker.Subscribe(bridge);
+
         var appSettings = AppSettings.Load();
         var session = Services.GetRequiredService<ProjectSession>();
         session.Load(LoadLastProjectOrCreateNew(appSettings));

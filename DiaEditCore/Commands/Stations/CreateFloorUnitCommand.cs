@@ -35,10 +35,23 @@ public sealed class CreateFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
         _displayOrder = displayOrder;
     }
 
+    protected override IReadOnlySet<ObjectId> ComputeAffectedIdsAfterApply(List<FloorUnit> target) =>
+    Created is not null
+        ? new HashSet<ObjectId> { new FloorUnitObjectId(Created.Id) }
+        : new HashSet<ObjectId>();
+
     protected override FloorUnit? CaptureSnapshot(List<FloorUnit> target) => null;
 
     protected override void Apply(List<FloorUnit> target)
     {
+        if (Created is not null)
+        {
+            // Redo経路：初回Execute時に生成・保持したインスタンスを再挿入する。
+            // AllocateNextIdは呼び直さない（§9.1項目23、CreateStationCommandと同じ理由）。
+            target.Add(Created);
+            return;
+        }
+
         var id = AllocateNextId(target);
         Created = new FloorUnit
         {
