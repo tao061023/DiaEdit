@@ -12,7 +12,7 @@
 
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4">
             <Button Content="← 一覧へ戻る" Command="{Binding GoBackCommand}" />
-            <Button Content="保存" Command="{Binding SaveCommand}" />
+            <Button Content="決定" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
         </StackPanel>
 
         <!-- 上部：Station属性編集（4.2.2節） -->

@@ -42,6 +42,20 @@ public sealed partial class StationDetailViewModel : ViewModelBase, IAffectedByO
     [ObservableProperty]
     public partial bool? ShowsInStationTimetableOverride { get; set; }
 
+    // §9.2項目31：入力欄が変更されるたびにIsDirtyを再評価し、「決定」ボタンの活性制御に使う。
+    partial void OnDisplayNameTextChanged(string value) => OnPropertyChanged(nameof(IsDirty));
+    partial void OnTypeChanged(StationType value) => OnPropertyChanged(nameof(IsDirty));
+    partial void OnOperatingCodeChanged(string value) => OnPropertyChanged(nameof(IsDirty));
+    partial void OnTelegraphCodeChanged(string value) => OnPropertyChanged(nameof(IsDirty));
+    partial void OnShowsInStationTimetableOverrideChanged(bool? value) => OnPropertyChanged(nameof(IsDirty));
+
+    /// <summary>
+    /// §9.2項目31：現在の入力値がStationの現状値と一致しているかどうか。
+    /// Save()側の差分判定（BuildEditedSnapshotとCaptureCurrentSnapshotの比較）と
+    /// 同じ比較規約を使う（DisplayNameのIEquatable実装、§9.2項目31関連対応）。
+    /// </summary>
+    public bool IsDirty => !BuildEditedSnapshot().Equals(CaptureCurrentSnapshot());
+
     public bool ResolvedShowsInStationTimetable => _station.ResolveShowsInStationTimetable();
 
     [ObservableProperty]
@@ -94,6 +108,7 @@ public sealed partial class StationDetailViewModel : ViewModelBase, IAffectedByO
         TelegraphCode = _station.TelegraphCode;
         ShowsInStationTimetableOverride = _station.ShowsInStationTimetableOverride;
         OnPropertyChanged(nameof(ResolvedShowsInStationTimetable));
+        OnPropertyChanged(nameof(IsDirty));
     }
 
     private void ReloadFloorUnits()
@@ -119,18 +134,51 @@ public sealed partial class StationDetailViewModel : ViewModelBase, IAffectedByO
         ReloadFloorUnits();
     }
 
-    [RelayCommand]
-    private void Save()
+    /// <summary>
+    /// §9.2項目31：入力欄の現在値から、保存対象となるStationSnapshotを組み立てる。
+    /// DisplayNameはAbbreviation／Translationsを現状のまま保持し、Nameのみ入力値で上書きする
+    /// （UIにAbbreviation/Translations編集欄が未実装のため、既存値を欠落させないための対応）。
+    /// </summary>
+    private StationSnapshot BuildEditedSnapshot()
     {
-        var newValues = new StationSnapshot(
-            new DisplayName { Name = DisplayNameText },
+        var editedDisplayName = _station.DisplayName.Clone();
+        editedDisplayName.Name = DisplayNameText;
+
+        return new StationSnapshot(
+            editedDisplayName,
             Type,
             OperatingCode,
             TelegraphCode,
             ShowsInStationTimetableOverride);
+    }
+
+    /// <summary>§9.2項目31：Stationの現在値をそのままStationSnapshot化する（差分判定の比較対象）。</summary>
+    private StationSnapshot CaptureCurrentSnapshot() => new(
+        _station.DisplayName,
+        _station.Type,
+        _station.OperatingCode,
+        _station.TelegraphCode,
+        _station.ShowsInStationTimetableOverride);
+
+    /// <summary>
+    /// §9.2項目31：差分がある場合のみChangeStationAttributesCommandを発行し、
+    /// 決定確定時は一覧へ自動遷移する。差分が無ければコマンドを発行せずそのまま一覧へ戻る
+    /// （無条件Execute()によるno-opのUndoスタックエントリ蓄積を防ぐ、§9.2項目32の再発防止）。
+    /// </summary>
+    [RelayCommand]
+    private void Save()
+    {
+        var newValues = BuildEditedSnapshot();
+
+        if (newValues.Equals(CaptureCurrentSnapshot()))
+        {
+            _goBack();
+            return;
+        }
 
         var command = new ChangeStationAttributesCommand(_station, newValues, _session);
         _invoker.Execute(command); // OnAffected経由で自画面もLoadFromStation()される
+        _goBack();
     }
 
     [RelayCommand]
