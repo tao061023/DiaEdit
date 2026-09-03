@@ -1,11 +1,13 @@
+namespace DiaEditCore.Tests.Serialization.Validation.Routes;
+
 using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.Stations;
 using DiaEditCore.Serialization.Validation;
 using DiaEditCore.Serialization.Validation.Routes;
+
 using Xunit;
 
-namespace DiaEditCore.Tests.Serialization.Validation.Routes;
 public class ServiceRouteValidatorTests
 {
     [Fact]

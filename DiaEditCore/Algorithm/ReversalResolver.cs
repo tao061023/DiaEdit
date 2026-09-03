@@ -1,8 +1,8 @@
-using DiaEditCore.Model;
-using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.Stations;
-
 namespace DiaEditCore.Algorithm;
+
+using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
+using DiaEditCore.Model.Routes;
 
 /// <summary>
 /// 編成前後反転の自動導出。単一MainRoute内のスイッチバック判定（ResolveDirectionReversalStations）と、

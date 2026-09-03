@@ -1,13 +1,12 @@
-using DiaEditCore.Model;
-using DiaEditCore.Model.Cars;
-using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.TimeTable.Trains;
+namespace DiaEditCore.Tests.Algorithm;
 
 using DiaEditCore.Algorithm;
+using DiaEditCore.Model;
+using DiaEditCore.Model.Cars;
+using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
 
-namespace DiaEditCore.Tests.Algorithm;
 
 public class CarConsistResolverTests
 {

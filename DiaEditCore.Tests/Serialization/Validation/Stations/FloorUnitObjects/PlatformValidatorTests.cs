@@ -1,11 +1,12 @@
+namespace DiaEditCore.Tests.Serialization.Validation.Stations.FloorUnitObjects;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Serialization.Validation;
-using DiaEditCore.Serialization.Validation.Stations;
-using Xunit;
+using DiaEditCore.Serialization.Validation.Stations.FloorUnitObjects;
 
-namespace DiaEditCore.Tests.Serialization.Validation.Stations;
+using Xunit;
 
 public class PlatformValidatorTests
 {

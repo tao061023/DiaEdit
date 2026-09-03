@@ -1,9 +1,9 @@
+namespace DiaEditCore.Serialization.Json;
+
 using System.Text.Json;
 
 using DiaEditCore.Model;
 using DiaEditCore.Serialization.Validation;
-
-namespace DiaEditCore.Serialization.Json;
 
 public sealed class ProjectFileValidationException : Exception
 {

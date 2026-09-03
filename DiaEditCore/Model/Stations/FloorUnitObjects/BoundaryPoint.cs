@@ -1,4 +1,5 @@
-namespace DiaEditCore.Model.Stations;
+namespace DiaEditCore.Model.Stations.FloorUnitObjects;
+
 public sealed class BoundaryPoint
 {
     public required BoundaryPointId Id { get; set; }

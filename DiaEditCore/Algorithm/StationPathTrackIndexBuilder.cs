@@ -1,7 +1,7 @@
 namespace DiaEditCore.Algorithm;
 
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
 public static class StationPathTrackIndexBuilder
 {

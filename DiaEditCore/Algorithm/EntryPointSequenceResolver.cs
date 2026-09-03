@@ -3,7 +3,6 @@ namespace DiaEditCore.Algorithm;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 
-
 /// <summary>
 /// 向き解決済みの1ホップ分の発着情報。StationConnectionSegment（生データ、無向のA/Bペア）とは
 /// 意図的に語彙を分ける：本レコードは常に「発側→着側」の向きが確定した後の出力である。

@@ -1,9 +1,9 @@
+namespace DiaEditCore.Tests.Algorithm.Conflicts;
+
 using DiaEditCore.Algorithm.Conflicts;
 using DiaEditCore.Model;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm.Conflicts;
 
 public class ConflictCheckerTests
 {

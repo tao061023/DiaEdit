@@ -9,6 +9,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 
 using DiaEditApp.ViewModels; // IAffectedByObjectId, ChangeNotificationBridge
+
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;

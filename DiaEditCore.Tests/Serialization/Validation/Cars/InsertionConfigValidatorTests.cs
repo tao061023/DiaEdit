@@ -1,12 +1,11 @@
+//namespace DiaEditCore.Tests.Validation.Cars;
+
 //using DiaEditCore.Model;
 //using DiaEditCore.Model.Cars;
-
 //using DiaEditCore.Serialization.Validation;
 //using DiaEditCore.Serialization.Validation.Cars;
 
 //using Xunit;
-
-//namespace DiaEditCore.Tests.Validation.Cars;
 
 //public class InsertionConfigValidatorTests
 //{

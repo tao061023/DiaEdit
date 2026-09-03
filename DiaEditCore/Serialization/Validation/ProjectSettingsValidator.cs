@@ -1,6 +1,6 @@
-using DiaEditCore.Model;
-
 namespace DiaEditCore.Serialization.Validation;
+
+using DiaEditCore.Model;
 
 /// <summary>
 /// ProjectSettings.ValidationRulesの値域を検証する（5.16節）。

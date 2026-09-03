@@ -1,9 +1,10 @@
+namespace DiaEditCore.Tests.Algorithm;
+
 using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
-using Xunit;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
-namespace DiaEditCore.Tests.Algorithm;
+using Xunit;
 
 public class MainRouteCheckerTests
 {

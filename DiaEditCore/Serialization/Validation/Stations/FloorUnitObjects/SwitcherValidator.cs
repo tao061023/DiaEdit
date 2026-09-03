@@ -1,6 +1,7 @@
-using DiaEditCore.Model.Stations;
+namespace DiaEditCore.Serialization.Validation.Stations.FloorUnitObjects;
 
-namespace DiaEditCore.Serialization.Validation.Stations;
+using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
 public sealed class SwitcherValidator : IValidator<Switcher>
 {

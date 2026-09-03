@@ -1,7 +1,7 @@
 namespace DiaEditCore.Serialization.Validation;
 
-using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.TimeTable;

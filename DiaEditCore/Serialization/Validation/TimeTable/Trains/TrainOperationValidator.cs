@@ -1,7 +1,7 @@
+namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 public sealed class TrainCrossValidationData
 {

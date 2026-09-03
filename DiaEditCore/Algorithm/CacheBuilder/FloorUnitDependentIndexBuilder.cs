@@ -1,7 +1,7 @@
 namespace DiaEditCore.Algorithm.CacheBuilder;
 
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
 /// <summary>
 /// TimeTableSetCache.FloorUnitDependentIndexの構築。FloorUnit配下のObjectの依存関係解決。

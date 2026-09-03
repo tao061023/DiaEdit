@@ -1,10 +1,10 @@
+namespace DiaEditCore.Serialization.Json;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
-
-namespace DiaEditCore.Serialization.Json;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
 /// <summary>
 /// RailEndpointRef（判別共用体：None / BoundaryPoint / EntryPoint / BufferStop / Switcher）用の

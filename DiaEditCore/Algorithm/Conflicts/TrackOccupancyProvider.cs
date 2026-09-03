@@ -1,10 +1,10 @@
+namespace DiaEditCore.Algorithm.Conflicts;
+
 using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
 using DiaEditCore.Algorithm.CacheBuilder;
-
-namespace DiaEditCore.Algorithm.Conflicts;
 
 /// <summary>
 /// Track（番線）用途のConflictChecker（6.5節）。

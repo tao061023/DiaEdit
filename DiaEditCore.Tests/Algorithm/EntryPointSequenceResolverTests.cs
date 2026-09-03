@@ -1,10 +1,10 @@
+namespace DiaEditCore.Tests.Algorithm;
+
 using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm;
 
 public class EntryPointSequenceResolverTests
 {

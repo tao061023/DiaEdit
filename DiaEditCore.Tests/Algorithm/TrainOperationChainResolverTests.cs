@@ -1,12 +1,11 @@
-using DiaEditCore.Model;
-using DiaEditCore.Model.TimeTable.Trains;
+namespace DiaEditCore.Tests.Algorithm;
 
 using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.CacheBuilder;
+using DiaEditCore.Model;
+using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm;
 
 public class TrainOperationChainResolverTests
 {

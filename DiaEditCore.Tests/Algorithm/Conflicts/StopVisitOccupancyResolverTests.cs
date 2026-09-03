@@ -1,13 +1,13 @@
+namespace DiaEditCore.Tests.Algorithm.Conflicts;
+
 using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.Conflicts;
 using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm.Conflicts;
 
 public class StopVisitOccupancyResolverTests
 {

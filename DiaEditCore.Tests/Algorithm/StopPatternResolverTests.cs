@@ -1,13 +1,12 @@
-using DiaEditCore.Algorithm;
+namespace DiaEditCore.Tests.Algorithm;
 
+using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm;
 
 public class StopPatternResolverTests
 {

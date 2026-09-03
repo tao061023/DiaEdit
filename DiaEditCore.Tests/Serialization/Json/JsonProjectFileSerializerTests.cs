@@ -1,10 +1,10 @@
+namespace DiaEditCore.Tests.Serialization.Json;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Cars;
 using DiaEditCore.Serialization.Json;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Serialization.Json;
 
 public class JsonProjectFileSerializerTests : IDisposable
 {

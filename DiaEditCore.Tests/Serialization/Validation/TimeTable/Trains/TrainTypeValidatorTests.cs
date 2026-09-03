@@ -1,11 +1,11 @@
+namespace DiaEditCore.Tests.Serialization.Validation.TimeTable.Trains;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
-
 using DiaEditCore.Serialization.Validation;
 using DiaEditCore.Serialization.Validation.TimeTable.Trains;
-using Xunit;
 
-namespace DiaEditCore.Tests.Serialization.Validation.TimeTable.Trains;
+using Xunit;
 
 public class TrainTypeValidatorTests
 {

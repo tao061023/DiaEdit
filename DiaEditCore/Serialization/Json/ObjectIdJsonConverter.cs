@@ -1,9 +1,9 @@
+namespace DiaEditCore.Serialization.Json;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using DiaEditCore.Model;
-
-namespace DiaEditCore.Serialization.Json;
 
 /// <summary>
 /// ObjectId（判別共用体：BoundaryPoint / EntryPoint / BufferStop / Switcher /

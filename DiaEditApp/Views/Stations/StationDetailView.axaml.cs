@@ -1,9 +1,9 @@
+namespace DiaEditApp.Views.Stations;
+
 using Avalonia.Controls;
 using Avalonia.Input;
 
 using DiaEditApp.ViewModels.Stations;
-
-namespace DiaEditApp.Views.Stations;
 
 public partial class StationDetailView : UserControl
 {

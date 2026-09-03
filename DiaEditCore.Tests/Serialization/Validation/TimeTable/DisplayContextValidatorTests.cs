@@ -1,12 +1,12 @@
+namespace DiaEditCore.Tests.Serialization.Validation.TimeTable;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable;
-
 using DiaEditCore.Serialization.Validation;
 using DiaEditCore.Serialization.Validation.TimeTable;
-using Xunit;
 
-namespace DiaEditCore.Tests.Serialization.Validation.TimeTable;
+using Xunit;
 
 public class DisplayContextValidatorTests
 {

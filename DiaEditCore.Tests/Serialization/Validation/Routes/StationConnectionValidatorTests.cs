@@ -1,13 +1,14 @@
+namespace DiaEditCore.Tests.Serialization.Validation.Routes;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Routes;
-
 using DiaEditCore.Serialization.Validation;
 using DiaEditCore.Serialization.Validation.Routes;
 
 using Xunit;
 
-namespace DiaEditCore.Tests.Serialization.Validation.Routes;
 public class StationConnectionValidatorTests
 {
     private static (Station s1, Station s2, MainRoute route, EntryPoint depEp, EntryPoint arrEp, StationConnectionSegment seg) MakeSimpleTwoStationSetup()

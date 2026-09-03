@@ -1,10 +1,10 @@
+namespace DiaEditCore.Serialization.Json;
+
 using System.Reflection;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using DiaEditCore.Model;
-
-namespace DiaEditCore.Serialization.Json;
 
 /// <summary>
 /// IIntIdを実装するreadonly record struct（StationId等）を、

@@ -1,8 +1,8 @@
-namespace DiaEditCore.Commands.Stations;
+namespace DiaEditCore.Commands.Stations.FloorUnitObjects;
 
 using DiaEditCore.Algorithm.Dependency;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
 using DiaEditCore.Session;

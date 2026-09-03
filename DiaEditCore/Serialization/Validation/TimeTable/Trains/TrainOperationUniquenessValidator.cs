@@ -1,8 +1,8 @@
+namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
+
 using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
-
-namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
 /// <summary>
 /// §8.3項目1の方針（operationNumberは同一TimeTableSet内で常に一意）に基づく横断検証。

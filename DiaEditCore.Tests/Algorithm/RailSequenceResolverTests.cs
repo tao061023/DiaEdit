@@ -1,11 +1,10 @@
-using DiaEditCore.Algorithm;
+namespace DiaEditCore.Tests.Algorithm;
 
+using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm;
 
 public sealed class RailSequenceResolverTests
 {

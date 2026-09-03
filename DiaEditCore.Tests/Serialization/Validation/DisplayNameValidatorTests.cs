@@ -1,9 +1,9 @@
-using DiaEditCore.Model;
-
-using DiaEditCore.Serialization.Validation;
-using Xunit;
-
 namespace DiaEditCore.Tests.Serialization.Validation;
+
+using DiaEditCore.Model;
+using DiaEditCore.Serialization.Validation;
+
+using Xunit;
 
 public class DisplayNameValidatorTests
 {

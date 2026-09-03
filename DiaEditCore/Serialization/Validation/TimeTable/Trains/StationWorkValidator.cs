@@ -1,6 +1,6 @@
-using DiaEditCore.Model.TimeTable.Trains;
-
 namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
+
+using DiaEditCore.Model.TimeTable.Trains;
 
 public sealed class StationWorkValidator : IValidator<StationWork>
 {

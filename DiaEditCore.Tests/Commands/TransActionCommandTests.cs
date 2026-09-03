@@ -1,11 +1,13 @@
 namespace DiaEditCore.Tests.Commands;
 
 using System.Linq;
+
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Session;
+
 using Xunit;
 
 public sealed class TransactionCommandTests

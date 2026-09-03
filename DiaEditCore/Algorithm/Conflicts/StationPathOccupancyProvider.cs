@@ -1,9 +1,9 @@
-using DiaEditCore.Model;
-using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.Stations;
-using DiaEditCore.Model.TimeTable.Trains;
-
 namespace DiaEditCore.Algorithm.Conflicts;
+
+using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
+using DiaEditCore.Model.Routes;
+using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
 /// 全Trainを走査し、StationPathごとの占有区間（ConflictChecker.Occupancy）を構築する。

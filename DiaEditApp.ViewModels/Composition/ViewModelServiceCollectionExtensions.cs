@@ -2,9 +2,9 @@ namespace DiaEditApp.ViewModels.Composition;
 
 using Microsoft.Extensions.DependencyInjection;
 
-using DiaEditCore.ChangeNotification;
-
 using DiaEditApp.ViewModels.Stations;
+
+using DiaEditCore.ChangeNotification;
 
 /// <summary>
 /// DiaEditApp.ViewModels側のDIコンテナ登録（7.3節）。

@@ -1,15 +1,13 @@
-using DiaEditCore.Algorithm;
+namespace DiaEditCore.Tests.Commands.TimeTable.Trains;
+
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.TimeTable.Trains;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
 using DiaEditCore.Session;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Commands.TimeTable.Trains;
 
 public class SyncRunSegmentsToTrainCommandTests
 {

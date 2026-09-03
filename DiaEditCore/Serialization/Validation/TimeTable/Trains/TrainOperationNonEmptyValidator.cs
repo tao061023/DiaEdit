@@ -1,6 +1,6 @@
-using DiaEditCore.Model.TimeTable.Trains;
-
 namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
+
+using DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
 /// TrainOperation単体で完結する検証（OperationNumberの非空チェックのみ）。

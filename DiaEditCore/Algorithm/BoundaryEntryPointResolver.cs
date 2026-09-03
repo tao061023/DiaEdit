@@ -1,7 +1,7 @@
+namespace DiaEditCore.Algorithm;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
-
-namespace DiaEditCore.Algorithm;
 
 /// <summary>
 /// 境界駅のEPを、既存のEntryPointSequenceResolverの結果から取り出すためのラッパー。 <br/>

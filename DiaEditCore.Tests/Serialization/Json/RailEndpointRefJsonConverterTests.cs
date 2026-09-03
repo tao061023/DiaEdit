@@ -1,12 +1,12 @@
+namespace DiaEditCore.Tests.Serialization.Json;
+
 using System.Text.Json;
 
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Serialization.Json;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Serialization.Json;
 
 public class RailEndpointRefJsonConverterTests
 {

@@ -1,3 +1,5 @@
+namespace DiaEditApp;
+
 using System;
 
 using Avalonia;
@@ -7,16 +9,16 @@ using Avalonia.Markup.Xaml;
 using Microsoft.Extensions.DependencyInjection;
 
 using DiaEditApp.Services;
+using DiaEditApp.Views;
+
 using DiaEditApp.ViewModels;
 using DiaEditApp.ViewModels.Composition;
-using DiaEditApp.Views;
+
 using DiaEditCore.Composition;
 using DiaEditCore.Commands;
 using DiaEditCore.Model;
 using DiaEditCore.Serialization.Json;
 using DiaEditCore.Session;
-
-namespace DiaEditApp;
 
 public partial class App : Application
 {

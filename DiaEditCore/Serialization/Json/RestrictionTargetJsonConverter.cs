@@ -1,10 +1,10 @@
+namespace DiaEditCore.Serialization.Json;
+
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable;
-
-namespace DiaEditCore.Serialization.Json;
 
 /// <summary>
 /// RestrictionTarget（判別共用体：Segment / Rail）用の独自JsonConverter。

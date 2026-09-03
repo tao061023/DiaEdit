@@ -1,4 +1,5 @@
-namespace DiaEditCore.Model.Stations;
+namespace DiaEditCore.Model.Stations.FloorUnitObjects;
+
 public enum EntryPointType { Arrival, Departure, Both }
 
 public sealed class EntryPoint

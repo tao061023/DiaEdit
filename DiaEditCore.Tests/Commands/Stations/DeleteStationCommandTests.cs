@@ -6,6 +6,7 @@ using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Session;
+
 using Xunit;
 
 public sealed class DeleteStationCommandTests

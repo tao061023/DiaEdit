@@ -1,10 +1,10 @@
+namespace DiaEditCore.Tests.Commands;
+
 using DiaEditCore.ChangeNotification;
 using DiaEditCore.Commands;
 using DiaEditCore.Model;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Commands;
 
 /// <summary>テスト用の単純な可変対象。実際のTrain等の代わりに使う。</summary>
 public sealed class FakeTarget

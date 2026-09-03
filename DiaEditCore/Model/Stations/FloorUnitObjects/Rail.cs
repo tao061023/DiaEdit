@@ -1,4 +1,4 @@
-namespace DiaEditCore.Model.Stations;
+namespace DiaEditCore.Model.Stations.FloorUnitObjects;
 
 public enum RailRole { Normal, Track, Shunting };
 

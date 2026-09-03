@@ -3,6 +3,7 @@ namespace DiaEditCore.Tests.Algorithm.CacheBuilder;
 using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable;
+
 using Xunit;
 
 public class TemporaryRestrictionBySegmentIndexBuilderTests

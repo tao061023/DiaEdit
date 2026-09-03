@@ -1,10 +1,9 @@
-using DiaEditCore.Algorithm;
+namespace DiaEditCore.Serialization.Validation.Routes;
 
+using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 
-namespace DiaEditCore.Serialization.Validation.Routes;
- 
 public sealed class ServiceRouteValidator : IValidator<ServiceRoute>
 {
     private readonly DisplayNameValidator _displayNameValidator = new();

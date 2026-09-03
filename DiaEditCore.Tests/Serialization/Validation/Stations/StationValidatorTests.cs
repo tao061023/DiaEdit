@@ -1,11 +1,11 @@
+namespace DiaEditCore.Tests.Serialization.Validation.Stations;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
-
 using DiaEditCore.Serialization.Validation;
 using DiaEditCore.Serialization.Validation.Stations;
-using Xunit;
 
-namespace DiaEditCore.Tests.Serialization.Validation.Stations;
+using Xunit;
 
 public class StationValidatorTests
 {

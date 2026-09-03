@@ -1,6 +1,6 @@
-using DiaEditCore.Model.Cars;
-
 namespace DiaEditCore.Serialization.Validation.Cars;
+
+using DiaEditCore.Model.Cars;
 
 public sealed class CarCompositionValidator : IValidator<CarComposition>
 {

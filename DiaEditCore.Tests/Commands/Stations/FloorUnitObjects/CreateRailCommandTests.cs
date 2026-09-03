@@ -1,11 +1,13 @@
-namespace DiaEditCore.Tests.Commands.Stations;
+namespace DiaEditCore.Tests.Commands.Stations.FloorUnitObjects;
 
 using System.Collections.Generic;
 using System.Linq;
-using DiaEditCore.Commands.Stations;
+
+using DiaEditCore.Commands.Stations.FloorUnitObjects;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Session;
+
 using Xunit;
 
 public sealed class CreateRailCommandTests

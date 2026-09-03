@@ -1,9 +1,9 @@
+namespace DiaEditCore.Tests.Serialization.Validation.TimeTable.Trains;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Model.TimeTable.Trains;
 
 public sealed class StopKeySequenceBuilderTests
 {

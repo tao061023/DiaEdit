@@ -1,11 +1,11 @@
+namespace DiaEditCore.Tests.Serialization.Json;
+
 using System.Text.Json;
 
 using DiaEditCore.Model;
 using DiaEditCore.Serialization.Json;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Serialization.Json;
 
 public class ObjectIdJsonConverterTests
 {

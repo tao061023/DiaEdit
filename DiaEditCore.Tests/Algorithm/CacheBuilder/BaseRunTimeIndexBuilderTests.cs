@@ -1,12 +1,11 @@
-using DiaEditCore.Algorithm.CacheBuilder;
+namespace DiaEditCore.Tests.Algorithm.CacheBuilder;
 
+using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm.CacheBuilder;
 
 public class BaseRunTimeIndexBuilderTests
 {

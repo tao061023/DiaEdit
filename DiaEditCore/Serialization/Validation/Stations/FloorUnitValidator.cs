@@ -1,6 +1,6 @@
-using DiaEditCore.Model.Stations;
-
 namespace DiaEditCore.Serialization.Validation.Stations;
+
+using DiaEditCore.Model.Stations;
 
 public sealed class FloorUnitValidator : IValidator<FloorUnit>
 {

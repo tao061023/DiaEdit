@@ -1,6 +1,7 @@
 namespace DiaEditApp.Services;
 
 using Microsoft.Extensions.DependencyInjection;
+
 using DiaEditApp.ViewModels;
 
 public static class ServiceCollectionExtensions

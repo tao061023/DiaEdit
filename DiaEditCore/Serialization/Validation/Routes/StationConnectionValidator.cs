@@ -1,10 +1,10 @@
-using DiaEditCore.Algorithm;
+namespace DiaEditCore.Serialization.Validation.Routes;
 
+using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Routes;
 
-namespace DiaEditCore.Serialization.Validation.Routes;
 
 public sealed class StationConnectionValidator : IValidator<StationConnection>
 {

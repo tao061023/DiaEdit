@@ -1,8 +1,8 @@
+namespace DiaEditCore.Serialization.Validation.Routes;
+
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.Routes;
-
-namespace DiaEditCore.Serialization.Validation.Routes;
 
 public sealed class MainRouteValidator : IValidator<MainRoute>
 {

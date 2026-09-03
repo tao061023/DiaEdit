@@ -3,6 +3,7 @@ namespace DiaEditCore.Tests.Algorithm.CacheBuilder;
 using DiaEditCore.Algorithm.CacheBuilder;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
+
 using Xunit;
 
 public class ScsUsedByIndexBuilderTests

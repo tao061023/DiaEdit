@@ -1,12 +1,11 @@
-using DiaEditCore.Model;
-using DiaEditCore.Model.Routes;
-using DiaEditCore.Model.Stations;
+namespace DiaEditCore.Tests.Algorithm;
 
 using DiaEditCore.Algorithm;
+using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
+using DiaEditCore.Model.Routes;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm;
 
 public class ReversalResolverTests
 {

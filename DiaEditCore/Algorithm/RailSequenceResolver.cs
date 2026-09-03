@@ -1,7 +1,7 @@
 namespace DiaEditCore.Algorithm;
 
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 
 /// <summary>
 /// StationPathのPathWayPointから通過Rail列を引き当てる。

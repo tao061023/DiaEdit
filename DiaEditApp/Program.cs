@@ -1,7 +1,8 @@
-﻿using Avalonia;
+﻿namespace DiaEditApp;
+
 using System;
 
-namespace DiaEditApp;
+using Avalonia;
 
 sealed class Program
 {

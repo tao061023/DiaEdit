@@ -1,6 +1,6 @@
-using DiaEditCore.Model;
-
 namespace DiaEditCore.Serialization.Validation;
+
+using DiaEditCore.Model;
 
 public sealed class DisplayNameValidator : IValidator<DisplayName>
 {

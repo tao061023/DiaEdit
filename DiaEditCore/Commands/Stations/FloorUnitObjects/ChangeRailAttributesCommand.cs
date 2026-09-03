@@ -1,8 +1,9 @@
-namespace DiaEditCore.Commands.Stations;
+namespace DiaEditCore.Commands.Stations.FloorUnitObjects;
 
 using DiaEditCore.Algorithm.Dependency;
+using DiaEditCore.Commands;
 using DiaEditCore.Model;
-using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Session;
 
 /// <summary>

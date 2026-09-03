@@ -1,10 +1,11 @@
-using DiaEditCore.Model.Cars;
-using DiaEditCore.Model.Routes;
+namespace DiaEditCore.Model;
+
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
+using DiaEditCore.Model.Routes;
+using DiaEditCore.Model.Cars;
 using DiaEditCore.Model.TimeTable;
 using DiaEditCore.Model.TimeTable.Trains;
-
-namespace DiaEditCore.Model;
 
 /// <summary>
 /// 1プロジェクト1JSON方針における保存ファイルのルート集約オブジェクト。

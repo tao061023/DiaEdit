@@ -1,10 +1,12 @@
+namespace DiaEditApp;
+
 using System;
 using System.Diagnostics.CodeAnalysis;
+
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
-using DiaEditApp.ViewModels;
 
-namespace DiaEditApp;
+using DiaEditApp.ViewModels;
 
 /// <summary>
 /// Given a view model, returns the corresponding view if possible.

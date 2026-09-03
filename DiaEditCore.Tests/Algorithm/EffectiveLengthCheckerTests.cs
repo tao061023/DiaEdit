@@ -1,12 +1,12 @@
+namespace DiaEditCore.Tests.Algorithm;
+
 using DiaEditCore.Algorithm;
 using DiaEditCore.Model;
+using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.Cars;
-using DiaEditCore.Model.Stations;
 using DiaEditCore.Model.TimeTable.Trains;
 
 using Xunit;
-
-namespace DiaEditCore.Tests.Algorithm;
 
 public class EffectiveLengthCheckerTests
 {
