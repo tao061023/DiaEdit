@@ -99,6 +99,12 @@ public static class SaveValidationRunner
         // contextのみを渡す。
         issues.AddRange(BaseTimeTableSetTrainDuplicationCrossValidator.Run(context));
 
+        // ── Rail端点オブジェクトの被参照数上限検証（§9.2項目17派生、v13.7新設） ──
+        // 同一のBufferStop/EntryPoint/BoundaryPoint/Switcherポートに、物理的に不可能な本数の
+        // Railが接続されていないかを検証する。RailValidator（単一Rail向け）では他Railとの
+        // 重複を検知できないため、Cross Validatorとして独立させている。
+        issues.AddRange(RailEndpointCardinalityCrossValidator.Run(context));
+
         return issues;
     }
 
