@@ -2,6 +2,7 @@ namespace DiaEditCore.Commands.Stations;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// 「新規登録（Create）」パターンのFloorUnit向け実装。CreateStationCommandと同型。
@@ -16,6 +17,7 @@ using DiaEditCore.Model.Stations;
 /// </summary>
 public sealed class CreateFloorUnitCommand : UndoableCommand<List<FloorUnit>, FloorUnit?>
 {
+    private readonly IdAllocator<FloorUnitId> _idAllocator;
     private readonly StationId _stationId;
     private readonly string _name;
     private readonly int _displayOrder;
@@ -25,11 +27,13 @@ public sealed class CreateFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
 
     public CreateFloorUnitCommand(
         List<FloorUnit> floorUnits,
+        IdAllocator<FloorUnitId> idAllocator,
         StationId stationId,
         string name = "",
         int displayOrder = 0)
         : base(floorUnits, new HashSet<ObjectId>()) // 新規登録：AffectedIdsは空集合
     {
+        _idAllocator = idAllocator;
         _stationId = stationId;
         _name = name;
         _displayOrder = displayOrder;
@@ -52,10 +56,9 @@ public sealed class CreateFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
             return;
         }
 
-        var id = AllocateNextId(target);
         Created = new FloorUnit
         {
-            Id = id,
+            Id = _idAllocator.AllocateNext(),
             StationId = _stationId,
             Name = _name,
             DisplayOrder = _displayOrder
@@ -70,7 +73,4 @@ public sealed class CreateFloorUnitCommand : UndoableCommand<List<FloorUnit>, Fl
             target.Remove(Created);
         }
     }
-
-    private static FloorUnitId AllocateNextId(IReadOnlyList<FloorUnit> existing) =>
-        new(existing.Count == 0 ? 1 : existing.Max(f => f.Id.Value) + 1);
 }

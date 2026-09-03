@@ -72,6 +72,8 @@ public sealed partial class StationListViewModel : ViewModelBase, ICacheChangeOb
         var command = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
             _session.Current.Stations,
             _session.Current.FloorUnits,
+            _session.StationIds,
+            _session.FloorUnitIds,
             new DisplayName { Name = "新規駅" },
             StationType.Standard);
 

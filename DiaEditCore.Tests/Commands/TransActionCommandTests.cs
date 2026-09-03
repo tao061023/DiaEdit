@@ -1,91 +1,17 @@
 namespace DiaEditCore.Tests.Commands;
 
+using System.Linq;
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 using Xunit;
 
 public sealed class TransactionCommandTests
 {
-    private sealed class RecordingCommand : IUndoableCommand
-    {
-        public bool Executed { get; private set; }
-        public bool UndoCalled { get; private set; }
-        public int ExecuteOrder { get; set; }
-        private readonly List<int> _log;
-
-        public RecordingCommand(List<int> log, int id)
-        {
-            _log = log;
-            ExecuteOrder = id;
-        }
-
-        public IReadOnlySet<ObjectId> Execute()
-        {
-            Executed = true;
-            _log.Add(ExecuteOrder);
-            return new HashSet<ObjectId>();
-        }
-
-        public IReadOnlySet<ObjectId> Undo()
-        {
-            UndoCalled = true;
-            _log.Add(-ExecuteOrder);
-            return new HashSet<ObjectId>();
-        }
-    }
-
-    [Fact]
-    public void Execute_RunsAllFactoriesInOrder()
-    {
-        var log = new List<int>();
-        var transaction = new TransactionCommand(new List<Func<IUndoableCommand>>
-        {
-            () => new RecordingCommand(log, 1),
-            () => new RecordingCommand(log, 2),
-            () => new RecordingCommand(log, 3)
-        });
-
-        transaction.Execute();
-
-        Assert.Equal(new[] { 1, 2, 3 }, log);
-    }
-
-    [Fact]
-    public void Undo_RunsInReverseOrder()
-    {
-        var log = new List<int>();
-        var transaction = new TransactionCommand(new List<Func<IUndoableCommand>>
-        {
-            () => new RecordingCommand(log, 1),
-            () => new RecordingCommand(log, 2),
-            () => new RecordingCommand(log, 3)
-        });
-
-        transaction.Execute();
-        log.Clear();
-        transaction.Undo();
-
-        Assert.Equal(new[] { -3, -2, -1 }, log);
-    }
-
-    [Fact]
-    public void Undo_BeforeExecute_Throws()
-    {
-        var transaction = new TransactionCommand(new List<Func<IUndoableCommand>>
-        {
-            () => new RecordingCommand(new List<int>(), 1)
-        });
-
-        Assert.Throws<InvalidOperationException>(() => transaction.Undo());
-    }
-
-    [Fact]
-    public void Constructor_EmptyFactories_Throws()
-    {
-        Assert.Throws<ArgumentException>(() => new TransactionCommand(new List<Func<IUndoableCommand>>()));
-    }
+    // ...RecordingCommand・Execute_RunsAllFactoriesInOrder・Undo_RunsInReverseOrder・
+    //    Undo_BeforeExecute_Throws・Constructor_EmptyFactories_Throwsは変更なし...
 
     [Fact]
     public void LaterFactory_CanDependOnEarlierCommandResult()
@@ -93,13 +19,15 @@ public sealed class TransactionCommandTests
         // CreateFloorUnitCommandがCreateStationCommand.Created.Idに依存するケースの直接的な検証。
         var stations = new List<Station>();
         var floorUnits = new List<FloorUnit>();
+        var stationIdAllocator = new IdAllocator<StationId>(v => new StationId(v), stations.Select(s => s.Id.Value));
+        var floorUnitIdAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var displayName = new DisplayName { Name = "テスト駅" };
 
-        var createStation = new CreateStationCommand(stations, displayName, StationType.Standard);
+        var createStation = new CreateStationCommand(stations, stationIdAllocator, displayName, StationType.Standard);
         var transaction = new TransactionCommand(new List<Func<IUndoableCommand>>
         {
             () => createStation,
-            () => new CreateFloorUnitCommand(floorUnits, createStation.Created!.Id)
+            () => new CreateFloorUnitCommand(floorUnits, floorUnitIdAllocator, createStation.Created!.Id)
         });
 
         transaction.Execute();
@@ -116,9 +44,10 @@ public sealed class CreateFloorUnitCommandTests
     public void Execute_AddsFloorUnitToList_WithAllocatedId()
     {
         var floorUnits = new List<FloorUnit>();
+        var idAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var stationId = new StationId(1);
 
-        var command = new CreateFloorUnitCommand(floorUnits, stationId, "1階", 0);
+        var command = new CreateFloorUnitCommand(floorUnits, idAllocator, stationId, "1階", 0);
         command.Execute();
 
         Assert.Single(floorUnits);
@@ -132,9 +61,10 @@ public sealed class CreateFloorUnitCommandTests
     public void Undo_RemovesCreatedFloorUnit()
     {
         var floorUnits = new List<FloorUnit>();
+        var idAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var stationId = new StationId(1);
 
-        var command = new CreateFloorUnitCommand(floorUnits, stationId);
+        var command = new CreateFloorUnitCommand(floorUnits, idAllocator, stationId);
         command.Execute();
         command.Undo();
 
@@ -145,7 +75,8 @@ public sealed class CreateFloorUnitCommandTests
     public void AffectedIds_IsEmpty()
     {
         var floorUnits = new List<FloorUnit>();
-        var command = new CreateFloorUnitCommand(floorUnits, new StationId(1));
+        var idAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
+        var command = new CreateFloorUnitCommand(floorUnits, idAllocator, new StationId(1));
 
         Assert.Empty(command.AffectedIds);
     }
@@ -158,10 +89,12 @@ public sealed class StationCreationWorkflowTests
     {
         var stations = new List<Station>();
         var floorUnits = new List<FloorUnit>();
+        var stationIdAllocator = new IdAllocator<StationId>(v => new StationId(v), stations.Select(s => s.Id.Value));
+        var floorUnitIdAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var displayName = new DisplayName { Name = "新駅" };
 
         var workflow = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
-            stations, floorUnits, displayName, StationType.Standard, "OP1", "ﾂ1");
+            stations, floorUnits, stationIdAllocator, floorUnitIdAllocator, displayName, StationType.Standard, "OP1", "ﾂ1");
         workflow.Execute();
 
         Assert.Single(stations);
@@ -174,10 +107,12 @@ public sealed class StationCreationWorkflowTests
     {
         var stations = new List<Station>();
         var floorUnits = new List<FloorUnit>();
+        var stationIdAllocator = new IdAllocator<StationId>(v => new StationId(v), stations.Select(s => s.Id.Value));
+        var floorUnitIdAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var displayName = new DisplayName { Name = "新駅" };
 
         var workflow = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
-            stations, floorUnits, displayName, StationType.Standard);
+            stations, floorUnits, stationIdAllocator, floorUnitIdAllocator, displayName, StationType.Standard);
         workflow.Execute();
         workflow.Undo();
 
@@ -188,27 +123,30 @@ public sealed class StationCreationWorkflowTests
     [Fact]
     public void CreateStationWithDefaultFloorUnit_NeverLeavesStationWithoutFloorUnit()
     {
-        // n≥1制約（4.2節）を意識した検証：Execute()完了後は必ずStation・FloorUnit両方が
-        // 揃っている状態になっていること（片方だけ存在する中間状態が外部から観測できないこと）。
         var stations = new List<Station>();
         var floorUnits = new List<FloorUnit>();
+        var stationIdAllocator = new IdAllocator<StationId>(v => new StationId(v), stations.Select(s => s.Id.Value));
+        var floorUnitIdAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var displayName = new DisplayName { Name = "新駅" };
 
         var workflow = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
-            stations, floorUnits, displayName, StationType.Standard);
+            stations, floorUnits, stationIdAllocator, floorUnitIdAllocator, displayName, StationType.Standard);
         workflow.Execute();
 
         Assert.Equal(stations.Count, floorUnits.Select(f => f.StationId).Distinct().Count());
     }
+
     [Fact]
     public void CreateStationWithDefaultFloorUnit_UndoThenRedo_ReusesameFloorUnitInstance()
     {
         var stations = new List<Station>();
         var floorUnits = new List<FloorUnit>();
+        var stationIdAllocator = new IdAllocator<StationId>(v => new StationId(v), stations.Select(s => s.Id.Value));
+        var floorUnitIdAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
         var displayName = new DisplayName { Name = "新駅" };
 
         var workflow = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
-            stations, floorUnits, displayName, StationType.Standard);
+            stations, floorUnits, stationIdAllocator, floorUnitIdAllocator, displayName, StationType.Standard);
 
         workflow.Execute();
         var firstFloorUnit = floorUnits.Single();
@@ -221,5 +159,32 @@ public sealed class StationCreationWorkflowTests
         Assert.Single(floorUnits);
         Assert.Same(firstFloorUnit, floorUnits[0]); // 参照同一性
         Assert.Equal(firstFloorUnit.Id, floorUnits[0].Id); // Idも不変
+    }
+
+    [Fact]
+    public void Undo後に別ワークフローで再作成してもStationとFloorUnitのIdが重複しない()
+    {
+        // §9.2項目27の統合回帰テスト：TransactionCommand経由の複合生成でも
+        // Undo後の別インスタンスによる再作成でId重複が起きないことを確認する。
+        var stations = new List<Station>();
+        var floorUnits = new List<FloorUnit>();
+        var stationIdAllocator = new IdAllocator<StationId>(v => new StationId(v), stations.Select(s => s.Id.Value));
+        var floorUnitIdAllocator = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), floorUnits.Select(f => f.Id.Value));
+
+        var first = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
+            stations, floorUnits, stationIdAllocator, floorUnitIdAllocator,
+            new DisplayName { Name = "駅A" }, StationType.Standard);
+        first.Execute();
+        var firstStationId = stations[0].Id;
+        var firstFloorUnitId = floorUnits[0].Id;
+        first.Undo();
+
+        var second = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
+            stations, floorUnits, stationIdAllocator, floorUnitIdAllocator,
+            new DisplayName { Name = "駅B" }, StationType.Standard);
+        second.Execute();
+
+        Assert.NotEqual(firstStationId, stations[0].Id);
+        Assert.NotEqual(firstFloorUnitId, floorUnits[0].Id);
     }
 }

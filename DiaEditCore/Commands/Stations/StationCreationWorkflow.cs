@@ -2,6 +2,7 @@ namespace DiaEditCore.Commands.Stations;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// 4.2節「運用：n≥1制約を保つため、Station作成操作は空のFloorUnit同時生成までを1つの複合コマンド
@@ -20,17 +21,19 @@ public static class StationCreationWorkflow
     public static TransactionCommand CreateStationWithDefaultFloorUnit(
         List<Station> stations,
         List<FloorUnit> floorUnits,
+        IdAllocator<StationId> stationIds,
+        IdAllocator<FloorUnitId> floorUnitIds,
         DisplayName displayName,
         StationType type,
         string operatingCode = "",
         string telegraphCode = "")
     {
-        var createStation = new CreateStationCommand(stations, displayName, type, operatingCode, telegraphCode);
+        var createStation = new CreateStationCommand(stations, stationIds, displayName, type, operatingCode, telegraphCode);
 
         return new TransactionCommand(new List<Func<IUndoableCommand>>
         {
             () => createStation,
-            () => new CreateFloorUnitCommand(floorUnits, createStation.Created!.Id)
+            () => new CreateFloorUnitCommand(floorUnits, floorUnitIds, createStation.Created!.Id)
         });
     }
 }

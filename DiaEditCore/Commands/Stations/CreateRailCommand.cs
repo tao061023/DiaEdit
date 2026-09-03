@@ -2,6 +2,7 @@ namespace DiaEditCore.Commands.Stations;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// 「新規登録（Create）」パターンのRail向け実装。CreateStationCommandと同じ設計。
@@ -16,6 +17,7 @@ using DiaEditCore.Model.Stations;
 /// </summary>
 public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
 {
+    private readonly IdAllocator<RailId> _idAllocator;
     private readonly string _name;
     private readonly double _lengthM;
     private readonly double _speedLimitKph;
@@ -26,12 +28,14 @@ public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
 
     public CreateRailCommand(
         List<Rail> rails,
+        IdAllocator<RailId> idAllocator,
         string name,
         double lengthM,
         double speedLimitKph,
         RailRole role)
         : base(rails, new HashSet<ObjectId>()) // 新規登録：AffectedIdsは空集合
     {
+        _idAllocator = idAllocator;
         _name = name;
         _lengthM = lengthM;
         _speedLimitKph = speedLimitKph;
@@ -55,10 +59,9 @@ public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
             return;
         }
 
-        var id = AllocateNextId(target);
         Created = new Rail
         {
-            Id = id,
+            Id = _idAllocator.AllocateNext(),
             Name = _name,
             LengthM = _lengthM,
             SpeedLimitKph = _speedLimitKph,
@@ -76,7 +79,4 @@ public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
             target.Remove(Created);
         }
     }
-
-    private static RailId AllocateNextId(IReadOnlyList<Rail> existing) =>
-        new(existing.Count == 0 ? 1 : existing.Max(r => r.Id.Value) + 1);
 }

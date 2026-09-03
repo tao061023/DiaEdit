@@ -24,21 +24,28 @@ public sealed class ProjectSession : ICacheChangeObserver
 
     public ProjectFile Current { get; private set; } = null!;
 
+    // §9.2項目27：モデル種別ごとの単調カウンタ。Load()で初期化される。
+    // 新規モデルをCreateパターンに乗せるたびにここへ1行追加する規約とする（6.1節）。
+    public IdAllocator<StationId> StationIds { get; private set; } = null!;
+    public IdAllocator<RailId> RailIds { get; private set; } = null!;
+    public IdAllocator<FloorUnitId> FloorUnitIds { get; private set; } = null!;
+
     public ProjectSession(CommandInvoker invoker)
     {
         _invoker = invoker;
         _invoker.Subscribe(this);
     }
 
-    /// <summary>
-    /// プロジェクトを読み込み、キャッシュを即座にフル構築する
-    /// （Load直後は画面表示に必要なため、遅延を待たず同期的に構築する）。
-    /// </summary>
     public void Load(ProjectFile project)
     {
         Current = project;
         _cache = new TimeTableSetCache();
         _cacheDirty = true;
+
+        StationIds = new IdAllocator<StationId>(v => new StationId(v), project.Stations.Select(s => s.Id.Value));
+        RailIds = new IdAllocator<RailId>(v => new RailId(v), project.Rails.Select(r => r.Id.Value));
+        FloorUnitIds = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), project.FloorUnits.Select(f => f.Id.Value));
+
         RebuildCacheIfDirty();
     }
 

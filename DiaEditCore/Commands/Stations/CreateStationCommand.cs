@@ -2,6 +2,7 @@ namespace DiaEditCore.Commands.Stations;
 
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 
 /// <summary>
 /// 「新規登録（Create）」パターンの最初の具象実装。
@@ -20,6 +21,7 @@ using DiaEditCore.Model.Stations;
 /// </summary>
 public sealed class CreateStationCommand : UndoableCommand<List<Station>, Station?>
 {
+    private readonly IdAllocator<StationId> _idAllocator;
     private readonly DisplayName _displayName;
     private readonly StationType _type;
     private readonly string _operatingCode;
@@ -33,12 +35,14 @@ public sealed class CreateStationCommand : UndoableCommand<List<Station>, Statio
 
     public CreateStationCommand(
         List<Station> stations,
+        IdAllocator<StationId> idAllocator,
         DisplayName displayName,
         StationType type,
         string operatingCode = "",
         string telegraphCode = "")
         : base(stations, new HashSet<ObjectId>()) // 新規登録：AffectedIdsは対象自身のみ（空集合）
     {
+        _idAllocator = idAllocator;
         _displayName = displayName.Clone();
         _type = type;
         _operatingCode = operatingCode;
@@ -66,10 +70,9 @@ public sealed class CreateStationCommand : UndoableCommand<List<Station>, Statio
             return;
         }
 
-        var id = AllocateNextId(target);
         Created = new Station
         {
-            Id = id,
+            Id = _idAllocator.AllocateNext(), // ← target.Max()+1 を廃止
             DisplayName = _displayName.Clone(),
             Type = _type,
             OperatingCode = _operatingCode,
@@ -85,7 +88,4 @@ public sealed class CreateStationCommand : UndoableCommand<List<Station>, Statio
             target.Remove(Created);
         }
     }
-
-    private static StationId AllocateNextId(IReadOnlyList<Station> existing) =>
-        new(existing.Count == 0 ? 1 : existing.Max(s => s.Id.Value) + 1);
 }

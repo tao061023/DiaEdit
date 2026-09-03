@@ -137,7 +137,7 @@ public sealed partial class StationDetailViewModel : ViewModelBase, IAffectedByO
     private void AddFloorUnit()
     {
         var nextOrder = FloorUnits.Count == 0 ? 0 : FloorUnits.Max(f => f.DisplayOrder) + 1;
-        var command = new CreateFloorUnitCommand(_session.Current.FloorUnits, _station.Id, name: "", displayOrder: nextOrder);
+        var command = new CreateFloorUnitCommand(_session.Current.FloorUnits, _session.FloorUnitIds, _station.Id, name: "", displayOrder: nextOrder);
         _invoker.Execute(command); // OnAffected経由でReloadFloorUnits()される
     }
 

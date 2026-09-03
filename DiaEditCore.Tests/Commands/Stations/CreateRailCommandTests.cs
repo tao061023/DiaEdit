@@ -1,9 +1,11 @@
 namespace DiaEditCore.Tests.Commands.Stations;
 
 using System.Collections.Generic;
+using System.Linq;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
+using DiaEditCore.Session;
 using Xunit;
 
 public sealed class CreateRailCommandTests
@@ -12,8 +14,9 @@ public sealed class CreateRailCommandTests
     public void Execute_AddsRailToList_WithAllocatedId()
     {
         var rails = new List<Rail>();
+        var idAllocator = new IdAllocator<RailId>(v => new RailId(v), rails.Select(r => r.Id.Value));
 
-        var command = new CreateRailCommand(rails, "新線路", 150.0, 80.0, RailRole.Normal);
+        var command = new CreateRailCommand(rails, idAllocator, "新線路", 150.0, 80.0, RailRole.Normal);
         command.Execute();
 
         Assert.Single(rails);
@@ -28,8 +31,9 @@ public sealed class CreateRailCommandTests
     public void Execute_CreatesWithNoneEndpointsAndEmptyControlPoints()
     {
         var rails = new List<Rail>();
+        var idAllocator = new IdAllocator<RailId>(v => new RailId(v), rails.Select(r => r.Id.Value));
 
-        var command = new CreateRailCommand(rails, "新線路", 150.0, 80.0, RailRole.Normal);
+        var command = new CreateRailCommand(rails, idAllocator, "新線路", 150.0, 80.0, RailRole.Normal);
         command.Execute();
 
         Assert.IsType<NoneEndpointRef>(rails[0].EndpointA);
@@ -46,7 +50,9 @@ public sealed class CreateRailCommandTests
             new() { Id = new RailId(5), LengthM = 10, SpeedLimitKph = 60, Role = RailRole.Normal, EndpointA = new NoneEndpointRef(), EndpointB = new NoneEndpointRef() }
         };
 
-        var command = new CreateRailCommand(rails, "新線路", 150.0, 80.0, RailRole.Normal);
+        var idAllocator = new IdAllocator<RailId>(v => new RailId(v), rails.Select(r => r.Id.Value));
+
+        var command = new CreateRailCommand(rails, idAllocator, "新線路", 150.0, 80.0, RailRole.Normal);
         command.Execute();
 
         Assert.Equal(6, command.Created!.Id.Value);
@@ -56,8 +62,9 @@ public sealed class CreateRailCommandTests
     public void Undo_RemovesCreatedRailFromList()
     {
         var rails = new List<Rail>();
+        var idAllocator = new IdAllocator<RailId>(v => new RailId(v), rails.Select(r => r.Id.Value));
 
-        var command = new CreateRailCommand(rails, "新線路", 150.0, 80.0, RailRole.Normal);
+        var command = new CreateRailCommand(rails, idAllocator, "新線路", 150.0, 80.0, RailRole.Normal);
         command.Execute();
         command.Undo();
 
@@ -68,9 +75,29 @@ public sealed class CreateRailCommandTests
     public void AffectedIds_IsEmpty()
     {
         var rails = new List<Rail>();
+        var idAllocator = new IdAllocator<RailId>(v => new RailId(v), rails.Select(r => r.Id.Value));
 
-        var command = new CreateRailCommand(rails, "新線路", 150.0, 80.0, RailRole.Normal);
+        var command = new CreateRailCommand(rails, idAllocator, "新線路", 150.0, 80.0, RailRole.Normal);
 
         Assert.Empty(command.AffectedIds);
+    }
+    
+    [Fact]
+    public void Undo後に別コマンドで再作成しても同一Idが再利用されない()
+    {
+        // §9.2項目27の中核回帰テスト：Undo後の「別インスタンスによる」再作成でId重複が起きないこと。
+        // 同一コマンドインスタンス内のUndo→Redo（Created再利用）とは別のシナリオである点に注意。
+        var rails = new List<Rail>();
+        var idAllocator = new IdAllocator<RailId>(v => new RailId(v), rails.Select(r => r.Id.Value));
+
+        var first = new CreateRailCommand(rails, idAllocator, "線路A", 100.0, 60.0, RailRole.Normal);
+        first.Execute();
+        var firstId = first.Created!.Id;
+        first.Undo();
+
+        var second = new CreateRailCommand(rails, idAllocator, "線路B", 100.0, 60.0, RailRole.Normal);
+        second.Execute();
+
+        Assert.NotEqual(firstId, second.Created!.Id);
     }
 }
