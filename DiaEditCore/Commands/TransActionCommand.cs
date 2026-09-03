@@ -31,8 +31,19 @@ public sealed class TransactionCommand : IUndoableCommand
 
     public IReadOnlySet<ObjectId> Execute()
     {
-        _executed.Clear();
         var affected = new HashSet<ObjectId>();
+
+        if (_executedOnce)
+        {
+            // Redo経路：ファクトリは呼び直さず、Execute時に生成済みの
+            // コマンドインスタンスへ再度Execute()する（各コマンド自身のRedo安全な
+            // Apply()実装、§9.1項目23が前提として効く）。
+            foreach (var command in _executed)
+            {
+                affected.UnionWith(command.Execute());
+            }
+            return affected;
+        }
 
         foreach (var factory in _factories)
         {

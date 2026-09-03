@@ -200,4 +200,26 @@ public sealed class StationCreationWorkflowTests
 
         Assert.Equal(stations.Count, floorUnits.Select(f => f.StationId).Distinct().Count());
     }
+    [Fact]
+    public void CreateStationWithDefaultFloorUnit_UndoThenRedo_ReusesameFloorUnitInstance()
+    {
+        var stations = new List<Station>();
+        var floorUnits = new List<FloorUnit>();
+        var displayName = new DisplayName { Name = "新駅" };
+
+        var workflow = StationCreationWorkflow.CreateStationWithDefaultFloorUnit(
+            stations, floorUnits, displayName, StationType.Standard);
+
+        workflow.Execute();
+        var firstFloorUnit = floorUnits.Single();
+
+        workflow.Undo();
+        Assert.Empty(floorUnits);
+
+        workflow.Execute(); // CommandInvoker.Redo()と同じパス
+
+        Assert.Single(floorUnits);
+        Assert.Same(firstFloorUnit, floorUnits[0]); // 参照同一性
+        Assert.Equal(firstFloorUnit.Id, floorUnits[0].Id); // Idも不変
+    }
 }
