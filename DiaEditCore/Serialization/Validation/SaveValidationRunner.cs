@@ -129,7 +129,6 @@ public static class SaveValidationRunner
         TemporaryRestrictions = project.TemporaryRestrictions,
         DisplayContexts = project.DisplayContexts,
         TrainOperations = project.TrainOperations,
-        // 注意：project.Platformsに対応するプロパティはValidationContext側に未追加（Tao氏対応中）。
-        // 追加され次第、ここにも反映すること。
+        Platforms = project.Platforms,
     };
 }
