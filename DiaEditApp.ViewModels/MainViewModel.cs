@@ -117,8 +117,30 @@ public partial class MainViewModel : ViewModelBase, ICacheChangeObserver, IDispo
 
         // StationはDIコンテナ管理外の実行時パラメータのため、ActivatorUtilitiesで
         // session/invokerをDIから解決しつつstation/goBackを追加引数として渡す。
-        CurrentContent = ActivatorUtilities.CreateInstance<StationDetailViewModel>(
+        var detail = ActivatorUtilities.CreateInstance<StationDetailViewModel>(
             _serviceProvider, station, (Action)ShowContentForSelectedNode);
+
+        // UI設計書§4.2.3「構内配線図ポップアップ」の入口。StationDetailViewModelはWireUpNavigation
+        // （ナビゲーションツリー経由生成専用）を通らずここで直接生成されるため、購読もここで行う。
+        detail.OpenFloorUnitDetailRequested += OnOpenFloorUnitDetailRequested;
+
+        CurrentContent = detail;
+    }
+
+    /// <summary>
+    /// UI設計書§4.2.3の入口。FloorUnitDetailViewModel（Rail管理画面）の「戻る」は、
+    /// ShowContentForSelectedNode（ナビゲーションツリーの選択状態から再生成＝駅一覧に戻ってしまう）
+    /// ではなく、遷移元のStation詳細画面を再生成するコールバックとする
+    /// （どの駅のFloorUnitを開いていたかという文脈をここで保持する必要があるため）。
+    /// </summary>
+    private void OnOpenFloorUnitDetailRequested(FloorUnit floorUnit)
+    {
+        (CurrentContent as IDisposable)?.Dispose();
+
+        var station = _session.Current.Stations.First(s => s.Id == floorUnit.StationId);
+
+        CurrentContent = ActivatorUtilities.CreateInstance<FloorUnitDetailViewModel>(
+            _serviceProvider, floorUnit, (Action)(() => OnOpenStationDetailRequested(station)));
     }
 
     [RelayCommand]

@@ -62,6 +62,11 @@ public sealed partial class StationDetailViewModel : ViewModelBase, IAffectedByO
     [ObservableProperty]
     public partial FloorUnit? SelectedFloorUnit { get; set; }
 
+    /// <summary>UI設計書§4.2.3「構内配線図ポップアップ」の入口。FloorUnit一覧のダブルタップから
+    /// FloorUnitDetailViewModel（Rail管理画面）へ遷移するためMainViewModelが購読する。
+    /// StationListViewModel.OpenDetailRequestedと同型のパターン。</summary>
+    public event Action<FloorUnit>? OpenFloorUnitDetailRequested;
+
     [ObservableProperty]
     public partial string? DeleteFloorUnitError { get; set; }
 
@@ -206,6 +211,15 @@ public sealed partial class StationDetailViewModel : ViewModelBase, IAffectedByO
         {
             DeleteFloorUnitError = ex.Message;
         }
+    }
+
+    /// <summary>UI設計書§4.2.3「構内配線図ポップアップ」への入口。View側のDoubleTappedハンドラから
+    /// 対象FloorUnitを渡して呼ばれる想定（StationListViewModel.OpenDetailと同型）。</summary>
+    [RelayCommand]
+    private void OpenFloorUnitDetail(FloorUnit? floorUnit)
+    {
+        if (floorUnit is not null)
+            OpenFloorUnitDetailRequested?.Invoke(floorUnit);
     }
 
     [RelayCommand]

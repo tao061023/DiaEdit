@@ -1,0 +1,139 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:DiaEditApp.ViewModels.Stations"
+             xmlns:rails="using:DiaEditCore.Model.Stations.FloorUnitObjects"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="700" d:DesignHeight="600"
+             x:Class="DiaEditApp.Views.Stations.FloorUnitDetailView"
+             x:DataType="vm:FloorUnitDetailViewModel">
+
+    <DockPanel Margin="8">
+
+        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4">
+            <Button Content="← 駅詳細へ戻る" Command="{Binding GoBackCommand}" />
+            <TextBlock Text="{Binding FloorUnitName, StringFormat='構内配線図：{0}'}"
+                       VerticalAlignment="Center" FontWeight="Bold" Margin="12,0,0,0" />
+        </StackPanel>
+
+        <TextBlock DockPanel.Dock="Top" Opacity="0.7" Margin="0,0,0,8"
+                    Text="キャンバス未実装のため、暫定リストUIです（座標は数値入力）。構内配線図ポップアップ（UI設計書§4.2.3）実装時に置き換えます。" />
+
+        <!-- Rail新規作成 -->
+        <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
+            <TextBlock Text="Rail新規作成" FontWeight="Bold" />
+
+            <DockPanel>
+                <TextBlock Text="名称" Width="120" VerticalAlignment="Center" />
+                <TextBox Text="{Binding NewRailName}" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="長さ(m)" Width="120" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding NewRailLengthM}" Minimum="0" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="制限速度(km/h)" Width="120" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding NewRailSpeedLimitKph}" Minimum="0" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="Role" Width="120" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding RailRoles}" SelectedItem="{Binding NewRailRole}" />
+            </DockPanel>
+
+            <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+                <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,4,0">
+                    <TextBlock Text="端点A" FontWeight="Bold" />
+                    <ComboBox ItemsSource="{Binding EndpointKinds}" SelectedItem="{Binding NewEndpointAKind}" />
+                    <DockPanel>
+                        <TextBlock Text="X" Width="30" VerticalAlignment="Center" />
+                        <NumericUpDown Value="{Binding NewEndpointAX}" />
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock Text="Y" Width="30" VerticalAlignment="Center" />
+                        <NumericUpDown Value="{Binding NewEndpointAY}" />
+                    </DockPanel>
+                    <DockPanel IsVisible="{Binding NewEndpointAKind, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:RailEndpointKind.EntryPoint}}">
+                        <TextBlock Text="EntryPointType" Width="110" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding EntryPointTypes}" SelectedItem="{Binding NewEndpointAEntryType}" />
+                    </DockPanel>
+                </StackPanel>
+
+                <StackPanel Grid.Column="1" Spacing="2" Margin="4,0,0,0">
+                    <TextBlock Text="端点B" FontWeight="Bold" />
+                    <ComboBox ItemsSource="{Binding EndpointKinds}" SelectedItem="{Binding NewEndpointBKind}" />
+                    <DockPanel>
+                        <TextBlock Text="X" Width="30" VerticalAlignment="Center" />
+                        <NumericUpDown Value="{Binding NewEndpointBX}" />
+                    </DockPanel>
+                    <DockPanel>
+                        <TextBlock Text="Y" Width="30" VerticalAlignment="Center" />
+                        <NumericUpDown Value="{Binding NewEndpointBY}" />
+                    </DockPanel>
+                    <DockPanel IsVisible="{Binding NewEndpointBKind, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:RailEndpointKind.EntryPoint}}">
+                        <TextBlock Text="EntryPointType" Width="110" VerticalAlignment="Center" />
+                        <ComboBox ItemsSource="{Binding EntryPointTypes}" SelectedItem="{Binding NewEndpointBEntryType}" />
+                    </DockPanel>
+                </StackPanel>
+            </Grid>
+
+            <Button Content="+Rail追加" Command="{Binding AddRailCommand}" Margin="0,4,0,0" />
+        </StackPanel>
+
+        <!-- 選択中Railの削除エラー -->
+        <TextBlock DockPanel.Dock="Top"
+                    Text="{Binding DeleteRailError}"
+                    Foreground="Red"
+                    IsVisible="{Binding HasDeleteRailError}"
+                    Margin="0,0,0,4" />
+
+        <!-- 選択中Rail属性編集（§9.2項目29テンプレート） -->
+        <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,12,0,0"
+                    IsVisible="{Binding SelectedRail, Converter={x:Static ObjectConverters.IsNotNull}}">
+            <TextBlock Text="選択中Railの編集" FontWeight="Bold" />
+            <DockPanel>
+                <TextBlock Text="名称" Width="120" VerticalAlignment="Center" />
+                <TextBox Text="{Binding EditName}" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="長さ(m)" Width="120" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding EditLengthM}" Minimum="0" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="制限速度(km/h)" Width="120" VerticalAlignment="Center" />
+                <NumericUpDown Value="{Binding EditSpeedLimitKph}" Minimum="0" />
+            </DockPanel>
+            <DockPanel>
+                <TextBlock Text="Role" Width="120" VerticalAlignment="Center" />
+                <ComboBox ItemsSource="{Binding RailRoles}" SelectedItem="{Binding EditRole}" />
+            </DockPanel>
+            <StackPanel Orientation="Horizontal" Spacing="4">
+                <Button Content="決定" Command="{Binding SaveSelectedRailCommand}" IsEnabled="{Binding IsDirty}" />
+                <Button Content="削除" Command="{Binding DeleteSelectedRailCommand}" />
+            </StackPanel>
+        </StackPanel>
+
+        <!-- Rail一覧 -->
+        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,80,100,80" Margin="4,2">
+            <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" />
+            <TextBlock Grid.Column="1" Text="長さ(m)" FontWeight="Bold" />
+            <TextBlock Grid.Column="2" Text="制限速度" FontWeight="Bold" />
+            <TextBlock Grid.Column="3" Text="Role" FontWeight="Bold" />
+        </Grid>
+
+        <ListBox ItemsSource="{Binding Rails}"
+                 SelectedItem="{Binding SelectedRail, Mode=TwoWay}">
+            <ListBox.ItemTemplate>
+                <DataTemplate x:DataType="rails:Rail">
+                    <Grid ColumnDefinitions="*,80,100,80">
+                        <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                        <TextBlock Grid.Column="1" Text="{Binding LengthM}" />
+                        <TextBlock Grid.Column="2" Text="{Binding SpeedLimitKph}" />
+                        <TextBlock Grid.Column="3" Text="{Binding Role}" />
+                    </Grid>
+                </DataTemplate>
+            </ListBox.ItemTemplate>
+        </ListBox>
+
+    </DockPanel>
+
+</UserControl>

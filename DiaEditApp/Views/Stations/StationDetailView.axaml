@@ -65,7 +65,8 @@
         </Grid>
 
         <ListBox ItemsSource="{Binding FloorUnits}"
-                 SelectedItem="{Binding SelectedFloorUnit, Mode=TwoWay}">
+                 SelectedItem="{Binding SelectedFloorUnit, Mode=TwoWay}"
+                 DoubleTapped="OnFloorUnitDoubleTapped">
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="stations:FloorUnit">
                     <Grid ColumnDefinitions="*,100">
