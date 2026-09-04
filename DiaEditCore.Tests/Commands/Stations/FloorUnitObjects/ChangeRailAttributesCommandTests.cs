@@ -17,8 +17,8 @@ public sealed class ChangeRailAttributesCommandTests
         LengthM = 100.0,
         SpeedLimitKph = 60.0,
         Role = RailRole.Normal,
-        EndpointA = new NoneEndpointRef(),
-        EndpointB = new NoneEndpointRef()
+        EndpointA = new NoneEndpointRef(new NoneEndpointId(1)),
+        EndpointB = new NoneEndpointRef(new NoneEndpointId(2))
     };
 
     private static readonly ValidationRules DefaultValidationRules = new(

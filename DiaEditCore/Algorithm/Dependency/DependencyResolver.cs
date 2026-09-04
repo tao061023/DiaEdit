@@ -130,6 +130,9 @@ public static class DependencyResolver
             // 【未実装・§9.1項目3残課題】BoundaryPoint／EntryPoint／StationPath（Waypoints経由）は
             // §9.2項目10（StationWork CRUD横展開）と一体で実装する方針のため、
             // 現行実装スコープ（駅作業なし・最小構成）では意図的に終端のまま据え置く。
+            // FloorUnitDependentIndex経由でFloorUnitObjectIdから辿られる側であり、
+            // NoneEndpoint自体が他オブジェクトへ波及させるルールは未定義（BoundaryPoint/BufferStop/Switcherと同様）。
+            NoneEndpointObjectId => [],
             BoundaryPointObjectId => [],
             BufferStopObjectId => [],
             SwitcherObjectId => [],

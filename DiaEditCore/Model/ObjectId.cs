@@ -5,6 +5,7 @@ public abstract record ObjectId;
 public sealed record StationObjectId(StationId Id) : ObjectId;
 public sealed record FloorUnitObjectId(FloorUnitId Id) : ObjectId;
 public sealed record RailObjectId(RailId Id) : ObjectId;
+public sealed record NoneEndpointObjectId(NoneEndpointId Id) : ObjectId;
 public sealed record EntryPointObjectId(EntryPointId Id) : ObjectId;
 public sealed record BoundaryPointObjectId(BoundaryPointId Id) : ObjectId;
 public sealed record BufferStopObjectId(BufferStopId Id) : ObjectId;

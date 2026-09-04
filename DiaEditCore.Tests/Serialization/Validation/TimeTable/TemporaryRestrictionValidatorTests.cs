@@ -109,8 +109,8 @@ public class TemporaryRestrictionValidatorTests
             LengthM = 200,
             SpeedLimitKph = 95,
             Role = RailRole.Normal,
-            EndpointA = new NoneEndpointRef(),
-            EndpointB = new NoneEndpointRef(),
+            EndpointA = new NoneEndpointRef(new NoneEndpointId(1)),
+            EndpointB = new NoneEndpointRef(new NoneEndpointId(2)),
         };
         var restriction = new TemporaryRestriction(
             new TemporaryRestrictionId(1),

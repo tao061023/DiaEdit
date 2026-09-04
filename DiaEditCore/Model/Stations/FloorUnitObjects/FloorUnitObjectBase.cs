@@ -15,7 +15,7 @@ public static class FloorObjectRefExtensions
         EntryPointEndpointRef e => new EntryPointObjectId(e.Id),
         BufferStopEndpointRef bs => new BufferStopObjectId(bs.Id),
         SwitcherEndpointRef sw => new SwitcherObjectId(sw.Id),
-        NoneEndpointRef => null,
+        NoneEndpointRef n => new NoneEndpointObjectId(n.Id),
         null => null,
         // RailEndpointRefはabstract・非sealedのため、コンパイラは派生型の全列挙を証明できない。
         // 既知の派生型を全て網羅した上での防御的フォールバック（真の網羅性保証ではない）。

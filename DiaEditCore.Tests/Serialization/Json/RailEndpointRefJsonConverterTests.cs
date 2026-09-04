@@ -19,15 +19,20 @@ public class RailEndpointRefJsonConverterTests
     }
 
     [Fact]
-    public void NoneEndpointRefは往復変換できる()
+    public void NoneEndpointRefは往復変換で値が保持される()
     {
+        // 旧テスト名「NoneEndpointRefは往復変換できる」から改名：
+        // v13.9でNoneEndpointRefがId必須の実体参照になったため、他の4ケース同様
+        // Idそのものが往復変換で保持されることまで検証する（旧実装はマーカーのみで中身を持たず、
+        // 型判定のみで足りていたが、その前提が崩れたため）。
         var options = MakeOptions();
-        RailEndpointRef original = new NoneEndpointRef();
+        RailEndpointRef original = new NoneEndpointRef(new NoneEndpointId(7));
 
         var json = JsonSerializer.Serialize(original, options);
         var restored = JsonSerializer.Deserialize<RailEndpointRef>(json, options);
 
-        Assert.IsType<NoneEndpointRef>(restored);
+        var v = Assert.IsType<NoneEndpointRef>(restored);
+        Assert.Equal(new NoneEndpointId(7), v.Id);
     }
 
     [Fact]
@@ -118,6 +123,17 @@ public class RailEndpointRefJsonConverterTests
     {
         var options = MakeOptions();
         var json = """{"kind":"Switcher","switcherId":1}""";
+
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<RailEndpointRef>(json, options));
+    }
+    
+    [Fact]
+    public void Noneでnoneendpointidが無ければJsonExceptionが送出される()
+    {
+        // 案A（既存プロジェクトファイルとの後方互換なし）の裏付けテスト。
+        // 旧形式のJSON（kind:"None"のみ、noneEndpointIdフィールドが無い）を模したケース。
+        var options = MakeOptions();
+        var json = """{"kind":"None"}""";
 
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<RailEndpointRef>(json, options));
     }

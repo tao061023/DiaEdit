@@ -103,8 +103,8 @@ public class EffectiveLengthCheckerTests
         LengthM = lengthM,
         SpeedLimitKph = 25,
         Role = RailRole.Track,
-        EndpointA = new NoneEndpointRef(),
-        EndpointB = new NoneEndpointRef(),
+        EndpointA = new NoneEndpointRef(new NoneEndpointId(1)),
+        EndpointB = new NoneEndpointRef(new NoneEndpointId(2)),
     };
 
     private static readonly Dictionary<VehicleTypeId, VehicleType> VehicleTypes =

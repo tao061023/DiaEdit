@@ -14,7 +14,7 @@ using DiaEditCore.Session;
 public abstract record RailEndpointCreationSpec;
 
 /// <summary>端点を作成せず未接続（NoneEndpointRef）のままにする。</summary>
-public sealed record NoneEndpointCreationSpec : RailEndpointCreationSpec;
+public sealed record NoneEndpointCreationSpec(FloorUnitId FloorUnitId, Point Position, string Name = "") : RailEndpointCreationSpec;
 
 public sealed record BoundaryPointCreationSpec(FloorUnitId FloorUnitId, Point Position, string Name = "") : RailEndpointCreationSpec;
 
@@ -45,6 +45,8 @@ public static class RailCreationWorkflow
         RailRole role,
         RailEndpointCreationSpec endpointA,
         RailEndpointCreationSpec endpointB,
+        List<NoneEndpoint> noneEndpoints,
+        IdAllocator<NoneEndpointId> noneEndpointIds,
         List<BoundaryPoint> boundaryPoints,
         IdAllocator<BoundaryPointId> boundaryPointIds,
         List<EntryPoint> entryPoints,
@@ -53,26 +55,26 @@ public static class RailCreationWorkflow
         IdAllocator<BufferStopId> bufferStopIds,
         ProjectSession session)
     {
-        var createRail = new CreateRailCommand(rails, railIds, name, lengthM, speedLimitKph, role);
+        var commands = new List<Func<IUndoableCommand>>();
 
-        var commands = new List<Func<IUndoableCommand>> { () => createRail };
-
+        // 変更：端点A・Bを先に作成する（旧実装はRailを先に作りAttachRailEndpointsCommandで後追い確定していた）
         var factoryA = AddEndpointCreationStep(
-            endpointA, boundaryPoints, boundaryPointIds, entryPoints, entryPointIds, bufferStops, bufferStopIds, commands);
+            endpointA, noneEndpoints, noneEndpointIds,
+            boundaryPoints, boundaryPointIds, entryPoints, entryPointIds, bufferStops, bufferStopIds, commands);
         var factoryB = AddEndpointCreationStep(
-            endpointB, boundaryPoints, boundaryPointIds, entryPoints, entryPointIds, bufferStops, bufferStopIds, commands);
+            endpointB, noneEndpoints, noneEndpointIds,
+            boundaryPoints, boundaryPointIds, entryPoints, entryPointIds, bufferStops, bufferStopIds, commands);
 
-        commands.Add(() => new AttachRailEndpointsCommand(createRail.Created!, factoryA, factoryB, session));
+        var createRail = new CreateRailCommand(rails, railIds, name, lengthM, speedLimitKph, role, factoryA, factoryB);
+        commands.Add(() => createRail);
 
         return new TransactionCommand(commands);
     }
 
-    /// <summary>
-    /// specに応じた端点作成コマンドをcommandsへ追加し（NoneEndpointCreationSpecの場合は追加しない）、
-    /// AttachRailEndpointsCommandが後で評価するためのFunc&lt;RailEndpointRef&gt;を返す。
-    /// </summary>
     private static Func<RailEndpointRef> AddEndpointCreationStep(
         RailEndpointCreationSpec spec,
+        List<NoneEndpoint> noneEndpoints,
+        IdAllocator<NoneEndpointId> noneEndpointIds,
         List<BoundaryPoint> boundaryPoints,
         IdAllocator<BoundaryPointId> boundaryPointIds,
         List<EntryPoint> entryPoints,
@@ -83,21 +85,35 @@ public static class RailCreationWorkflow
     {
         switch (spec)
         {
-            case NoneEndpointCreationSpec:
-                return () => new NoneEndpointRef();
+            case NoneEndpointCreationSpec n:
+                var createNone = new CreateFloorUnitObjectCommand<NoneEndpointId, NoneEndpoint>(
+                    noneEndpoints, noneEndpointIds,
+                    id => new NoneEndpoint { Id = id, Base = new FloorUnitObjectBase { FloorUnitId = n.FloorUnitId, Position = n.Position }, Name = n.Name },
+                    created => new NoneEndpointObjectId(created.Id));
+                commands.Add(() => createNone);
+                return () => new NoneEndpointRef(createNone.Created!.Id);
 
             case BoundaryPointCreationSpec b:
-                var createBoundary = new CreateBoundaryPointCommand(boundaryPoints, boundaryPointIds, b.FloorUnitId, b.Position, b.Name);
+                var createBoundary = new CreateFloorUnitObjectCommand<BoundaryPointId, BoundaryPoint>(
+                    boundaryPoints, boundaryPointIds,
+                    id => new BoundaryPoint { Id = id, Base = new FloorUnitObjectBase { FloorUnitId = b.FloorUnitId, Position = b.Position }, Name = b.Name },
+                    created => new BoundaryPointObjectId(created.Id));
                 commands.Add(() => createBoundary);
                 return () => new BoundaryPointEndpointRef(createBoundary.Created!.Id);
 
             case EntryPointCreationSpec e:
-                var createEntry = new CreateEntryPointCommand(entryPoints, entryPointIds, e.FloorUnitId, e.Position, e.Type, e.Name);
+                var createEntry = new CreateFloorUnitObjectCommand<EntryPointId, EntryPoint>(
+                    entryPoints, entryPointIds,
+                    id => new EntryPoint { Id = id, Base = new FloorUnitObjectBase { FloorUnitId = e.FloorUnitId, Position = e.Position }, Name = e.Name, Type = e.Type },
+                    created => new EntryPointObjectId(created.Id));
                 commands.Add(() => createEntry);
                 return () => new EntryPointEndpointRef(createEntry.Created!.Id);
 
             case BufferStopCreationSpec bs:
-                var createBufferStop = new CreateBufferStopCommand(bufferStops, bufferStopIds, bs.FloorUnitId, bs.Position, bs.Name);
+                var createBufferStop = new CreateFloorUnitObjectCommand<BufferStopId, BufferStop>(
+                    bufferStops, bufferStopIds,
+                    id => new BufferStop { Id = id, Base = new FloorUnitObjectBase { FloorUnitId = bs.FloorUnitId, Position = bs.Position }, Name = bs.Name },
+                    created => new BufferStopObjectId(created.Id));
                 commands.Add(() => createBufferStop);
                 return () => new BufferStopEndpointRef(createBufferStop.Created!.Id);
 

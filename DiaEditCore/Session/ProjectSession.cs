@@ -33,6 +33,7 @@ public sealed class ProjectSession : ICacheChangeObserver
     // Rail横展開（6.2節第一弾）：Rail作成＝両端点オブジェクト作成と一体（RailCreationWorkflow）のため、
     // 端点3種のIdAllocatorも同じ規約でここに追加する。Switcherは既存端点接続への収束検出フロー
     // （9.4.4節・別導線）でのみ生成されるため、本ワークフローの対象外（IdAllocatorも現時点では追加しない）。
+    public IdAllocator<NoneEndpointId> NoneEndpointIds { get; private set; } = null!;
     public IdAllocator<BoundaryPointId> BoundaryPointIds { get; private set; } = null!;
     public IdAllocator<EntryPointId> EntryPointIds { get; private set; } = null!;
     public IdAllocator<BufferStopId> BufferStopIds { get; private set; } = null!;
@@ -53,6 +54,7 @@ public sealed class ProjectSession : ICacheChangeObserver
         RailIds = new IdAllocator<RailId>(v => new RailId(v), project.Rails.Select(r => r.Id.Value));
         FloorUnitIds = new IdAllocator<FloorUnitId>(v => new FloorUnitId(v), project.FloorUnits.Select(f => f.Id.Value));
 
+        NoneEndpointIds = new IdAllocator<NoneEndpointId>(v => new NoneEndpointId(v), project.NoneEndpoints.Select(n => n.Id.Value));
         BoundaryPointIds = new IdAllocator<BoundaryPointId>(v => new BoundaryPointId(v), project.BoundaryPoints.Select(b => b.Id.Value));
         EntryPointIds = new IdAllocator<EntryPointId>(v => new EntryPointId(v), project.EntryPoints.Select(e => e.Id.Value));
         BufferStopIds = new IdAllocator<BufferStopId>(v => new BufferStopId(v), project.BufferStops.Select(b => b.Id.Value));
@@ -94,6 +96,7 @@ public sealed class ProjectSession : ICacheChangeObserver
             Current.ServiceRoutes);
 
         var floorUnitDependentIndex = FloorUnitDependentIndexBuilder.Build(
+            Current.NoneEndpoints,
             Current.BoundaryPoints,
             Current.EntryPoints,
             Current.BufferStops,

@@ -31,7 +31,7 @@ public sealed class RailEndpointRefJsonConverter : JsonConverter<RailEndpointRef
         var kind = kindProp.GetString();
         return kind switch
         {
-            NoneKind => new NoneEndpointRef(),
+            NoneKind => new NoneEndpointRef(ReadId<NoneEndpointId>(root, "noneEndpointId", options)),
             BoundaryPointKind => new BoundaryPointEndpointRef(ReadId<BoundaryPointId>(root, "boundaryPointId", options)),
             EntryPointKind => new EntryPointEndpointRef(ReadId<EntryPointId>(root, "entryPointId", options)),
             BufferStopKind => new BufferStopEndpointRef(ReadId<BufferStopId>(root, "bufferStopId", options)),
@@ -47,8 +47,10 @@ public sealed class RailEndpointRefJsonConverter : JsonConverter<RailEndpointRef
         writer.WriteStartObject();
         switch (value)
         {
-            case NoneEndpointRef:
+            case NoneEndpointRef none:
                 writer.WriteString(KindField, NoneKind);
+                writer.WritePropertyName("noneEndpointId");
+                JsonSerializer.Serialize(writer, none.Id, options);
                 break;
 
             case BoundaryPointEndpointRef boundaryPoint:

@@ -137,8 +137,8 @@ public class RailMergerTests
     [Fact]
     public void LengthMは合算される()
     {
-        var railA = MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef(), lengthM: 12.5);
-        var railB = MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef(), lengthM: 7.3);
+        var railA = MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2)), lengthM: 12.5);
+        var railB = MakeRail(2, new NoneEndpointRef(new NoneEndpointId(3)), new NoneEndpointRef(new NoneEndpointId(4)), lengthM: 7.3);
 
         var merged = RailMerger.MergeAtConvergence(
             railA, RailEnd.B, railB, RailEnd.A, new RailId(99), resolvedName: "");
@@ -149,8 +149,8 @@ public class RailMergerTests
     [Fact]
     public void SpeedLimitKphは小さい方が採用される()
     {
-        var railA = MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef(), speedLimitKph: 45);
-        var railB = MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef(), speedLimitKph: 25);
+        var railA = MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2)), speedLimitKph: 45);
+        var railB = MakeRail(2, new NoneEndpointRef(new NoneEndpointId(3)), new NoneEndpointRef(new NoneEndpointId(4)), speedLimitKph: 25);
 
         var merged1 = RailMerger.MergeAtConvergence(
             railA, RailEnd.B, railB, RailEnd.A, new RailId(99), resolvedName: "");
@@ -165,8 +165,8 @@ public class RailMergerTests
     [Fact]
     public void ControlPointsは破棄される()
     {
-        var railA = MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef());
-        var railB = MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef());
+        var railA = MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2)));
+        var railB = MakeRail(2, new NoneEndpointRef(new NoneEndpointId(3)), new NoneEndpointRef(new NoneEndpointId(4)));
         Assert.NotEmpty(railA.ControlPoints); // 前提確認
 
         var merged = RailMerger.MergeAtConvergence(
@@ -178,8 +178,8 @@ public class RailMergerTests
     [Fact]
     public void 新しいRailIdが発行される()
     {
-        var railA = MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef());
-        var railB = MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef());
+        var railA = MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2)));
+        var railB = MakeRail(2, new NoneEndpointRef(new NoneEndpointId(3)), new NoneEndpointRef(new NoneEndpointId(4)));
         var newId = new RailId(99);
 
         var merged = RailMerger.MergeAtConvergence(
@@ -191,8 +191,8 @@ public class RailMergerTests
     [Fact]
     public void RoleはrailA側が採用される()
     {
-        var railA = MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef(), role: RailRole.Normal);
-        var railB = MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef(), role: RailRole.Normal);
+        var railA = MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2)), role: RailRole.Normal);
+        var railB = MakeRail(2, new NoneEndpointRef(new NoneEndpointId(3)), new NoneEndpointRef(new NoneEndpointId(4)), role: RailRole.Normal);
 
         var merged = RailMerger.MergeAtConvergence(
             railA, RailEnd.B, railB, RailEnd.A, new RailId(99), resolvedName: "");
@@ -203,8 +203,8 @@ public class RailMergerTests
     [Fact]
     public void resolvedNameがそのままNameに反映される()
     {
-        var railA = MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef());
-        var railB = MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef());
+        var railA = MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2)));
+        var railB = MakeRail(2, new NoneEndpointRef(new NoneEndpointId(3)), new NoneEndpointRef(new NoneEndpointId(4)));
 
         var merged = RailMerger.MergeAtConvergence(
             railA, RailEnd.B, railB, RailEnd.A, new RailId(99), resolvedName: "統合後の線路");

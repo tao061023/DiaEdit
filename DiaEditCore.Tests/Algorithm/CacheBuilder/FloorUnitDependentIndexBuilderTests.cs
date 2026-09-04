@@ -15,8 +15,13 @@ public sealed class FloorUnitDependentIndexBuilderTests
     };
 
     [Fact]
-    public void Build_IndexesAllSixSourceTypes()
+    public void Build_IndexesAllSevenSourceTypes()
     {
+        // 旧テスト名Build_IndexesAllSixSourceTypesから改名：NoneEndpoint実体化（v13.9）により対象は7種になった。
+        var noneEndpoints = new List<NoneEndpoint>
+        {
+            new() { Id = new NoneEndpointId(1), Base = MakeBase(10) }
+        };
         var boundaryPoints = new List<BoundaryPoint>
         {
             new() { Id = new BoundaryPointId(1), Base = MakeBase(10) }
@@ -49,14 +54,12 @@ public sealed class FloorUnitDependentIndexBuilderTests
             }
         };
 
-        // Build()は純粋関数（Dictionaryを返すのみ、キャッシュへの書き込みは一切行わない）。
-        // 戻り値そのものを検証対象とする（旧版はcache.FloorUnitDependentIndexを見ておりBuildの
-        // 挙動を一切検証できていなかった）。
         var result = FloorUnitDependentIndexBuilder.Build(
-            boundaryPoints, entryPoints, bufferStops, switchers, platforms, stationPaths);
+            noneEndpoints, boundaryPoints, entryPoints, bufferStops, switchers, platforms, stationPaths);
 
         Assert.True(result.TryGetValue(new FloorUnitId(10), out var deps));
-        Assert.Equal(6, deps!.Count);
+        Assert.Equal(7, deps!.Count); // 6→7（NoneEndpoint分の追加）
+        Assert.Contains(deps, d => d is NoneEndpointObjectId);
         Assert.Contains(deps, d => d is BoundaryPointObjectId);
         Assert.Contains(deps, d => d is EntryPointObjectId);
         Assert.Contains(deps, d => d is BufferStopObjectId);
@@ -72,6 +75,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
         // （そのような責務はProjectSession.RebuildCacheIfDirty側にある）。
         // ここでは単純に「入力が全て空なら空のDictionaryを返す」ことのみを検証する。
         var result = FloorUnitDependentIndexBuilder.Build(
+            Array.Empty<NoneEndpoint>(),
             Array.Empty<BoundaryPoint>(),
             Array.Empty<EntryPoint>(),
             Array.Empty<BufferStop>(),
@@ -92,6 +96,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
         };
 
         var result = FloorUnitDependentIndexBuilder.Build(
+            Array.Empty<NoneEndpoint>(), // ★追加
             boundaryPoints,
             Array.Empty<EntryPoint>(), Array.Empty<BufferStop>(),
             Array.Empty<Switcher>(), Array.Empty<Platform>(), Array.Empty<StationPath>());
@@ -103,7 +108,6 @@ public sealed class FloorUnitDependentIndexBuilderTests
     [Fact]
     public void Build_同一FloorUnitに複数種別が混在する場合すべて集約される()
     {
-        // 実運用に近いケース：同一FloorUnit配下にEntryPoint・Platform・StationPathが混在
         var entryPoints = new List<EntryPoint>
         {
             new() { Id = new EntryPointId(1), Base = MakeBase(10), Type = EntryPointType.Both }
@@ -114,6 +118,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
         };
 
         var result = FloorUnitDependentIndexBuilder.Build(
+            Array.Empty<NoneEndpoint>(), // ★追加
             Array.Empty<BoundaryPoint>(), entryPoints, Array.Empty<BufferStop>(),
             Array.Empty<Switcher>(), platforms, Array.Empty<StationPath>());
 

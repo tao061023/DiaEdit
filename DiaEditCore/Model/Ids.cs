@@ -14,6 +14,7 @@ public interface IIntId
 public readonly record struct StationId(int Value) : IIntId;
 public readonly record struct FloorUnitId(int Value) : IIntId;
 public readonly record struct RailId(int Value) : IIntId;
+public readonly record struct NoneEndpointId(int Value) : IIntId;
 public readonly record struct BoundaryPointId(int Value) : IIntId;
 public readonly record struct EntryPointId(int Value) : IIntId;
 public readonly record struct BufferStopId(int Value) : IIntId;

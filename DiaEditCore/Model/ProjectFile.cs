@@ -40,6 +40,7 @@ public sealed class ProjectFile
     public List<Station> Stations { get; set; } = new();
     public List<FloorUnit> FloorUnits { get; set; } = new();
     public List<Rail> Rails { get; set; } = new();
+    public List<NoneEndpoint> NoneEndpoints { get; set; } = new();
     public List<EntryPoint> EntryPoints { get; set; } = new();
     public List<BoundaryPoint> BoundaryPoints { get; set; } = new();
     public List<Switcher> Switchers { get; set; } = new();

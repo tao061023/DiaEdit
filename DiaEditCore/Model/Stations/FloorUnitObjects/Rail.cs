@@ -4,7 +4,7 @@ public enum RailRole { Normal, Track, Shunting };
 
 public abstract record RailEndpointRef;
 
-public sealed record NoneEndpointRef : RailEndpointRef;
+public sealed record NoneEndpointRef(NoneEndpointId Id) : RailEndpointRef;
 public sealed record BoundaryPointEndpointRef(BoundaryPointId Id) : RailEndpointRef;
 public sealed record EntryPointEndpointRef(EntryPointId Id) : RailEndpointRef;
 public sealed record BufferStopEndpointRef(BufferStopId Id) : RailEndpointRef;

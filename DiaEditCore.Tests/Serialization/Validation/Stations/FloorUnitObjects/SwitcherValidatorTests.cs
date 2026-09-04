@@ -23,7 +23,7 @@ public class SwitcherValidatorTests
         SpeedLimitKph = 25,
         Role = RailRole.Normal,
         EndpointA = new SwitcherEndpointRef(switcherId, portIndex),
-        EndpointB = new NoneEndpointRef(),
+        EndpointB = new NoneEndpointRef(new NoneEndpointId(1)),
     };
 
     [Fact]
@@ -275,7 +275,7 @@ public class SwitcherValidatorTests
             LengthM = 10,
             SpeedLimitKph = 25,
             Role = RailRole.Normal,
-            EndpointA = new NoneEndpointRef(),
+            EndpointA = new NoneEndpointRef(new NoneEndpointId(1)),
             EndpointB = new SwitcherEndpointRef(s.Id, 0), // EndpointB側
         };
         var rails = new[]

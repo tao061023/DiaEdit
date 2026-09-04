@@ -31,7 +31,7 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     public void Run_EntryPointWithSingleRail_NoIssue()
     {
         var context = Context(
-            MakeRail(1, new EntryPointEndpointRef(new EntryPointId(10)), new NoneEndpointRef())
+            MakeRail(1, new EntryPointEndpointRef(new EntryPointId(10)), new NoneEndpointRef(new NoneEndpointId(1)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -47,8 +47,8 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var entryPoint = new EntryPointEndpointRef(new EntryPointId(10));
         var context = Context(
-            MakeRail(1, entryPoint, new NoneEndpointRef()),
-            MakeRail(2, entryPoint, new NoneEndpointRef())
+            MakeRail(1, entryPoint, new NoneEndpointRef(new NoneEndpointId(1))),
+            MakeRail(2, entryPoint, new NoneEndpointRef(new NoneEndpointId(2)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -64,8 +64,8 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var bufferStop = new BufferStopEndpointRef(new BufferStopId(1));
         var context = Context(
-            MakeRail(1, bufferStop, new NoneEndpointRef()),
-            MakeRail(2, bufferStop, new NoneEndpointRef())
+            MakeRail(1, bufferStop, new NoneEndpointRef(new NoneEndpointId(1))),
+            MakeRail(2, bufferStop, new NoneEndpointRef(new NoneEndpointId(2)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -81,8 +81,8 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var boundaryPoint = new BoundaryPointEndpointRef(new BoundaryPointId(1));
         var context = Context(
-            MakeRail(1, boundaryPoint, new NoneEndpointRef()),
-            MakeRail(2, boundaryPoint, new NoneEndpointRef())
+            MakeRail(1, boundaryPoint, new NoneEndpointRef(new NoneEndpointId(1))),
+            MakeRail(2, boundaryPoint, new NoneEndpointRef(new NoneEndpointId(2)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -98,9 +98,9 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var boundaryPoint = new BoundaryPointEndpointRef(new BoundaryPointId(1));
         var context = Context(
-            MakeRail(1, boundaryPoint, new NoneEndpointRef()),
-            MakeRail(2, boundaryPoint, new NoneEndpointRef()),
-            MakeRail(3, boundaryPoint, new NoneEndpointRef())
+            MakeRail(1, boundaryPoint, new NoneEndpointRef(new NoneEndpointId(1))),
+            MakeRail(2, boundaryPoint, new NoneEndpointRef(new NoneEndpointId(2))),
+            MakeRail(3, boundaryPoint, new NoneEndpointRef(new NoneEndpointId(3)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -116,8 +116,8 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var switcherId = new SwitcherId(5);
         var context = Context(
-            MakeRail(1, new SwitcherEndpointRef(switcherId, 0), new NoneEndpointRef()),
-            MakeRail(2, new SwitcherEndpointRef(switcherId, 1), new NoneEndpointRef())
+            MakeRail(1, new SwitcherEndpointRef(switcherId, 0), new NoneEndpointRef(new NoneEndpointId(1))),
+            MakeRail(2, new SwitcherEndpointRef(switcherId, 1), new NoneEndpointRef(new NoneEndpointId(2)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -133,8 +133,8 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var switcherEndpoint = new SwitcherEndpointRef(new SwitcherId(5), 0);
         var context = Context(
-            MakeRail(1, switcherEndpoint, new NoneEndpointRef()),
-            MakeRail(2, switcherEndpoint, new NoneEndpointRef())
+            MakeRail(1, switcherEndpoint, new NoneEndpointRef(new NoneEndpointId(1))),
+            MakeRail(2, switcherEndpoint, new NoneEndpointRef(new NoneEndpointId(2)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -149,9 +149,9 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     public void Run_NoneEndpointRef_IsExcludedFromValidation()
     {
         var context = Context(
-            MakeRail(1, new NoneEndpointRef(), new NoneEndpointRef()),
-            MakeRail(2, new NoneEndpointRef(), new NoneEndpointRef()),
-            MakeRail(3, new NoneEndpointRef(), new NoneEndpointRef())
+            MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(2))),
+            MakeRail(2, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(3))),
+            MakeRail(3, new NoneEndpointRef(new NoneEndpointId(1)), new NoneEndpointRef(new NoneEndpointId(4)))
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);
@@ -168,8 +168,8 @@ public sealed class RailEndpointCardinalityCrossValidatorTests
     {
         var entryPoint = new EntryPointEndpointRef(new EntryPointId(10));
         var context = Context(
-            MakeRail(1, new NoneEndpointRef(), entryPoint),
-            MakeRail(2, new NoneEndpointRef(), entryPoint)
+            MakeRail(1, new NoneEndpointRef(new NoneEndpointId(1)), entryPoint),
+            MakeRail(2, new NoneEndpointRef(new NoneEndpointId(1)), entryPoint)
         );
 
         var issues = RailEndpointCardinalityCrossValidator.Run(context);

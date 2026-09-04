@@ -147,11 +147,11 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
     /// </summary>
     private FloorUnitId? ResolveFloorUnitId(RailEndpointRef endpoint) => endpoint switch
     {
+        NoneEndpointRef n => _session.Current.NoneEndpoints.FirstOrDefault(x => x.Id == n.Id)?.Base.FloorUnitId,
         BoundaryPointEndpointRef b => _session.Current.BoundaryPoints.FirstOrDefault(x => x.Id == b.Id)?.Base.FloorUnitId,
         EntryPointEndpointRef e => _session.Current.EntryPoints.FirstOrDefault(x => x.Id == e.Id)?.Base.FloorUnitId,
         BufferStopEndpointRef bs => _session.Current.BufferStops.FirstOrDefault(x => x.Id == bs.Id)?.Base.FloorUnitId,
         SwitcherEndpointRef sw => _session.Current.Switchers.FirstOrDefault(x => x.Id == sw.Id)?.Base.FloorUnitId,
-        NoneEndpointRef => null,
         _ => null,
     };
 
@@ -227,7 +227,7 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
     /// </summary>
     private RailEndpointCreationSpec BuildEndpointSpec(RailEndpointKind kind, int x, int y, EntryPointType entryType) => kind switch
     {
-        RailEndpointKind.None => new NoneEndpointCreationSpec(),
+        RailEndpointKind.None => new NoneEndpointCreationSpec(_floorUnit.Id, new Point(x, y)),
         RailEndpointKind.BoundaryPoint => new BoundaryPointCreationSpec(_floorUnit.Id, new Point(x, y)),
         RailEndpointKind.EntryPoint => new EntryPointCreationSpec(_floorUnit.Id, new Point(x, y), entryType),
         RailEndpointKind.BufferStop => new BufferStopCreationSpec(_floorUnit.Id, new Point(x, y)),
@@ -249,6 +249,7 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
             _session.Current.Rails, _session.RailIds,
             NewRailName, NewRailLengthM, NewRailSpeedLimitKph, NewRailRole,
             endpointA, endpointB,
+            _session.Current.NoneEndpoints, _session.NoneEndpointIds,
             _session.Current.BoundaryPoints, _session.BoundaryPointIds,
             _session.Current.EntryPoints, _session.EntryPointIds,
             _session.Current.BufferStops, _session.BufferStopIds,
