@@ -235,8 +235,8 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
     };
 
     /// <summary>
-    /// UI設計書§7.1「駅構内オブジェクト新規配置」：Rail作成＝両端点オブジェクトの作成と等価
-    /// （Tao様確認済み）。RailCreationWorkflowで1つのTransactionCommandとして実行する。
+    /// UI設計書§7.1「駅構内オブジェクト新規配置」：Rail作成＝両端点オブジェクトの作成と等価。
+    /// RailCreationWorkflowで1つのTransactionCommandとして実行する。
     /// Switcherは選択肢に含まない（別導線、EndpointKindsにも列挙しない）。
     /// </summary>
     [RelayCommand]
