@@ -61,7 +61,6 @@
 
         <Grid DockPanel.Dock="Top" ColumnDefinitions="*,100" Margin="4,2">
             <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" />
-            <TextBlock Grid.Column="1" Text="表示順" FontWeight="Bold" />
         </Grid>
 
         <ListBox ItemsSource="{Binding FloorUnits}"
@@ -69,9 +68,8 @@
                  DoubleTapped="OnFloorUnitDoubleTapped">
             <ListBox.ItemTemplate>
                 <DataTemplate x:DataType="stations:FloorUnit">
-                    <Grid ColumnDefinitions="*,100">
+                    <Grid ColumnDefinitions="*">
                         <TextBlock Grid.Column="0" Text="{Binding Name}" />
-                        <TextBlock Grid.Column="1" Text="{Binding DisplayOrder}" />
                     </Grid>
                 </DataTemplate>
             </ListBox.ItemTemplate>

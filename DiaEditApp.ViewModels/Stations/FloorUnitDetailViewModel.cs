@@ -10,7 +10,9 @@ using CommunityToolkit.Mvvm.Input;
 
 using DiaEditApp.ViewModels; // IAffectedByObjectId, ChangeNotificationBridge
 
+using DiaEditCore.Algorithm;
 using DiaEditCore.Commands;
+using DiaEditCore.Commands.Stations;
 using DiaEditCore.Commands.Stations.FloorUnitObjects;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations;
@@ -51,6 +53,18 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
     public string FloorUnitName => _floorUnit.Name;
 
     public ObservableCollection<Rail> Rails { get; } = new();
+
+    // ---- FloorUnit属性編集（Name、§9.2項目29テンプレート） ----
+
+    [ObservableProperty]
+    public partial string EditFloorUnitName { get; set; } = "";
+
+    partial void OnEditFloorUnitNameChanged(string value) => OnPropertyChanged(nameof(IsFloorUnitNameDirty));
+
+    public bool IsFloorUnitNameDirty => EditFloorUnitName != _floorUnit.Name;
+
+    [ObservableProperty]
+    public partial FloorUnitSummary Summary { get; set; } = null!;
 
     [ObservableProperty]
     public partial Rail? SelectedRail { get; set; }
@@ -140,31 +154,29 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
         ReloadRails();
     }
 
-    /// <summary>
-    /// endpointの参照先オブジェクトのFloorUnitIdを解決する。NoneEndpointRef・参照先未検出はnull。
-    /// Switcherも解決対象に含める（既存Switcherへの接続はRail作成時の対象外だが、将来の横展開・
-    /// 表示目的のため解決自体はしておく）。
-    /// </summary>
-    private FloorUnitId? ResolveFloorUnitId(RailEndpointRef endpoint) => endpoint switch
-    {
-        NoneEndpointRef n => _session.Current.NoneEndpoints.FirstOrDefault(x => x.Id == n.Id)?.Base.FloorUnitId,
-        BoundaryPointEndpointRef b => _session.Current.BoundaryPoints.FirstOrDefault(x => x.Id == b.Id)?.Base.FloorUnitId,
-        EntryPointEndpointRef e => _session.Current.EntryPoints.FirstOrDefault(x => x.Id == e.Id)?.Base.FloorUnitId,
-        BufferStopEndpointRef bs => _session.Current.BufferStops.FirstOrDefault(x => x.Id == bs.Id)?.Base.FloorUnitId,
-        SwitcherEndpointRef sw => _session.Current.Switchers.FirstOrDefault(x => x.Id == sw.Id)?.Base.FloorUnitId,
-        _ => null,
-    };
-
+    // ResolveFloorUnitId／RailsBelongingToThisFloorUnitは、FloorUnitSummaryResolver新設に伴い
+    // DiaEditCore.Algorithm.Resolvers.RailFloorUnitLookupへ切り出した（単一の情報源原則、
+    // v13.11セッションで解消）。呼び出し元はRailsBelongingToThisFloorUnit()を参照。
     private IEnumerable<Rail> RailsBelongingToThisFloorUnit() =>
-        _session.Current.Rails.Where(r =>
-            ResolveFloorUnitId(r.EndpointA) == _floorUnit.Id ||
-            ResolveFloorUnitId(r.EndpointB) == _floorUnit.Id);
-
-    private void ReloadRails()
+        RailFloorUnitLookup.RailsBelongingTo(
+            _floorUnit.Id, _session.Current.Rails,
+            _session.Current.NoneEndpoints, _session.Current.BoundaryPoints,
+            _session.Current.EntryPoints, _session.Current.BufferStops, _session.Current.Switchers);
+ 
+     private void ReloadRails()
     {
         Rails.Clear();
         foreach (var rail in RailsBelongingToThisFloorUnit())
             Rails.Add(rail);
+        ReloadSummary();
+    }
+
+    private void ReloadSummary()
+    {
+        Summary = FloorUnitSummaryResolver.Build(
+            _floorUnit.Id, _session.Current.Rails, _session.Current.StationPaths,
+            _session.Current.NoneEndpoints, _session.Current.BoundaryPoints,
+            _session.Current.EntryPoints, _session.Current.BufferStops, _session.Current.Switchers);
     }
 
     void IAffectedByObjectId.OnAffected()
@@ -174,6 +186,10 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
             _goBack();
             return;
         }
+
+        EditFloorUnitName = _floorUnit.Name;
+
+        OnPropertyChanged(nameof(FloorUnitName));
 
         ReloadRails();
 
@@ -283,6 +299,17 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
         {
             DeleteRailError = ex.Message;
         }
+    }
+
+    /// <summary>選択中Railの決定と同型の差分判定Save。ChangeFloorUnitAttributesCommandを実行する。</summary>
+    [RelayCommand]
+    private void SaveFloorUnitName()
+    {
+        if (!IsFloorUnitNameDirty) return;
+
+        var command = new ChangeFloorUnitAttributesCommand(
+            _floorUnit, new FloorUnitSnapshot(EditFloorUnitName), _session);
+        _invoker.Execute(command); // OnAffected経由でFloorUnitName等が反映
     }
 
     [RelayCommand]
