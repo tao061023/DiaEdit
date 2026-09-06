@@ -10,70 +10,83 @@
 
     <DockPanel Margin="8">
 
+        <!-- ヘッダー：戻る導線（UI設計書§7テンプレート共通部。決定ボタンは左ペイン属性編集フォーム側へ移設） -->
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4">
             <Button Content="← 一覧へ戻る" Command="{Binding GoBackCommand}" />
-            <Button Content="決定" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
         </StackPanel>
 
-        <!-- 上部：Station属性編集（4.2.2節） -->
-        <StackPanel DockPanel.Dock="Top" Spacing="6" Margin="0,0,0,12">
-            <DockPanel>
-                <TextBlock Text="駅名" Width="140" VerticalAlignment="Center" />
-                <TextBox Text="{Binding DisplayNameText}" />
-            </DockPanel>
-            <DockPanel>
-                <TextBlock Text="種別" Width="140" VerticalAlignment="Center" />
-                <ComboBox ItemsSource="{Binding StationTypes}"
-                          SelectedItem="{Binding Type}" />
-            </DockPanel>
-            <DockPanel>
-                <TextBlock Text="事業者管理番号" Width="140" VerticalAlignment="Center" />
-                <TextBox Text="{Binding OperatingCode}" />
-            </DockPanel>
-            <DockPanel>
-                <TextBlock Text="電報略号" Width="140" VerticalAlignment="Center" />
-                <TextBox Text="{Binding TelegraphCode}" />
-            </DockPanel>
-            <DockPanel>
-                <TextBlock Text="駅時刻表への掲載" Width="140" VerticalAlignment="Center" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                    <CheckBox IsChecked="{Binding ShowsInStationTimetableOverride}"
-                              IsThreeState="True"
-                              Content="未設定＝種別から自動判定" />
-                    <TextBlock Text="{Binding ResolvedShowsInStationTimetable, StringFormat='現在の判定値: {0}'}"
-                               Opacity="0.7" />
+        <!-- 左右分割本体（UI設計書§7「左＝属性編集／右＝配下オブジェクト概要・一覧」規約） -->
+        <Grid ColumnDefinitions="260,4,*">
+
+            <!-- 左ペイン：Station属性編集（4.2.2節） -->
+            <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,8,0">
+                <TextBlock Text="属性編集" FontWeight="Bold" />
+                <DockPanel>
+                    <TextBlock Text="駅名" Width="140" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding DisplayNameText}" />
+                </DockPanel>
+                <DockPanel>
+                    <TextBlock Text="種別" Width="140" VerticalAlignment="Center" />
+                    <ComboBox ItemsSource="{Binding StationTypes}"
+                              SelectedItem="{Binding Type}" />
+                </DockPanel>
+                <DockPanel>
+                    <TextBlock Text="事業者管理番号" Width="140" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding OperatingCode}" />
+                </DockPanel>
+                <DockPanel>
+                    <TextBlock Text="電報略号" Width="140" VerticalAlignment="Center" />
+                    <TextBox Text="{Binding TelegraphCode}" />
+                </DockPanel>
+                <DockPanel>
+                    <TextBlock Text="駅時刻表への掲載" Width="140" VerticalAlignment="Center" />
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <CheckBox IsChecked="{Binding ShowsInStationTimetableOverride}"
+                                  IsThreeState="True"
+                                  Content="未設定＝種別から自動判定" />
+                        <TextBlock Text="{Binding ResolvedShowsInStationTimetable, StringFormat='現在の判定値: {0}'}"
+                                   Opacity="0.7" />
+                    </StackPanel>
+                </DockPanel>
+                <Button Content="決定" Command="{Binding SaveCommand}" IsEnabled="{Binding IsDirty}" />
+            </StackPanel>
+
+            <!-- ドラッグ可能な境界線（VS風） -->
+            <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
+                          Background="Transparent" ResizeDirection="Columns" />
+
+            <!-- 右ペイン：配下オブジェクト（FloorUnit）一覧（並べ替えは今回見送り、追加・削除のみ） -->
+            <DockPanel Grid.Column="2">
+
+                <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4" Spacing="4">
+                    <TextBlock Text="ホーム（FloorUnit）一覧" VerticalAlignment="Center" FontWeight="Bold" />
+                    <Button Content="+追加" Command="{Binding AddFloorUnitCommand}" />
+                    <Button Content="削除" Command="{Binding DeleteSelectedFloorUnitCommand}" />
                 </StackPanel>
+
+                <TextBlock DockPanel.Dock="Top"
+                            Text="{Binding DeleteFloorUnitError}"
+                            Foreground="Red"
+                            IsVisible="{Binding HasDeleteFloorUnitError}"
+                            Margin="0,0,0,4" />
+
+                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,100" Margin="4,2">
+                    <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" />
+                </Grid>
+
+                <ListBox ItemsSource="{Binding FloorUnits}"
+                         SelectedItem="{Binding SelectedFloorUnit, Mode=TwoWay}"
+                         DoubleTapped="OnFloorUnitDoubleTapped">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate x:DataType="stations:FloorUnit">
+                            <Grid ColumnDefinitions="*">
+                                <TextBlock Grid.Column="0" Text="{Binding Name}" />
+                            </Grid>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
             </DockPanel>
-        </StackPanel>
-
-        <!-- 中央：FloorUnit一覧（並べ替えは今回見送り、追加・削除のみ） -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,4" Spacing="4">
-            <TextBlock Text="ホーム（FloorUnit）一覧" VerticalAlignment="Center" FontWeight="Bold" />
-            <Button Content="+追加" Command="{Binding AddFloorUnitCommand}" />
-            <Button Content="削除" Command="{Binding DeleteSelectedFloorUnitCommand}" />
-        </StackPanel>
-
-        <TextBlock DockPanel.Dock="Top"
-                    Text="{Binding DeleteFloorUnitError}"
-                    Foreground="Red"
-                    IsVisible="{Binding HasDeleteFloorUnitError}"
-                    Margin="0,0,0,4" />
-
-        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,100" Margin="4,2">
-            <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" />
         </Grid>
-
-        <ListBox ItemsSource="{Binding FloorUnits}"
-                 SelectedItem="{Binding SelectedFloorUnit, Mode=TwoWay}"
-                 DoubleTapped="OnFloorUnitDoubleTapped">
-            <ListBox.ItemTemplate>
-                <DataTemplate x:DataType="stations:FloorUnit">
-                    <Grid ColumnDefinitions="*">
-                        <TextBlock Grid.Column="0" Text="{Binding Name}" />
-                    </Grid>
-                </DataTemplate>
-            </ListBox.ItemTemplate>
-        </ListBox>
 
     </DockPanel>
 
