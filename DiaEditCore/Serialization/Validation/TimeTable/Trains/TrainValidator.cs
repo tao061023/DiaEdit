@@ -1,6 +1,6 @@
 namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
-using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
 
 public sealed class TrainValidator : IValidator<Train>

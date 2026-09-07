@@ -1,5 +1,6 @@
 namespace DiaEditCore.Algorithm.CacheBuilder;
 
+using DiaEditCore.Algorithm.Routes;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 

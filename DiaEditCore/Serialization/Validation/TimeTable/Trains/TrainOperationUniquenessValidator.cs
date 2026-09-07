@@ -1,7 +1,7 @@
 namespace DiaEditCore.Serialization.Validation.TimeTable.Trains;
 
-using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.CacheBuilder;
+using DiaEditCore.Algorithm.TimeTable.Trains;
 using DiaEditCore.Model;
 
 /// <summary>

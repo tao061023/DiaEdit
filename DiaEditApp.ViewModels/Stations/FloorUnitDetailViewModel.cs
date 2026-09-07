@@ -10,7 +10,7 @@ using CommunityToolkit.Mvvm.Input;
 
 using DiaEditApp.ViewModels; // IAffectedByObjectId, ChangeNotificationBridge
 
-using DiaEditCore.Algorithm;
+using DiaEditCore.Algorithm.Stations;
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Commands.Stations.FloorUnitObjects;

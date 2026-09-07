@@ -1,7 +1,7 @@
 namespace DiaEditCore.Commands.TimeTable.Trains;
 
-using DiaEditCore.Algorithm;
 using DiaEditCore.Algorithm.Dependency;
+using DiaEditCore.Algorithm.Routes;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Routes;
 using DiaEditCore.Model.TimeTable.Trains;
