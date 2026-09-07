@@ -9,10 +9,10 @@ using DiaEditCore.Session;
 ///
 /// v13.9変更（NoneEndpoint実体化に伴う再設計）：EndpointA/Bは常に確定済みの参照として生成する
 /// （旧実装のNoneEndpointRef仮置き→AttachRailEndpointsCommandによる後続上書き、という
-/// 2段階方式は廃止）。TransactionCommand内での実行順序を「端点作成→Rail作成」に入れ替えたことで、
+/// 2段階方式は廃止）。TransActionCommand内での実行順序を「端点作成→Rail作成」に入れ替えたことで、
 /// Railが一度も無効な参照を持たない（構造的防止の原則により忠実な）状態を実現する。
 ///
-/// endpointA/BFactory：RailCreationWorkflow内でTransactionCommandの各ステップが順に実行される際、
+/// endpointA/BFactory：RailCreationWorkflow内でTransActionCommandの各ステップが順に実行される際、
 /// 端点作成コマンド（Create*Command）のApply()が完了した"後"でなければ生成されたIdが確定しない
 /// ため、StationCreationWorkflow・旧AttachRailEndpointsCommandと同じ遅延評価パターン
 /// （Func&lt;RailEndpointRef&gt;によるクロージャ参照）を用いる。
@@ -77,7 +77,7 @@ public sealed class CreateRailCommand : UndoableCommand<List<Rail>, Rail?>
             LengthM = _lengthM,
             SpeedLimitKph = _speedLimitKph,
             Role = _role,
-            // ファクトリの評価はここで初めて行う（TransactionCommand内の実行順序上、
+            // ファクトリの評価はここで初めて行う（TransActionCommand内の実行順序上、
             // 端点作成コマンドのApply()は必ず本コマンドのApply()より先に完了している）。
             EndpointA = _endpointAFactory(),
             EndpointB = _endpointBFactory(),

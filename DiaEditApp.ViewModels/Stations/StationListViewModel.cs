@@ -61,7 +61,7 @@ public sealed partial class StationListViewModel : ViewModelBase, ICacheChangeOb
     void ICacheChangeObserver.OnChanged(IReadOnlySet<ObjectId> affectedIds) => Reload();
 
     /// <summary>
-    /// UI設計書4.2.1節「+駅追加」。StationCreationWorkflowが返すTransactionCommand
+    /// UI設計書4.2.1節「+駅追加」。StationCreationWorkflowが返すTransActionCommand
     /// （CreateStationCommand＋CreateFloorUnitCommandの複合、n≥1制約対応）をExecuteする。
     /// 名称等の初期値はM2-3の駅詳細編集画面で確定させる想定のため、ここでは仮の名称で
     /// 新規作成し、生成後に選択状態にするところまでを担う。

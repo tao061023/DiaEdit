@@ -10,7 +10,7 @@ using DiaEditCore.Session;
 
 using Xunit;
 
-public sealed class TransactionCommandTests
+public sealed class TransActionCommandTests
 {
     // ...RecordingCommand・Execute_RunsAllFactoriesInOrder・Undo_RunsInReverseOrder・
     //    Undo_BeforeExecute_Throws・Constructor_EmptyFactories_Throwsは変更なし...
@@ -26,7 +26,7 @@ public sealed class TransactionCommandTests
         var displayName = new DisplayName { Name = "テスト駅" };
 
         var createStation = new CreateStationCommand(stations, stationIdAllocator, displayName, StationType.Standard);
-        var transaction = new TransactionCommand(new List<Func<IUndoableCommand>>
+        var transaction = new TransActionCommand(new List<Func<IUndoableCommand>>
         {
             () => createStation,
             () => new CreateFloorUnitCommand(floorUnits, floorUnitIdAllocator, createStation.Created!.Id)
@@ -166,7 +166,7 @@ public sealed class StationCreationWorkflowTests
     [Fact]
     public void Undo後に別ワークフローで再作成してもStationとFloorUnitのIdが重複しない()
     {
-        // §9.2項目27の統合回帰テスト：TransactionCommand経由の複合生成でも
+        // §9.2項目27の統合回帰テスト：TransActionCommand経由の複合生成でも
         // Undo後の別インスタンスによる再作成でId重複が起きないことを確認する。
         var stations = new List<Station>();
         var floorUnits = new List<FloorUnit>();

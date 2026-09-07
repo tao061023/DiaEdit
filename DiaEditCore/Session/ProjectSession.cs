@@ -37,6 +37,7 @@ public sealed class ProjectSession : ICacheChangeObserver
     public IdAllocator<BoundaryPointId> BoundaryPointIds { get; private set; } = null!;
     public IdAllocator<EntryPointId> EntryPointIds { get; private set; } = null!;
     public IdAllocator<BufferStopId> BufferStopIds { get; private set; } = null!;
+    public IdAllocator<SwitcherId> SwitcherIds { get; private set; } = null!;
     public IdAllocator<PlatformId> PlatformIds { get; private set; } = null!;
 
     public ProjectSession(CommandInvoker invoker)
@@ -59,6 +60,7 @@ public sealed class ProjectSession : ICacheChangeObserver
         BoundaryPointIds = new IdAllocator<BoundaryPointId>(v => new BoundaryPointId(v), project.BoundaryPoints.Select(b => b.Id.Value));
         EntryPointIds = new IdAllocator<EntryPointId>(v => new EntryPointId(v), project.EntryPoints.Select(e => e.Id.Value));
         BufferStopIds = new IdAllocator<BufferStopId>(v => new BufferStopId(v), project.BufferStops.Select(b => b.Id.Value));
+        SwitcherIds = new IdAllocator<SwitcherId>(v => new SwitcherId(v), project.Switchers.Select(s => s.Id.Value));
         PlatformIds = new IdAllocator<PlatformId>(v => new PlatformId(v), project.Platforms.Select(p => p.Id.Value));
 
         RebuildCacheIfDirty();

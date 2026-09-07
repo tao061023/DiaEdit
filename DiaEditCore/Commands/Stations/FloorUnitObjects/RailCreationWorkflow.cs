@@ -27,7 +27,7 @@ public sealed record BufferStopCreationSpec(FloorUnitId FloorUnitId, Point Posit
 /// 複合コマンド。StationCreationWorkflow（Station＋FloorUnit）と同じ設計パターンを踏襲する：
 /// CreateRailCommandと各端点用Create*Commandを独立に実行した後、最後にAttachRailEndpointsCommandで
 /// Rail.EndpointA/Bへ確定させる。この4ステップ（Rail／端点A／端点B／アタッチ）を1つの
-/// TransactionCommandに束ねることで、「両端未接続のRailが宙に浮いた状態のまま保存される」
+/// TransActionCommandに束ねることで、「両端未接続のRailが宙に浮いた状態のまま保存される」
 /// （n≥1制約と同種の中間不整合状態）をUndo単位のレベルで発生させない。
 ///
 /// Switcherはこのワークフローの対象外（コンストラクタ引数に含めない）。既存端点への接続
@@ -36,7 +36,7 @@ public sealed record BufferStopCreationSpec(FloorUnitId FloorUnitId, Point Posit
 /// </summary>
 public static class RailCreationWorkflow
 {
-    public static TransactionCommand CreateRailWithEndpoints(
+    public static TransActionCommand CreateRailWithEndpoints(
         List<Rail> rails,
         IdAllocator<RailId> railIds,
         string name,
@@ -68,7 +68,7 @@ public static class RailCreationWorkflow
         var createRail = new CreateRailCommand(rails, railIds, name, lengthM, speedLimitKph, role, factoryA, factoryB);
         commands.Add(() => createRail);
 
-        return new TransactionCommand(commands);
+        return new TransActionCommand(commands);
     }
 
     private static Func<RailEndpointRef> AddEndpointCreationStep(
