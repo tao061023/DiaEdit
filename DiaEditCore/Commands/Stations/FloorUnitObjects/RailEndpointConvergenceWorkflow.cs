@@ -6,29 +6,40 @@ using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Session;
 
 /// <summary>
-/// ある座標における収束状態（RailEndpointConvergenceResolver.Classifyの結果）と、
+/// ある座標における収束状態（<see cref="RailEndpointConvergenceResolver.Classify"/>の結果）と、
 /// その座標に現在存在する端点オブジェクトの型が一致しているかを比較し、不一致の場合のみ
-/// 「新規作成→RailEndPointRefChangerで参照張替え→旧端点削除」の変換ステップを組み立てる。
-///
+/// 「新規作成→<see cref="RailEndPointRefChanger"/>で参照張替え→旧端点削除」の変換ステップを組み立てる。
+/// </summary>
+/// <remarks>
 /// 増加方向（Ctrl+ドラッグでの新規Rail作成・既存端点へのドラッグ接続）・
 /// 減少方向（DeleteRailCommandによるRail削除）のいずれから呼ばれても同一ロジックで動作する
-/// （Tao様確認済み：Converge/Divergeを別実装にしない）。
+/// （Converge/Divergeを別実装にしない）。
 ///
-/// 前提：converging（FindConvergingEndpointsの戻り値）は呼び出し時点で最新の状態を反映していること
-/// （DeleteRailCommandから呼ぶ場合は、対象RailをTargetから除去した後に再計算すること）。
+/// <para>
+/// 前提：converging（<see cref="RailEndpointConvergenceResolver.FindConvergingEndpoints"/>の戻り値）は
+/// 呼び出し時点で最新の状態を反映していること（DeleteRailCommandから呼ぶ場合は、対象RailをTargetから
+/// 除去した後に再計算すること）。
+/// </para>
 ///
-/// StationPathブロックチェック（RailEndpointConvergenceResolver.FindBlockingStationPaths）は
+/// <para>
+/// StationPathブロックチェック（<see cref="RailEndpointConvergenceResolver.FindBlockingStationPaths"/>）は
 /// 本ワークフローの責務外：呼び出し元（実際にコマンドをExecuteする側）が事前に呼び、
 /// ブロックされていれば本ワークフローを呼ばずに操作自体を中断すること。
-/// </summary>
+/// </para>
+/// </remarks>
 public static class RailEndpointConvergenceWorkflow
 {
     /// <summary>
     /// 現在の収束状態が既に分類結果と整合しているか（＝何もしなくてよいか）を判定する。
+    /// </summary>
+    /// <param name="kind"><see cref="RailEndpointConvergenceResolver.Classify"/>が返した分類結果。</param>
+    /// <param name="converging">現在の収束集合。</param>
+    /// <returns>変換不要（既に整合済み）ならtrue。</returns>
+    /// <remarks>
     /// Vanishのみ、呼び出し元が「削除前にそこに何らかの端点オブジェクトが存在したか」を
     /// 別途知っている前提のため、ここでは判定しない（常にfalse＝要変換とみなす。
     /// 実際に消すべきオブジェクトが無ければ呼び出し元がスキップすればよい）。
-    /// </summary>
+    /// </remarks>
     private static bool IsAlreadyReconciled(ConvergenceKind kind, IReadOnlyList<RailEndpointLocation> converging)
     {
         switch (kind)
@@ -66,9 +77,36 @@ public static class RailEndpointConvergenceWorkflow
 
     /// <summary>
     /// 再照合を実行する。既に整合していればnullを返す（TransActionCommandを組まない＝Undo単位を作らない）。
-    /// oldObjectId：この座標に元々存在していた端点オブジェクトのObjectId（Vanish判定・削除対象特定に使用）。
-    /// 元々何も存在しなかった座標（真の新規収束）ではnullを渡す。
     /// </summary>
+    /// <param name="position">再照合対象の座標。</param>
+    /// <param name="floorUnitId">新規作成する端点オブジェクトが属するFloorUnitId。</param>
+    /// <param name="converging">現在の収束集合。</param>
+    /// <param name="oldObjectId">
+    /// この座標に元々存在していた端点オブジェクトのObjectId（Vanish判定・削除対象特定に使用）。
+    /// 元々何も存在しなかった座標（真の新規収束）ではnullを渡す。
+    /// </param>
+    /// <param name="session">
+    /// 呼び出し規約上受け取るが、本メソッド内部では未使用（将来の拡張余地として引数のみ保持）。
+    /// </param>
+    /// <param name="rails">Rail端点張替え対象となる全Rail。</param>
+    /// <param name="noneEndpoints">現在のNoneEndpointコレクション。</param>
+    /// <param name="noneEndpointIds">NoneEndpoint用のId採番器。</param>
+    /// <param name="boundaryPoints">現在のBoundaryPointコレクション。</param>
+    /// <param name="boundaryPointIds">BoundaryPoint用のId採番器。</param>
+    /// <param name="entryPoints">現在のEntryPointコレクション。</param>
+    /// <param name="bufferStops">現在のBufferStopコレクション。</param>
+    /// <param name="switchers">現在のSwitcherコレクション。</param>
+    /// <param name="switcherIds">Switcher用のId採番器。</param>
+    /// <param name="stationPaths">StationPathブロックチェック対象の全StationPath。</param>
+    /// <returns>
+    /// 変換が必要な場合は、その変換ステップ一式を束ねた<see cref="TransActionCommand"/>。
+    /// 既に整合済み、またはVanishかつ<paramref name="oldObjectId"/>がnull（元々何も存在しなかった）の場合はnull。
+    /// </returns>
+    /// <exception cref="InvalidOperationException">
+    /// <see cref="RailEndpointConvergenceResolver.Classify"/>が<see cref="ConvergenceKind.Error"/>を返した場合
+    /// （収束数N&gt;=5）。または、収束変換によって消滅する端点が既存StationPathから参照されており
+    /// （<see cref="RailEndpointConvergenceResolver.FindBlockingStationPaths"/>で検出）実行できない場合。
+    /// </exception>
     public static IUndoableCommand? Reconcile(
         Point position,
         FloorUnitId floorUnitId,
@@ -180,10 +218,6 @@ public static class RailEndpointConvergenceWorkflow
                 var ports = RailEndpointConvergenceResolver.AssignSwitcherPorts(converging);
                 var newPortCount = ports.Count;
 
-                // PortCount拡張・Mechanism/ValidRoutesクリアはChangeSwitcherAttributesCommandへ委譲。
-                // v13.13確定仕様：拡張時はMechanism/ValidRoutesを一旦クリアし、ユーザーに再設定を促す
-                // （既存Portの並び自体もAssignSwitcherPortsで全収束集合から再採番し直すため、
-                // 旧Mechanism/ValidRoutesが指していたPortIndexの対応関係を維持する保証がないことが理由）。
                 commands.Add(() => new ChangeSwitcherAttributesCommand(
                     switchers, existingSwitcherId,
                     newPortCount,
@@ -201,7 +235,13 @@ public static class RailEndpointConvergenceWorkflow
                         singleAffected));
                 }
 
-                AddDeleteStepsForVanishingEndpoints(converging, noneEndpoints, entryPoints, bufferStops, boundaryPoints, switchers, stationPaths, commands);
+                var verticesExcludingSurvivingSwitcher = converging
+                    .Where(c => c.Ref is not SwitcherEndpointRef sameSwitcher || !sameSwitcher.Id.Equals(existingSwitcherId))
+                    .ToList();
+
+                AddDeleteStepsForVanishingEndpoints(
+                    verticesExcludingSurvivingSwitcher,
+                    noneEndpoints, entryPoints, bufferStops, boundaryPoints, switchers, stationPaths, commands);
                 break;
             }
         }
@@ -209,6 +249,24 @@ public static class RailEndpointConvergenceWorkflow
         return new TransActionCommand(commands);
     }
 
+    /// <summary>
+    /// 収束変換により消滅する既存端点をStationPathブロックチェックの上で削除ステップとして積む。
+    /// </summary>
+    /// <param name="converging">
+    /// 削除候補の元となる収束集合。呼び出し元は、拡張後も存続するオブジェクト（SwitcherExpandケースの
+    /// 拡張対象Switcher自身など）をあらかじめ除外したリストを渡すこと。
+    /// </param>
+    /// <param name="noneEndpoints">現在のNoneEndpointコレクション。</param>
+    /// <param name="entryPoints">現在のEntryPointコレクション。</param>
+    /// <param name="bufferStops">現在のBufferStopコレクション。</param>
+    /// <param name="boundaryPoints">現在のBoundaryPointコレクション。</param>
+    /// <param name="switchers">現在のSwitcherコレクション。</param>
+    /// <param name="stationPaths">ブロックチェック対象の全StationPath。</param>
+    /// <param name="commands">削除ステップの追加先となるコマンドファクトリ列。</param>
+    /// <exception cref="InvalidOperationException">
+    /// 消滅対象のいずれかが既存StationPathから参照されている場合
+    /// （<see cref="RailEndpointConvergenceResolver.FindBlockingStationPaths"/>で検出）。
+    /// </exception>
     private static void AddDeleteStepsForVanishingEndpoints(
         IReadOnlyList<RailEndpointLocation> converging,
         List<NoneEndpoint> noneEndpoints,
@@ -241,6 +299,18 @@ public static class RailEndpointConvergenceWorkflow
         }
     }
 
+    /// <summary>
+    /// ObjectIdの実行時型に応じた削除ステップ（<see cref="DeleteFloorUnitObjectCommand{TId,T}"/>）を1件積む。
+    /// </summary>
+    /// <param name="objectId">削除対象のObjectId。</param>
+    /// <param name="noneEndpoints">現在のNoneEndpointコレクション。</param>
+    /// <param name="entryPoints">現在のEntryPointコレクション。</param>
+    /// <param name="bufferStops">現在のBufferStopコレクション。</param>
+    /// <param name="boundaryPoints">現在のBoundaryPointコレクション。</param>
+    /// <param name="switchers">現在のSwitcherコレクション。</param>
+    /// <param name="commands">削除ステップの追加先となるコマンドファクトリ列。</param>
+    /// <exception cref="NotSupportedException"><paramref name="objectId"/>が未対応の型の場合。</exception>
+    /// <exception cref="InvalidOperationException">対応するコレクション内に該当オブジェクトが見つからない場合。</exception>
     private static void AddDeleteStepForObjectId(
         ObjectId objectId,
         List<NoneEndpoint> noneEndpoints,
