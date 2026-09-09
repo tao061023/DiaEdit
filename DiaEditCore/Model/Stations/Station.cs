@@ -1,16 +1,66 @@
 namespace DiaEditCore.Model.Stations;
 
-public enum StationType { Standard, Halt, SignalStation, Depot }
+/// <summary>
+/// 駅種別
+/// </summary>
+public enum StationType {
+    /// <summary>
+    /// 停車場。在線検知の境界となる。
+    /// </summary>
+    Standard,
+    /// <summary>
+    /// 停留場。在線検知の境界とならない。
+    /// </summary>
+    Halt,
+    /// <summary>
+    /// 信号場。在線検知の境界となる。
+    /// </summary>
+    /// <remarks>
+    /// 駅でない路線分岐点や、スイッチバック専用施設が該当。
+    /// </remarks>
+    SignalStation,
+    /// <summary>
+    /// 車両基地。在線検知の境界となる。
+    /// </summary>
+    /// <remarks>
+    /// 駅から車両基地までの間は一つの路線として登録する。
+    /// </remarks>
+    Depot }
 
+/// <summary>
+/// 駅や信号場、車両基地を表現する
+/// </summary>
 public sealed class Station
 {
+    /// <summary>
+    /// 駅識別子
+    /// </summary>
     public required StationId Id { get; set; }
+    /// <summary>
+    /// 駅名称
+    /// </summary>
     public required DisplayName DisplayName { get; set; }
+    /// <summary>
+    /// 駅種別
+    /// </summary>
     public required StationType Type { get; set; }
+    /// <summary>
+    /// 事業者管理用コード
+    /// </summary>
     public string OperatingCode { get; set; } = "";
+    /// <summary>
+    /// 電報略号
+    /// </summary>
     public string TelegraphCode { get; set; } = "";
+    /// <summary>
+    /// 駅時刻表の対象判別用フラグ
+    /// </summary>
     public bool? ShowsInStationTimetableOverride { get; set; }
 
+    /// <summary>
+    /// 駅時刻表の対象判別用フラグをデフォルトに切り替えるメソッド
+    /// </summary>
+    /// <returns>Standard, HaltならTrue、SignalStation, DepotならFalse</returns>
     public bool ResolveShowsInStationTimetable()
     {
         if (ShowsInStationTimetableOverride.HasValue)

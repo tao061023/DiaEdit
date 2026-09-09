@@ -751,29 +751,38 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 
 #### `DiaEditCore.Model.Stations.Station` (class)
 
-| Field | Type |
-|---|---|
-| Id | `StationId` |
-| DisplayName | `DisplayName` |
-| Type | `StationType` |
-| OperatingCode | `string` (既定値 `""`) |
-| TelegraphCode | `string` (既定値 `""`) |
-| ShowsInStationTimetableOverride | `bool?` |
+駅や信号場、車両基地を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `StationId` | 駅識別子 |
+| DisplayName | `DisplayName` | 駅名称 |
+| Type | `StationType` | 駅種別 |
+| OperatingCode | `string` (既定値 `""`) | 事業者管理用コード |
+| TelegraphCode | `string` (既定値 `""`) | 電報略号 |
+| ShowsInStationTimetableOverride | `bool?` | 駅時刻表の対象判別用フラグ |
 
 ---
 
 ##### `public bool ResolveShowsInStationTimetable()`
 
+駅時刻表の対象判別用フラグをデフォルトに切り替えるメソッド
+
+**Returns**
+Standard, HaltならTrue、SignalStation, DepotならFalse
+
 ---
 
 #### `DiaEditCore.Model.Stations.StationType` (enum)
 
+駅種別
+
 | Value | 説明 |
 |---|---|
-| Standard |  |
-| Halt |  |
-| SignalStation |  |
-| Depot |  |
+| Standard | 停車場。在線検知の境界となる。 |
+| Halt | 停留場。在線検知の境界とならない。 |
+| SignalStation | 信号場。在線検知の境界となる。 |
+| Depot | 車両基地。在線検知の境界となる。 |
 
 #### 6.1.4 Stations/FloorUnitObjects
 

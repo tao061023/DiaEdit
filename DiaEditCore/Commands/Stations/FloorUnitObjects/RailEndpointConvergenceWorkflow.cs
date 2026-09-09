@@ -143,6 +143,10 @@ public static class RailEndpointConvergenceWorkflow
             case ConvergenceKind.Vanish:
             {
                 // 削除対象オブジェクトを特定して消すだけ（張替え不要：参照するRailがもう無い）。
+                // タスク4：Vanishで消える既存端点もStationPathから参照されていないか確認する
+                // （§4.4.2-28：従来ここが漏れており、BoundaryPoint/SwitcherExpand等のケースとの非対称が
+                // 参照整合性の穴になっていた）。
+                EnsureNotBlockedByStationPath(oldObjectId!, stationPaths);
                 AddDeleteStepForObjectId(oldObjectId!, noneEndpoints, entryPoints, bufferStops, boundaryPoints, switchers, commands);
                 break;
             }
@@ -162,7 +166,13 @@ public static class RailEndpointConvergenceWorkflow
                     affectedRailIds));
 
                 if (oldObjectId is not null)
+                {
+                    // 降格によって消えるBoundaryPoint/SwitcherもStationPathブロックチェック対象とする。
+                    // Keepで消滅しうるのはIsAlreadyReconciledの判定によりBoundaryPoint/Switcherの
+                    // いずれかに限られ、両方ともStationPathWaypointの正規の構成要素であるため対象外にできない。
+                    EnsureNotBlockedByStationPath(oldObjectId, stationPaths);
                     AddDeleteStepForObjectId(oldObjectId, noneEndpoints, entryPoints, bufferStops, boundaryPoints, switchers, commands);
+                }
                 break;
             }
 
@@ -285,17 +295,47 @@ public static class RailEndpointConvergenceWorkflow
             .Distinct()
             .ToList();
 
-        var blocking = RailEndpointConvergenceResolver.FindBlockingStationPaths(disappearing, stationPaths);
+        EnsureNotBlockedByStationPath(disappearing, stationPaths);
+
+        foreach (var id in disappearing)
+        {
+            AddDeleteStepForObjectId(id, noneEndpoints, entryPoints, bufferStops, boundaryPoints, switchers, commands);
+        }
+    }
+
+    /// <summary>
+    /// 単一ObjectIdの削除がStationPathからブロックされていないか確認する。
+    /// </summary>
+    /// <param name="objectId">削除しようとしているObjectId。</param>
+    /// <param name="stationPaths">ブロックチェック対象の全StationPath。</param>
+    /// <exception cref="InvalidOperationException">
+    /// <paramref name="objectId"/>が既存StationPathのWaypointsから参照されている場合。
+    /// </exception>
+    /// <remarks>
+    /// Vanish・Keep（降格）ケースの単一削除経路向け。複数件をまとめて検査する<br/>
+    /// <see cref="AddDeleteStepsForVanishingEndpoints"/>内部からもこのオーバーロードへ委譲する。
+    /// </remarks>
+    private static void EnsureNotBlockedByStationPath(ObjectId objectId, List<StationPath> stationPaths)
+        => EnsureNotBlockedByStationPath(new[] { objectId }, stationPaths);
+
+    /// <summary>
+    /// 複数ObjectIdの削除がStationPathからブロックされていないか確認する。
+    /// </summary>
+    /// <param name="disappearingIds">削除しようとしているObjectIdの集合。</param>
+    /// <param name="stationPaths">ブロックチェック対象の全StationPath。</param>
+    /// <exception cref="InvalidOperationException">
+    /// いずれかの<paramref name="disappearingIds"/>が既存StationPathのWaypointsから参照されている場合。
+    /// </exception>
+    private static void EnsureNotBlockedByStationPath(
+        IReadOnlyCollection<ObjectId> disappearingIds,
+        List<StationPath> stationPaths)
+    {
+        var blocking = RailEndpointConvergenceResolver.FindBlockingStationPaths(disappearingIds, stationPaths);
         if (blocking.Count > 0)
         {
             throw new InvalidOperationException(
                 $"収束によって消滅する端点が{blocking.Count}件のStationPathから参照されているため実行できません：" +
                 string.Join(", ", blocking.Select(id => id.Value)));
-        }
-
-        foreach (var id in disappearing)
-        {
-            AddDeleteStepForObjectId(id, noneEndpoints, entryPoints, bufferStops, boundaryPoints, switchers, commands);
         }
     }
 

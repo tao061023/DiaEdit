@@ -120,6 +120,29 @@ public sealed class RailEndpointConvergenceWorkflowTests
         Assert.Same(oldEntry, fx.EntryPoints[0]);
     }
 
+    [Fact]
+    public void Vanish_Throws_WhenOldEndpointIsBlockedByStationPath()
+    {
+        var fx = new Fixture();
+        var oldEntry = new EntryPoint { Id = new EntryPointId(1), Base = MakeBase(), Type = EntryPointType.Both };
+        fx.EntryPoints.Add(oldEntry);
+
+        fx.StationPaths.Add(new StationPath
+        {
+            Id = new StationPathId(1),
+            FloorUnitId = FloorUnit,
+            Name = "経路A",
+            Direction = StationPathDirection.Arrival,
+            Waypoints = new List<StationPathWaypoint> { new EntryPointWaypoint(oldEntry.Id) },
+        });
+
+        Assert.Throws<InvalidOperationException>(
+            () => fx.Reconcile(Array.Empty<RailEndpointLocation>(), new EntryPointObjectId(oldEntry.Id)));
+
+        // ブロックされた場合は削除ステップが一切積まれないこと（副作用なし）も確認する。
+        Assert.Single(fx.EntryPoints);
+    }
+
     // ================================
     // Keep (N=1)
     // ================================
@@ -138,6 +161,63 @@ public sealed class RailEndpointConvergenceWorkflowTests
         var result = fx.Reconcile(converging, new EntryPointObjectId(ep.Id));
 
         Assert.Null(result);
+    }
+
+    [Fact]
+    public void Keep_Throws_WhenDowngradedBoundaryPointIsBlockedByStationPath()
+    {
+        var fx = new Fixture();
+        var bp = new BoundaryPoint { Id = new BoundaryPointId(1), Base = MakeBase() };
+        fx.BoundaryPoints.Add(bp);
+        var rail = MakeRail(1, new BoundaryPointEndpointRef(bp.Id), new BufferStopEndpointRef(new BufferStopId(1)));
+        fx.Rails.Add(rail);
+
+        fx.StationPaths.Add(new StationPath
+        {
+            Id = new StationPathId(1),
+            FloorUnitId = FloorUnit,
+            Name = "経路B",
+            Direction = StationPathDirection.Arrival,
+            Waypoints = new List<StationPathWaypoint> { new BoundaryPointWaypoint(bp.Id) },
+        });
+
+        var converging = new List<RailEndpointLocation> { new(rail.Id, RailEnd.A, rail.EndpointA) };
+
+        Assert.Throws<InvalidOperationException>(
+            () => fx.Reconcile(converging, new BoundaryPointObjectId(bp.Id)));
+
+        // ブロックされた場合はNoneEndpoint作成・BoundaryPoint削除・Ref張替えのいずれも発生しないこと。
+        Assert.Empty(fx.NoneEndpoints);
+        Assert.Single(fx.BoundaryPoints);
+        Assert.IsType<BoundaryPointEndpointRef>(rail.EndpointA);
+    }
+
+    [Fact]
+    public void Keep_Throws_WhenDowngradedSwitcherIsBlockedByStationPath()
+    {
+        var fx = new Fixture();
+        var sw = new Switcher { Id = new SwitcherId(1), Base = MakeBase(), PortCount = 3 };
+        fx.Switchers.Add(sw);
+        var rail = MakeRail(1, new SwitcherEndpointRef(sw.Id, 0), new BufferStopEndpointRef(new BufferStopId(1)));
+        fx.Rails.Add(rail);
+
+        fx.StationPaths.Add(new StationPath
+        {
+            Id = new StationPathId(1),
+            FloorUnitId = FloorUnit,
+            Name = "経路C",
+            Direction = StationPathDirection.Shunting,
+            Waypoints = new List<StationPathWaypoint> { new SwitcherWaypoint(sw.Id) },
+        });
+
+        var converging = new List<RailEndpointLocation> { new(rail.Id, RailEnd.A, rail.EndpointA) };
+
+        Assert.Throws<InvalidOperationException>(
+            () => fx.Reconcile(converging, new SwitcherObjectId(sw.Id)));
+
+        Assert.Empty(fx.NoneEndpoints);
+        Assert.Single(fx.Switchers);
+        Assert.IsType<SwitcherEndpointRef>(rail.EndpointA);
     }
 
     [Fact]
