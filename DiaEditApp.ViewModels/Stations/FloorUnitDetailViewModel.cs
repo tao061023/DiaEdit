@@ -11,6 +11,7 @@ using CommunityToolkit.Mvvm.Input;
 using DiaEditApp.ViewModels; // IAffectedByObjectId, ChangeNotificationBridge
 
 using DiaEditCore.Algorithm.Stations;
+using DiaEditCore.Algorithm.Stations.FloorUnitObjects;
 using DiaEditCore.Commands;
 using DiaEditCore.Commands.Stations;
 using DiaEditCore.Commands.Stations.FloorUnitObjects;
@@ -20,7 +21,41 @@ using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Session;
 
 /// <summary>
-/// UI設計書§4.2.3「構内配線図ポップアップ」の暫定代替（キャンバス未実装）。
+/// UI設計書§4.2.3のキャンバスモード（v13.13確定の3モード制）。
+/// StationPathEditは今回スコープ外のためボタン配置のみ（§4.4.2-23）。
+/// </summary>
+public enum CanvasMode { View, TrackEndpointPlatformEdit, StationPathEdit }
+
+/// <summary>
+/// キャンバス表示専用の座標型（double、View非依存）。
+/// モデルのPoint（int、モデル空間の生座標）とは区別する。ReloadCanvasShapesで
+/// バウンディングボックスに基づきスケール変換された後の「画面表示用座標」を保持する。
+/// DiaEditApp.ViewModelsプロジェクトはAvalonia非依存方針のため、Avalonia.Pointを
+/// 直接使わずこの型を経由する（FloorUnitCanvasConverters誤配置の教訓、v13.13セッション）。
+/// </summary>
+public readonly record struct CanvasPoint(double X, double Y);
+
+/// <summary>
+/// キャンバス上に描画するRail 1本分の座標情報（表示専用DTO）。
+/// </summary>
+/// <remarks>
+/// Model層のRailを直接バインドせず、解決済み座標を都度計算して持たせることで
+/// XAML側からPoint解決ロジック（ResolvePosition呼び出し）を隠蔽する。
+/// </remarks>
+public sealed record RailCanvasShape(Rail Rail, CanvasPoint A, CanvasPoint B, bool IsSelected);
+
+/// <summary>
+/// キャンバス上に描画する端点1件分の座標・種別情報（表示専用DTO）。
+/// </summary>
+public sealed record EndpointCanvasShape(ObjectId ObjectId, CanvasPoint Position, EndpointVisualKind Kind, bool IsSelected);
+
+/// <summary>端点の視覚表現種別（NoneEndpoint/BoundaryPoint/EntryPoint/BufferStop/Switcherの5種、形状で区別）。</summary>
+public enum EndpointVisualKind { None, BoundaryPoint, EntryPoint, BufferStop, Switcher }
+
+/// <summary>
+/// UI設計書§4.2.3「構内配線図ポップアップ」のキャンバス実装（ステージ1：描画・モード切替・選択のみ）。
+/// </summary>
+/// <remarks>
 /// FloorUnit詳細画面＝Rail（線路）管理画面と位置づける（Tao様確認済み、v13.7セッション）。
 /// FloorUnit自身のName編集は本画面の責務外（StationDetailViewModel側で行う）。
 ///
@@ -37,12 +72,17 @@ using DiaEditCore.Session;
 /// ObjectIdのみをAffectedIdsとするが、Apply()は既にNotifyより前に完了しているため、
 /// ObservedIdsの再評価時点では新規Rail（＋アタッチ済みの端点）が既にセッション側の
 /// コレクションに反映済みであり、結果的に自動的に拾える（親IDを明示的に含める工夫は不要）。
+///
+/// キャンバス（ステージ1）：ドラッグ操作（端点移動・新規Rail作成・範囲選択）はステージ2で対応する。
+/// 現段階ではCanvasRails/CanvasEndpointsは表示専用（読み取り）であり、実際の新規作成・属性変更・
+/// 削除は既存のフォーム入力系コマンド（AddRail／SaveSelectedRail／DeleteSelectedRail）を通じて行う。
 /// </summary>
 public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedByObjectId, IDisposable
 {
     public IReadOnlyList<RailRole> RailRoles { get; } = Enum.GetValues<RailRole>();
     public IReadOnlyList<RailEndpointKind> EndpointKinds { get; } = Enum.GetValues<RailEndpointKind>();
     public IReadOnlyList<EntryPointType> EntryPointTypes { get; } = Enum.GetValues<EntryPointType>();
+    public IReadOnlyList<CanvasMode> CanvasModes { get; } = Enum.GetValues<CanvasMode>();
 
     private readonly FloorUnit _floorUnit;
     private readonly ProjectSession _session;
@@ -53,6 +93,44 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
     public string FloorUnitName => _floorUnit.Name;
 
     public ObservableCollection<Rail> Rails { get; } = new();
+
+    // ---- キャンバス描画（ステージ1：閲覧・選択のみ） ----
+
+    public ObservableCollection<RailCanvasShape> CanvasRails { get; } = new();
+    public ObservableCollection<EndpointCanvasShape> CanvasEndpoints { get; } = new();
+
+    /// <summary>
+    /// キャンバス描画領域の外周余白（画面ピクセル単位）。
+    /// </summary>
+    private const int CanvasMargin = 20;
+
+    /// <summary>
+    /// バウンディングボックスをスケール変換後、収める目標一辺の長さ（画面ピクセル単位、
+    /// Marginを含まない描画可能領域）。この値と実際のBorder表示枠（XAML側、現在320px）は
+    /// 別々に管理しているため、Border側のサイズを変える場合はこちらも合わせて調整すること。
+    /// </summary>
+    private const double CanvasDisplayExtent = 280;
+
+    /// <summary>
+    /// 内側Canvas（XAML）のWidth/Heightに束縛する、スケール変換後の実サイズ（画面ピクセル単位）。
+    /// </summary>
+    [ObservableProperty]
+    public partial double CanvasContentWidth { get; set; } = CanvasMargin * 2;
+
+    [ObservableProperty]
+    public partial double CanvasContentHeight { get; set; } = CanvasMargin * 2;
+
+    [ObservableProperty]
+    public partial CanvasMode Mode { get; set; } = CanvasMode.View;
+
+    /// <summary>
+    /// 閲覧モードではRail・端点とも選択のみ可（属性パネルは参照専用にする想定、
+    /// パネル自体のReadOnly化はステージ2でドラッグ編集導入時にあわせて対応）。
+    /// 線路・端点・ホーム編集モードでのみ新規作成・削除・属性変更を許可する。
+    /// </summary>
+    public bool IsEditableMode => Mode == CanvasMode.TrackEndpointPlatformEdit;
+
+    partial void OnModeChanged(CanvasMode value) => OnPropertyChanged(nameof(IsEditableMode));
 
     // ---- FloorUnit属性編集（Name、§9.2項目29テンプレート） ----
 
@@ -162,13 +240,105 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
             _floorUnit.Id, _session.Current.Rails,
             _session.Current.NoneEndpoints, _session.Current.BoundaryPoints,
             _session.Current.EntryPoints, _session.Current.BufferStops, _session.Current.Switchers);
- 
-     private void ReloadRails()
+
+    private void ReloadRails()
     {
         Rails.Clear();
         foreach (var rail in RailsBelongingToThisFloorUnit())
             Rails.Add(rail);
         ReloadSummary();
+        ReloadCanvasShapes();
+    }
+
+    /// <summary>
+    /// キャンバス描画用DTOを再構築する（discard-and-regenerate方針、§9.2項目29と同じ発想：
+    /// 差分更新は行わず、変更通知のたびに丸ごと作り直す）。
+    /// </summary>
+    private void ReloadCanvasShapes()
+    {
+        CanvasRails.Clear();
+        CanvasEndpoints.Clear();
+
+        var none = _session.Current.NoneEndpoints;
+        var boundary = _session.Current.BoundaryPoints;
+        var entry = _session.Current.EntryPoints;
+        var buffer = _session.Current.BufferStops;
+        var switchers = _session.Current.Switchers;
+
+        // 1パス目：全Railの生の解決座標（モデル座標系、int）を集める。
+        var rawPositions = new List<(Rail Rail, Point A, Point B)>();
+        foreach (var rail in Rails)
+        {
+            var posA = RailEndpointConvergenceResolver.ResolvePosition(rail.EndpointA, none, boundary, entry, buffer, switchers);
+            var posB = RailEndpointConvergenceResolver.ResolvePosition(rail.EndpointB, none, boundary, entry, buffer, switchers);
+            rawPositions.Add((rail, posA, posB));
+        }
+
+        if (rawPositions.Count == 0)
+        {
+            CanvasContentWidth = CanvasMargin * 2;
+            CanvasContentHeight = CanvasMargin * 2;
+            return;
+        }
+
+        // バウンディングボックスを算出する（モデル座標系、int）。
+        var minX = rawPositions.SelectMany(r => new[] { r.A.X, r.B.X }).Min();
+        var minY = rawPositions.SelectMany(r => new[] { r.A.Y, r.B.Y }).Min();
+        var maxX = rawPositions.SelectMany(r => new[] { r.A.X, r.B.X }).Max();
+        var maxY = rawPositions.SelectMany(r => new[] { r.A.Y, r.B.Y }).Max();
+
+        double rangeX = maxX - minX;
+        double rangeY = maxY - minY;
+
+        // スケール変換をViewModel側で1回だけ行い、CanvasDisplayExtent四方に収める（アスペクト比維持）。
+        // Viewbox等View側の拡大縮小に頼らないことで、StrokeThickness等の画面ピクセル指定値が
+        // モデル座標の値域に応じて意図せず縮小・消失する問題（本セッションで発覚）を根本的に回避する。
+        double scale = (rangeX, rangeY) switch
+        {
+            ( <= 0, <= 0) => 1.0, // 全Railが1点に収束（構内配線図として通常あり得ないが、念のため）
+            ( <= 0, _) => CanvasDisplayExtent / rangeY,
+            (_, <= 0) => CanvasDisplayExtent / rangeX,
+            _ => Math.Min(CanvasDisplayExtent / rangeX, CanvasDisplayExtent / rangeY),
+        };
+
+        CanvasContentWidth = rangeX * scale + CanvasMargin * 2;
+        CanvasContentHeight = rangeY * scale + CanvasMargin * 2;
+
+        CanvasPoint Normalize(Point p) =>
+            new((p.X - minX) * scale + CanvasMargin, (p.Y - minY) * scale + CanvasMargin);
+
+        var seenEndpoints = new HashSet<ObjectId>();
+
+        foreach (var (rail, rawA, rawB) in rawPositions)
+        {
+            var posA = Normalize(rawA);
+            var posB = Normalize(rawB);
+
+            CanvasRails.Add(new RailCanvasShape(rail, posA, posB, IsSelected: ReferenceEquals(rail, SelectedRail)));
+
+            AddEndpointShapeIfNew(rail.EndpointA, posA, seenEndpoints);
+            AddEndpointShapeIfNew(rail.EndpointB, posB, seenEndpoints);
+        }
+    }
+
+    /// <summary>
+    /// 同一座標に複数Railが収束している場合（BoundaryPoint/Switcher）、端点オブジェクトとしては
+    /// 1つしか存在しないため、ObjectId単位で重複描画を防ぐ。
+    /// </summary>
+    private void AddEndpointShapeIfNew(RailEndpointRef endpointRef, CanvasPoint position, HashSet<ObjectId> seen)
+    {
+        var (objectId, kind) = endpointRef switch
+        {
+            NoneEndpointRef n => ((ObjectId)new NoneEndpointObjectId(n.Id), EndpointVisualKind.None),
+            BoundaryPointEndpointRef b => (new BoundaryPointObjectId(b.Id), EndpointVisualKind.BoundaryPoint),
+            EntryPointEndpointRef e => (new EntryPointObjectId(e.Id), EndpointVisualKind.EntryPoint),
+            BufferStopEndpointRef bs => (new BufferStopObjectId(bs.Id), EndpointVisualKind.BufferStop),
+            SwitcherEndpointRef sw => (new SwitcherObjectId(sw.Id), EndpointVisualKind.Switcher),
+            _ => throw new NotSupportedException($"未知のRailEndpointRef型: {endpointRef.GetType().Name}"),
+        };
+
+        if (!seen.Add(objectId)) return;
+        CanvasEndpoints.Add(new EndpointCanvasShape(objectId, position, kind, IsSelected: false));
     }
 
     private void ReloadSummary()
@@ -217,7 +387,17 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
             EditRole = value.Role;
         }
         OnPropertyChanged(nameof(IsDirty));
+        ReloadCanvasShapes(); // 選択ハイライト（IsSelected）を再計算するため作り直す
     }
+
+    /// <summary>キャンバス上でRailの図形がクリックされた際、Viewのコードビハインドから呼ばれる。</summary>
+    public void SelectRailFromCanvas(Rail rail) => SelectedRail = rail;
+
+    [RelayCommand]
+    private void SetViewMode() => Mode = CanvasMode.View;
+
+    [RelayCommand]
+    private void SetTrackEditMode() => Mode = CanvasMode.TrackEndpointPlatformEdit;
 
     private RailSnapshot BuildEditedSnapshot() => new(EditName, EditLengthM, EditSpeedLimitKph, EditRole);
 

@@ -8,7 +8,6 @@ public sealed class FloorUnitObjectBase
 
 public static class FloorObjectRefExtensions
 {
-    // NoneEndpointRefはどの実体も指さないためnullを返す。
     public static ObjectId? ToObjectId(this RailEndpointRef r) => r switch
     {
         BoundaryPointEndpointRef b => new BoundaryPointObjectId(b.Id),

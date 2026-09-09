@@ -6,7 +6,11 @@ using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Session;
 
 /// <summary>
-/// Platform.Name / FacingRailIds / EffectiveLength のスナップショット。
+/// Platform.Name / FacingRailIds / EffectiveLength / SecondaryPosition のスナップショット。
+///
+/// SecondaryPosition（矩形の対角のもう一方の頂点）は座標編集用フィールドとして本コマンドに含める。
+/// Base.Position（対角のもう一方の頂点）自体は他のFloorUnitObjectと共通の仕組み（今後の
+/// ドラッグ操作・端点収束ワークフロー経由）で変更される想定のため、本コマンドの対象外とする。
 ///
 /// FacingRailIds（List&lt;RailId&gt;）は参照型のミュータブルなコレクションであるため、
 /// DisplayName（§9.2項目31修正時に判明した問題）と同様の理由で、コンストラクタ・
@@ -19,12 +23,15 @@ public sealed record PlatformSnapshot
     public string Name { get; }
     public IReadOnlyList<RailId> FacingRailIds { get; }
     public double? EffectiveLength { get; }
+    public Point SecondaryPosition { get; }
 
-    public PlatformSnapshot(string name, IReadOnlyList<RailId> facingRailIds, double? effectiveLength)
+    public PlatformSnapshot(
+        string name, IReadOnlyList<RailId> facingRailIds, double? effectiveLength, Point secondaryPosition)
     {
         Name = name;
         FacingRailIds = facingRailIds.ToList(); // 防御的コピー
         EffectiveLength = effectiveLength;
+        SecondaryPosition = secondaryPosition; // 値型のため防御的コピー不要
     }
 }
 
@@ -57,13 +64,15 @@ public sealed class ChangePlatformAttributesCommand : UndoableCommand<Platform, 
     protected override PlatformSnapshot CaptureSnapshot(Platform target) => new(
         target.Name,
         target.FacingRailIds,
-        target.EffectiveLength);
+        target.EffectiveLength,
+        target.SecondaryPosition);
 
     protected override void Apply(Platform target)
     {
         target.Name = _newValues.Name;
         target.FacingRailIds = _newValues.FacingRailIds.ToList(); // 防御的コピー
         target.EffectiveLength = _newValues.EffectiveLength;
+        target.SecondaryPosition = _newValues.SecondaryPosition;
     }
 
     protected override void Restore(Platform target, PlatformSnapshot snapshot)
@@ -71,5 +80,6 @@ public sealed class ChangePlatformAttributesCommand : UndoableCommand<Platform, 
         target.Name = snapshot.Name;
         target.FacingRailIds = snapshot.FacingRailIds.ToList(); // 防御的コピー
         target.EffectiveLength = snapshot.EffectiveLength;
+        target.SecondaryPosition = snapshot.SecondaryPosition;
     }
 }

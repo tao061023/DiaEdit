@@ -40,7 +40,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
         };
         var platforms = new List<Platform>
         {
-            new() { Id = new PlatformId(1), Base = MakeBase(10), FacingRailIds = new List<RailId>() }
+            new() { Id = new PlatformId(1), Base = MakeBase(10), SecondaryPosition= new Point(10,10), FacingRailIds = new List<RailId>() }
         };
         var stationPaths = new List<StationPath>
         {
@@ -114,7 +114,7 @@ public sealed class FloorUnitDependentIndexBuilderTests
         };
         var platforms = new List<Platform>
         {
-            new() { Id = new PlatformId(1), Base = MakeBase(10), FacingRailIds = new List<RailId>() }
+            new() { Id = new PlatformId(1), Base = MakeBase(10), SecondaryPosition = new Point(10,10), FacingRailIds = new List<RailId>() }
         };
 
         var result = FloorUnitDependentIndexBuilder.Build(

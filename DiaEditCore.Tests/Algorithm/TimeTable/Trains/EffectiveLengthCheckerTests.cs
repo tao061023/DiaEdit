@@ -144,6 +144,7 @@ public class EffectiveLengthCheckerTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = new List<RailId> { TrackRail },
             EffectiveLength = 50, // Platform側は不足
         };
@@ -165,6 +166,7 @@ public class EffectiveLengthCheckerTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = new List<RailId> { TrackRail },
             EffectiveLength = null,
         };
@@ -223,6 +225,7 @@ public class EffectiveLengthCheckerTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = new List<RailId> { new RailId(999) }, // 対象Railを含まない
             EffectiveLength = 10, // これが誤って採用されるとOverflowになってしまう
         };
@@ -230,6 +233,7 @@ public class EffectiveLengthCheckerTests
         {
             Id = new PlatformId(2),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = new List<RailId> { TrackRail },
             EffectiveLength = 100,
         };

@@ -36,6 +36,7 @@ public sealed class CreateFloorUnitObjectCommandPlatformTests
             {
                 Id = id,
                 Base = MakeBase(),
+                SecondaryPosition = new Point(10, 10),
                 Name = "1番線",
                 FacingRailIds = facingRailIds,
                 EffectiveLength = 200.0
@@ -68,6 +69,7 @@ public sealed class CreateFloorUnitObjectCommandPlatformTests
             {
                 Id = id,
                 Base = MakeBase(),
+                SecondaryPosition = new Point(10, 10),
                 Name = "2番線",
                 FacingRailIds = new List<RailId> { new(3) },
                 EffectiveLength = null
@@ -88,7 +90,7 @@ public sealed class CreateFloorUnitObjectCommandPlatformTests
         var command = new CreateFloorUnitObjectCommand<PlatformId, Platform>(
             platforms,
             idAllocator,
-            id => new Platform { Id = id, Base = MakeBase(), FacingRailIds = new List<RailId> { new(1) } },
+            id => new Platform { Id = id, Base = MakeBase(), SecondaryPosition = new Point(10, 10), FacingRailIds = new List<RailId> { new(1) } },
             p => new PlatformObjectId(p.Id));
 
         command.Execute();
@@ -106,7 +108,7 @@ public sealed class CreateFloorUnitObjectCommandPlatformTests
         var command = new CreateFloorUnitObjectCommand<PlatformId, Platform>(
             platforms,
             idAllocator,
-            id => new Platform { Id = id, Base = MakeBase(), FacingRailIds = new List<RailId> { new(1) } },
+            id => new Platform { Id = id, Base = MakeBase(), SecondaryPosition = new Point(10, 10), FacingRailIds = new List<RailId> { new(1) } },
             p => new PlatformObjectId(p.Id));
 
         Assert.Empty(command.AffectedIds);
@@ -125,7 +127,7 @@ public sealed class CreateFloorUnitObjectCommandPlatformTests
             id =>
             {
                 factoryCallCount++;
-                return new Platform { Id = id, Base = MakeBase(), FacingRailIds = new List<RailId> { new(1) } };
+                return new Platform { Id = id, Base = MakeBase(), SecondaryPosition = new Point(10, 10), FacingRailIds = new List<RailId> { new(1) } };
             },
             p => new PlatformObjectId(p.Id));
 

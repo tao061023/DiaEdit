@@ -17,6 +17,7 @@ public class PlatformValidatorTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(999), Position = default },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = [new RailId(1)],
         };
         var context = new ValidationContext();
@@ -34,6 +35,7 @@ public class PlatformValidatorTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = default },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = [],
         };
         var context = new ValidationContext { FloorUnits = [floorUnit] };
@@ -51,6 +53,7 @@ public class PlatformValidatorTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = default },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = [new RailId(999)],
         };
         var context = new ValidationContext { FloorUnits = [floorUnit] };
@@ -70,6 +73,7 @@ public class PlatformValidatorTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = default },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = [new RailId(1)],
             EffectiveLength = length,
         };
@@ -88,6 +92,7 @@ public class PlatformValidatorTests
         {
             Id = new PlatformId(1),
             Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = default },
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = [new RailId(1)],
             EffectiveLength = null,
         };

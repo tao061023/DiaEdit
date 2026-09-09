@@ -740,12 +740,14 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 
 #### `DiaEditCore.Model.Stations.FloorUnit` (class)
 
-| Field | Type |
-|---|---|
-| Id | `FloorUnitId` |
-| StationId | `StationId` |
-| Name | `string` (既定値 `""`) |
-| DisplayOrder | `int` |
+駅階層を表現する。
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `FloorUnitId` | 駅階層識別子 |
+| StationId | `StationId` | 駅階層の所属する駅の識別子 |
+| Name | `string` (既定値 `""`) | 駅階層名称 |
+| DisplayOrder | `int` | 駅詳細画面における表示順 |
 
 ---
 
@@ -868,6 +870,7 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 |---|---|
 | Id | `PlatformId` |
 | Base | `FloorUnitObjectBase` |
+| SecondaryPosition | `Point` |
 | Name | `string` (既定値 `""`) |
 | FacingRailIds | `List<RailId>` (既定値 `new()`) |
 | EffectiveLength | `double?` |
@@ -3614,7 +3617,10 @@ IUndoableCommand.Execute()/Undo()はIReadOnlySet&lt;ObjectId&gt;を返す設計�
 
 #### `DiaEditCore.Commands.Stations.FloorUnitObjects.PlatformSnapshot` (record)
 
-Platform.Name / FacingRailIds / EffectiveLength のスナップショット。
+Platform.Name / FacingRailIds / EffectiveLength / SecondaryPosition のスナップショット。
+SecondaryPosition（矩形の対角のもう一方の頂点）は座標編集用フィールドとして本コマンドに含める。
+Base.Position（対角のもう一方の頂点）自体は他のFloorUnitObjectと共通の仕組み（今後の
+ドラッグ操作・端点収束ワークフロー経由）で変更される想定のため、本コマンドの対象外とする。
 FacingRailIds（List&lt;RailId&gt;）は参照型のミュータブルなコレクションであるため、
 DisplayName（§9.2項目31修正時に判明した問題）と同様の理由で、コンストラクタ・
 CaptureSnapshot双方でToList()による防御的コピーを行う。呼び出し元が渡したリスト
@@ -3626,10 +3632,11 @@ Undo用スナップショットを汚染しうるため。
 | Name | `string` |
 | FacingRailIds | `IReadOnlyList<RailId>` |
 | EffectiveLength | `double?` |
+| SecondaryPosition | `Point` |
 
 ---
 
-##### `public PlatformSnapshot(string name, IReadOnlyList<RailId> facingRailIds, double? effectiveLength)`
+##### `public PlatformSnapshot(string name, IReadOnlyList<RailId> facingRailIds, double? effectiveLength, Point secondaryPosition)`
 
 ---
 
@@ -4591,30 +4598,81 @@ MainViewModel側がDIコンテナから解決する（画面ViewModelはTransien
 
 ### 7.3 Stations
 
+#### `DiaEditApp.ViewModels.Stations.CanvasMode` (enum)
+
+UI設計書§4.2.3のキャンバスモード（v13.13確定の3モード制）。
+StationPathEditは今回スコープ外のためボタン配置のみ（§4.4.2-23）。
+
+| Value | 説明 |
+|---|---|
+| View |  |
+| TrackEndpointPlatformEdit |  |
+| StationPathEdit |  |
+
+---
+
+#### `DiaEditApp.ViewModels.Stations.CanvasPoint` (record struct)
+
+キャンバス表示専用の座標型（double、View非依存）。
+モデルのPoint（int、モデル空間の生座標）とは区別する。ReloadCanvasShapesで
+バウンディングボックスに基づきスケール変換された後の「画面表示用座標」を保持する。
+DiaEditApp.ViewModelsプロジェクトはAvalonia非依存方針のため、Avalonia.Pointを
+直接使わずこの型を経由する（FloorUnitCanvasConverters誤配置の教訓、v13.13セッション）。
+
+| Field | Type |
+|---|---|
+| X | `double` |
+| Y | `double` |
+
+---
+
+#### `DiaEditApp.ViewModels.Stations.EndpointCanvasShape` (record)
+
+キャンバス上に描画する端点1件分の座標・種別情報（表示専用DTO）。
+
+| Field | Type |
+|---|---|
+| ObjectId | `ObjectId` |
+| Position | `CanvasPoint` |
+| Kind | `EndpointVisualKind` |
+| IsSelected | `bool` |
+
+---
+
+#### `DiaEditApp.ViewModels.Stations.EndpointVisualKind` (enum)
+
+端点の視覚表現種別（NoneEndpoint/BoundaryPoint/EntryPoint/BufferStop/Switcherの5種、形状で区別）。
+
+| Value | 説明 |
+|---|---|
+| None |  |
+| BoundaryPoint |  |
+| EntryPoint |  |
+| BufferStop |  |
+| Switcher |  |
+
+---
+
 #### `DiaEditApp.ViewModels.Stations.FloorUnitDetailViewModel` (class)
 
-UI設計書§4.2.3「構内配線図ポップアップ」の暫定代替（キャンバス未実装）。
-FloorUnit詳細画面＝Rail（線路）管理画面と位置づける（Tao様確認済み、v13.7セッション）。
-FloorUnit自身のName編集は本画面の責務外（StationDetailViewModel側で行う）。
-§9.2項目29のテンプレート（StationDetailViewModelで確立したBuildEditedSnapshot／
-CaptureCurrentSnapshot／IsDirty／差分判定Saveパターン）を、Rail属性編集（選択中Rail）へ適用する。
-Railは自身のFloorUnitIdを持たない（§4.4.3、EndpointA/Bの接続先端点オブジェクト経由で導出される
-派生関係）ため、「このFloorUnitに属するRail」は都度Rails全体をフィルタして導出する
-（専用逆引きIndexは今回新設しない。DeleteRailCommandの3経路チェックと同じ判断基準：
-消費者がこのViewModelのみで件数規模も小さいため線形走査で足りる）。
-ObservedIdsはStationDetailViewModelと同じ設計：_session.Current側の生きたコレクションを
-都度再評価する。Create系コマンドはComputeAffectedIdsAfterApplyで新規オブジェクト自身の
-ObjectIdのみをAffectedIdsとするが、Apply()は既にNotifyより前に完了しているため、
-ObservedIdsの再評価時点では新規Rail（＋アタッチ済みの端点）が既にセッション側の
-コレクションに反映済みであり、結果的に自動的に拾える（親IDを明示的に含める工夫は不要）。
+UI設計書§4.2.3「構内配線図ポップアップ」のキャンバス実装（ステージ1：描画・モード切替・選択のみ）。
 
 | Field | Type | 説明 |
 |---|---|---|
 | RailRoles | `IReadOnlyList<RailRole>` (既定値 `Enum.GetValues<RailRole>()`) |  |
 | EndpointKinds | `IReadOnlyList<RailEndpointKind>` (既定値 `Enum.GetValues<RailEndpointKind>()`) |  |
 | EntryPointTypes | `IReadOnlyList<EntryPointType>` (既定値 `Enum.GetValues<EntryPointType>()`) |  |
+| CanvasModes | `IReadOnlyList<CanvasMode>` (既定値 `Enum.GetValues<CanvasMode>()`) |  |
 | FloorUnitName | `string` |  |
 | Rails | `ObservableCollection<Rail>` (既定値 `new()`) |  |
+| CanvasRails | `ObservableCollection<RailCanvasShape>` (既定値 `new()`) |  |
+| CanvasEndpoints | `ObservableCollection<EndpointCanvasShape>` (既定値 `new()`) |  |
+| CanvasContentWidth | `double` (既定値 `CanvasMargin * 2`) | 内側Canvas（XAML）のWidth/Heightに束縛する、スケール変換後の実サイズ（画面ピクセル単位）。 |
+| CanvasContentHeight | `double` (既定値 `CanvasMargin * 2`) |  |
+| Mode | `CanvasMode` (既定値 `CanvasMode.View`) |  |
+| IsEditableMode | `bool` | 閲覧モードではRail・端点とも選択のみ可（属性パネルは参照専用にする想定、
+パネル自体のReadOnly化はステージ2でドラッグ編集導入時にあわせて対応）。
+線路・端点・ホーム編集モードでのみ新規作成・削除・属性変更を許可する。 |
 | EditFloorUnitName | `string` (既定値 `""`) |  |
 | IsFloorUnitNameDirty | `bool` |  |
 | Summary | `FloorUnitSummary` (既定値 `null!`) |  |
@@ -4641,13 +4699,52 @@ ObservedIdsの再評価時点では新規Rail（＋アタッチ済みの端点�
 | ObservedIds | `IReadOnlySet<ObjectId>` | StationDetailViewModel.ObservedIdsと同じ設計。FloorUnit自身に加え、現在このFloorUnitに
 属する（端点経由で導出される）Rail群のIdを都度算出する。 |
 
+> FloorUnit詳細画面＝Rail（線路）管理画面と位置づける（Tao様確認済み、v13.7セッション）。
+> FloorUnit自身のName編集は本画面の責務外（StationDetailViewModel側で行う）。
+> §9.2項目29のテンプレート（StationDetailViewModelで確立したBuildEditedSnapshot／
+> CaptureCurrentSnapshot／IsDirty／差分判定Saveパターン）を、Rail属性編集（選択中Rail）へ適用する。
+> Railは自身のFloorUnitIdを持たない（§4.4.3、EndpointA/Bの接続先端点オブジェクト経由で導出される
+> 派生関係）ため、「このFloorUnitに属するRail」は都度Rails全体をフィルタして導出する
+> （専用逆引きIndexは今回新設しない。DeleteRailCommandの3経路チェックと同じ判断基準：
+> 消費者がこのViewModelのみで件数規模も小さいため線形走査で足りる）。
+> ObservedIdsはStationDetailViewModelと同じ設計：_session.Current側の生きたコレクションを
+> 都度再評価する。Create系コマンドはComputeAffectedIdsAfterApplyで新規オブジェクト自身の
+> ObjectIdのみをAffectedIdsとするが、Apply()は既にNotifyより前に完了しているため、
+> ObservedIdsの再評価時点では新規Rail（＋アタッチ済みの端点）が既にセッション側の
+> コレクションに反映済みであり、結果的に自動的に拾える（親IDを明示的に含める工夫は不要）。
+> キャンバス（ステージ1）：ドラッグ操作（端点移動・新規Rail作成・範囲選択）はステージ2で対応する。
+> 現段階ではCanvasRails/CanvasEndpointsは表示専用（読み取り）であり、実際の新規作成・属性変更・
+> 削除は既存のフォーム入力系コマンド（AddRail／SaveSelectedRail／DeleteSelectedRail）を通じて行う。
+
 ---
 
 ##### `public FloorUnitDetailViewModel(FloorUnit floorUnit, ProjectSession session, CommandInvoker invoker, ChangeNotificationBridge bridge, Action goBack)`
 
 ---
 
+##### `public void SelectRailFromCanvas(Rail rail)`
+
+キャンバス上でRailの図形がクリックされた際、Viewのコードビハインドから呼ばれる。
+
+---
+
 ##### `public void Dispose()`
+
+---
+
+#### `DiaEditApp.ViewModels.Stations.RailCanvasShape` (record)
+
+キャンバス上に描画するRail 1本分の座標情報（表示専用DTO）。
+
+| Field | Type |
+|---|---|
+| Rail | `Rail` |
+| A | `CanvasPoint` |
+| B | `CanvasPoint` |
+| IsSelected | `bool` |
+
+> Model層のRailを直接バインドせず、解決済み座標を都度計算して持たせることで
+> XAML側からPoint解決ロジック（ResolvePosition呼び出し）を隠蔽する。
 
 ---
 
@@ -4806,6 +4903,12 @@ DIコンテナへ公開するアダプタ。App.axaml.cs起動時にAppSettings.
 ##### `public MainWindow()`
 
 #### 8.2.1 Stations
+
+#### `DiaEditApp.Views.Stations.FloorUnitCanvasConverters` (class)
+
+FloorUnitDetailView（キャンバス、§4.2.3・§4.4.2-23ステージ1）専用の値コンバータ群。
+
+---
 
 #### `DiaEditApp.Views.Stations.FloorUnitDetailView` (class)
 

@@ -16,6 +16,7 @@ public sealed class DeletePlatformCommandTests
     {
         Id = new PlatformId(id),
         Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+        SecondaryPosition = new Point(10, 10),
         Name = $"{id}番線",
         FacingRailIds = new List<RailId> { new(1) },
     };

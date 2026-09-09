@@ -225,6 +225,7 @@ public sealed class RailDeletionWorkflowTests
         {
             Id = new PlatformId(1),
             Base = MakeBase(new Point(0, 0)),
+            SecondaryPosition = new Point(10, 10),
             FacingRailIds = new List<RailId> { rail.Id },
         };
 

@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:DiaEditApp.ViewModels.Stations"
+             xmlns:conv="using:DiaEditApp.Views.Stations"
              xmlns:rails="using:DiaEditCore.Model.Stations.FloorUnitObjects"
              xmlns:summary="using:DiaEditCore.Algorithm.Stations"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -11,12 +12,26 @@
 
     <DockPanel Margin="8">
 
-        <!-- ヘッダー：戻る導線＋タイトル（UI設計書§7テンプレート共通部） -->
-        <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Margin="0,0,0,8" Spacing="4">
-            <Button Content="← 駅詳細へ戻る" Command="{Binding GoBackCommand}" />
+        <!-- ヘッダー：戻る導線＋タイトル＋モード切替（UI設計書§7テンプレート共通部＋§4.4.2-23）
+             WrapPanelに変更：ウィンドウ幅が狭い場合、ボタンが折り返される（従来のStackPanelは
+             切れるだけでスクロール・折り返しのどちらも無かったための対応、本セッションで発覚） -->
+        <WrapPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+            <Button Content="← 駅詳細へ戻る" Command="{Binding GoBackCommand}" Margin="0,0,4,4" />
             <TextBlock Text="{Binding FloorUnitName, StringFormat='FloorUnit：{0}'}"
-                       VerticalAlignment="Center" FontWeight="Bold" Margin="12,0,0,0" />
-        </StackPanel>
+                       VerticalAlignment="Center" FontWeight="Bold" Margin="8,0,16,4" />
+
+            <!-- モード切替ツールバー（UI設計書§4.4.2-23：v13.13確定の3モード制）
+                 IsCheckedはTwoWayが既定だが、ObjectConverters.EqualはConvertのみ実装（逆変換未実装）のため
+                 Mode=OneWayを明示。実際のモード切替はCommand経由で行う（本セッションで発覚した不具合の対応）。 -->
+            <ToggleButton Content="閲覧" Margin="0,0,4,4"
+                          IsChecked="{Binding Mode, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:CanvasMode.View}, Mode=OneWay}"
+                          Command="{Binding SetViewModeCommand}" />
+            <ToggleButton Content="線路・端点・ホーム編集" Margin="0,0,4,4"
+                          IsChecked="{Binding Mode, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:CanvasMode.TrackEndpointPlatformEdit}, Mode=OneWay}"
+                          Command="{Binding SetTrackEditModeCommand}" />
+            <ToggleButton Content="構内進路編集" IsEnabled="False" Margin="0,0,4,4"
+                          ToolTip.Tip="StationPathSuggester統合は次々回以降（§4.4.2-23）" />
+        </WrapPanel>
 
         <!-- 左右分割本体（UI設計書§7「左＝属性編集／右＝配下オブジェクト概要・一覧」規約） -->
         <Grid ColumnDefinitions="260,4,*">
@@ -25,7 +40,8 @@
             <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,8,0">
                 <TextBlock Text="属性編集" FontWeight="Bold" />
                 <DockPanel>
-                    <TextBlock Text="名称" Width="80" VerticalAlignment="Center" />
+                    <TextBlock Text="名称" Width="80" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" />
                     <TextBox Text="{Binding EditFloorUnitName}" />
                 </DockPanel>
                 <Button Content="決定" Command="{Binding SaveFloorUnitNameCommand}"
@@ -36,148 +52,232 @@
             <GridSplitter Grid.Column="1" Width="4" HorizontalAlignment="Stretch"
                           Background="Transparent" ResizeDirection="Columns" />
 
-            <!-- 右ペイン：配下オブジェクトの概要・一覧・詳細編集入り口 -->
-            <DockPanel Grid.Column="2">
+            <!-- 右ペイン：概要・キャンバス・一覧・編集フォームをすべてScrollViewer配下の
+                 単一StackPanelへ配置し、縦積みコンテンツがウィンドウ高を超えてもスクロールで
+                 到達できるようにする（従来のDockPanelはスクロール機構が無く見切れていたための対応、
+                 本セッションで発覚）。DockPanel.Dock="Bottom"によるRail編集欄の下部固定は廃止し、
+                 一覧の直後（読み順）へ配置する構成に変更した。 -->
+            <ScrollViewer Grid.Column="2"
+                          HorizontalScrollBarVisibility="Disabled"
+                          VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="0">
 
-                <!-- 概要（Summary） -->
-                <Border DockPanel.Dock="Top" Padding="8" Margin="0,0,0,12"
-                        Background="#14000000" CornerRadius="4">
-                    <StackPanel x:DataType="summary:FloorUnitSummary" DataContext="{Binding Summary}" Spacing="2">
-                        <TextBlock Text="概要" FontWeight="Bold" Margin="0,0,0,4" />
-                        <Grid ColumnDefinitions="120,60,120,60" RowDefinitions="Auto,Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="番線数" Opacity="0.7" />
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TrackRailCount}" />
-                            <TextBlock Grid.Row="0" Grid.Column="2" Text="引き上げ線数" Opacity="0.7" />
-                            <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding ShuntingRailCount}" />
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Rail総数" Opacity="0.7" />
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TotalRailCount}" />
-                            <TextBlock Grid.Row="1" Grid.Column="2" Text="StationPath数" Opacity="0.7" />
-                            <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding StationPathCount}" />
+                    <!-- 概要（Summary） -->
+                    <Border Padding="8" Margin="0,0,0,12"
+                            Background="#14000000" CornerRadius="4">
+                        <StackPanel x:DataType="summary:FloorUnitSummary" DataContext="{Binding Summary}" Spacing="2">
+                            <TextBlock Text="概要" FontWeight="Bold" Margin="0,0,0,4" />
+                            <Grid ColumnDefinitions="120,60,120,60" RowDefinitions="Auto,Auto">
+                                <TextBlock Grid.Row="0" Grid.Column="0" Text="番線数" Opacity="0.7" />
+                                <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TrackRailCount}" />
+                                <TextBlock Grid.Row="0" Grid.Column="2" Text="引き上げ線数" Opacity="0.7" />
+                                <TextBlock Grid.Row="0" Grid.Column="3" Text="{Binding ShuntingRailCount}" />
+                                <TextBlock Grid.Row="1" Grid.Column="0" Text="Rail総数" Opacity="0.7" />
+                                <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TotalRailCount}" />
+                                <TextBlock Grid.Row="1" Grid.Column="2" Text="StationPath数" Opacity="0.7" />
+                                <TextBlock Grid.Row="1" Grid.Column="3" Text="{Binding StationPathCount}" />
+                            </Grid>
+                            <TextBlock Text="⚠ 未参照のTrack端部があります"
+                                       Foreground="Orange" Margin="0,4,0,0"
+                                       IsVisible="{Binding HasUnreferencedTrackEndpoints}" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- キャンバス本体（ステージ1：閲覧・選択のみ。ドラッグ操作はステージ2） -->
+                    <Border Height="320" Margin="0,0,0,12"
+                            Background="#08000000" BorderBrush="Gray" BorderThickness="1" ClipToBounds="True">
+                        <!-- ステージ1不具合対応：ViewModel側でモデル座標をCanvasDisplayExtent四方に
+                             収まるようスケール変換済み（ReloadCanvasShapes）。Viewbox等View側の
+                             拡大縮小は使わない：StrokeThickness等の画面ピクセル値が意図せず
+                             スケールされ、大きな座標値のRailで線が視認不能になる不具合が
+                             本セッションで発覚したため（Fill図形は縮小されても視認できるが、
+                             Line描画はStrokeThicknessがサブピクセルになると事実上消える）。 -->
+                        <Canvas Name="FloorUnitCanvas" Background="Transparent"
+                                Width="{Binding CanvasContentWidth}"
+                                Height="{Binding CanvasContentHeight}">
+
+                            <!-- ▼▼▼ 動作確認用デバッグ表示（原因切り分け後に削除） ▼▼▼ -->
+                            <Rectangle Width="50" Height="50" Fill="Red" Canvas.Left="10" Canvas.Top="10" />
+                            <TextBlock Text="{Binding CanvasRails.Count, StringFormat='CanvasRails: {0}'}"
+                                       Foreground="Yellow" FontSize="20" FontWeight="Bold"
+                                       Canvas.Left="10" Canvas.Top="70" />
+                            <TextBlock Text="{Binding CanvasContentWidth, StringFormat='W: {0}'}"
+                                       Foreground="Yellow" FontSize="20" FontWeight="Bold"
+                                       Canvas.Left="10" Canvas.Top="100" />
+                            <TextBlock Text="{Binding CanvasContentHeight, StringFormat='H: {0}'}"
+                                       Foreground="Yellow" FontSize="20" FontWeight="Bold"
+                                       Canvas.Left="10" Canvas.Top="130" />
+                            <!-- ▲▲▲ 動作確認用デバッグ表示ここまで ▲▲▲ -->
+
+                            <ItemsControl ItemsSource="{Binding CanvasRails}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:RailCanvasShape">
+                                        <Line StartPoint="{Binding A, Converter={x:Static conv:FloorUnitCanvasConverters.ToAvaloniaPoint}}"
+                                              EndPoint="{Binding B, Converter={x:Static conv:FloorUnitCanvasConverters.ToAvaloniaPoint}}"
+                                              StrokeThickness="{Binding IsSelected, Converter={x:Static conv:FloorUnitCanvasConverters.SelectedStrokeWidth}}"
+                                              Stroke="{Binding IsSelected, Converter={x:Static conv:FloorUnitCanvasConverters.SelectedStroke}}"
+                                              Tag="{Binding Rail}"
+                                              PointerPressed="OnRailShapePointerPressed" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <ItemsControl ItemsSource="{Binding CanvasEndpoints}">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <Canvas />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:EndpointCanvasShape">
+                                        <Ellipse Width="8" Height="8"
+                                                 Canvas.Left="{Binding Position.X, Converter={x:Static conv:FloorUnitCanvasConverters.CenterOffset}}"
+                                                 Canvas.Top="{Binding Position.Y, Converter={x:Static conv:FloorUnitCanvasConverters.CenterOffset}}"
+                                                 Fill="{Binding Kind, Converter={x:Static conv:FloorUnitCanvasConverters.KindToBrush}}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                        </Canvas>
+                    </Border>
+
+                    <TextBlock Opacity="0.7" Margin="0,0,0,8" TextWrapping="Wrap"
+                                Text="ドラッグでの新規作成・端点移動はステージ2で対応予定です。現在はキャンバス上のRailクリックで選択、フォーム操作での新規作成・編集を行ってください。" />
+
+                    <!-- Rail新規作成 -->
+                    <StackPanel Spacing="4" Margin="0,0,0,12">
+                        <TextBlock Text="Rail新規作成" FontWeight="Bold" />
+
+                        <DockPanel>
+                            <TextBlock Text="名称" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBox Text="{Binding NewRailName}" />
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock Text="長さ(m)" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <NumericUpDown Value="{Binding NewRailLengthM}" Minimum="0" />
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock Text="制限速度(km/h)" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <NumericUpDown Value="{Binding NewRailSpeedLimitKph}" Minimum="0" />
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock Text="Role" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <ComboBox ItemsSource="{Binding RailRoles}" SelectedItem="{Binding NewRailRole}" />
+                        </DockPanel>
+
+                        <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+                            <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,4,0">
+                                <TextBlock Text="端点A" FontWeight="Bold" />
+                                <ComboBox ItemsSource="{Binding EndpointKinds}" SelectedItem="{Binding NewEndpointAKind}"
+                                          HorizontalAlignment="Stretch" />
+                                <DockPanel>
+                                    <TextBlock Text="X" Width="30" VerticalAlignment="Center" />
+                                    <NumericUpDown Value="{Binding NewEndpointAX}" />
+                                </DockPanel>
+                                <DockPanel>
+                                    <TextBlock Text="Y" Width="30" VerticalAlignment="Center" />
+                                    <NumericUpDown Value="{Binding NewEndpointAY}" />
+                                </DockPanel>
+                                <DockPanel IsVisible="{Binding NewEndpointAKind, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:RailEndpointKind.EntryPoint}}">
+                                    <TextBlock Text="EntryPointType" Width="110" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <ComboBox ItemsSource="{Binding EntryPointTypes}" SelectedItem="{Binding NewEndpointAEntryType}" />
+                                </DockPanel>
+                            </StackPanel>
+
+                            <StackPanel Grid.Column="1" Spacing="2" Margin="4,0,0,0">
+                                <TextBlock Text="端点B" FontWeight="Bold" />
+                                <ComboBox ItemsSource="{Binding EndpointKinds}" SelectedItem="{Binding NewEndpointBKind}"
+                                          HorizontalAlignment="Stretch" />
+                                <DockPanel>
+                                    <TextBlock Text="X" Width="30" VerticalAlignment="Center" />
+                                    <NumericUpDown Value="{Binding NewEndpointBX}" />
+                                </DockPanel>
+                                <DockPanel>
+                                    <TextBlock Text="Y" Width="30" VerticalAlignment="Center" />
+                                    <NumericUpDown Value="{Binding NewEndpointBY}" />
+                                </DockPanel>
+                                <DockPanel IsVisible="{Binding NewEndpointBKind, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:RailEndpointKind.EntryPoint}}">
+                                    <TextBlock Text="EntryPointType" Width="110" VerticalAlignment="Center"
+                                               TextTrimming="CharacterEllipsis" />
+                                    <ComboBox ItemsSource="{Binding EntryPointTypes}" SelectedItem="{Binding NewEndpointBEntryType}" />
+                                </DockPanel>
+                            </StackPanel>
                         </Grid>
-                        <TextBlock Text="⚠ 未参照のTrack端部があります"
-                                   Foreground="Orange" Margin="0,4,0,0"
-                                   IsVisible="{Binding HasUnreferencedTrackEndpoints}" />
+
+                        <Button Content="+Rail追加" Command="{Binding AddRailCommand}" Margin="0,4,0,0" />
                     </StackPanel>
-                </Border>
 
-                <TextBlock DockPanel.Dock="Top" Opacity="0.7" Margin="0,0,0,8"
-                            Text="キャンバス未実装のため、暫定リストUIです（座標は数値入力）。構内配線図編集画面（UI設計書§3）実装時に置き換えます。" />
-
-                <!-- Rail新規作成 -->
-                <StackPanel DockPanel.Dock="Top" Spacing="4" Margin="0,0,0,12">
-                    <TextBlock Text="Rail新規作成" FontWeight="Bold" />
-
-                    <DockPanel>
-                        <TextBlock Text="名称" Width="120" VerticalAlignment="Center" />
-                        <TextBox Text="{Binding NewRailName}" />
-                    </DockPanel>
-                    <DockPanel>
-                        <TextBlock Text="長さ(m)" Width="120" VerticalAlignment="Center" />
-                        <NumericUpDown Value="{Binding NewRailLengthM}" Minimum="0" />
-                    </DockPanel>
-                    <DockPanel>
-                        <TextBlock Text="制限速度(km/h)" Width="120" VerticalAlignment="Center" />
-                        <NumericUpDown Value="{Binding NewRailSpeedLimitKph}" Minimum="0" />
-                    </DockPanel>
-                    <DockPanel>
-                        <TextBlock Text="Role" Width="120" VerticalAlignment="Center" />
-                        <ComboBox ItemsSource="{Binding RailRoles}" SelectedItem="{Binding NewRailRole}" />
-                    </DockPanel>
-
-                    <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
-                        <StackPanel Grid.Column="0" Spacing="2" Margin="0,0,4,0">
-                            <TextBlock Text="端点A" FontWeight="Bold" />
-                            <ComboBox ItemsSource="{Binding EndpointKinds}" SelectedItem="{Binding NewEndpointAKind}" />
-                            <DockPanel>
-                                <TextBlock Text="X" Width="30" VerticalAlignment="Center" />
-                                <NumericUpDown Value="{Binding NewEndpointAX}" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock Text="Y" Width="30" VerticalAlignment="Center" />
-                                <NumericUpDown Value="{Binding NewEndpointAY}" />
-                            </DockPanel>
-                            <DockPanel IsVisible="{Binding NewEndpointAKind, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:RailEndpointKind.EntryPoint}}">
-                                <TextBlock Text="EntryPointType" Width="110" VerticalAlignment="Center" />
-                                <ComboBox ItemsSource="{Binding EntryPointTypes}" SelectedItem="{Binding NewEndpointAEntryType}" />
-                            </DockPanel>
-                        </StackPanel>
-
-                        <StackPanel Grid.Column="1" Spacing="2" Margin="4,0,0,0">
-                            <TextBlock Text="端点B" FontWeight="Bold" />
-                            <ComboBox ItemsSource="{Binding EndpointKinds}" SelectedItem="{Binding NewEndpointBKind}" />
-                            <DockPanel>
-                                <TextBlock Text="X" Width="30" VerticalAlignment="Center" />
-                                <NumericUpDown Value="{Binding NewEndpointBX}" />
-                            </DockPanel>
-                            <DockPanel>
-                                <TextBlock Text="Y" Width="30" VerticalAlignment="Center" />
-                                <NumericUpDown Value="{Binding NewEndpointBY}" />
-                            </DockPanel>
-                            <DockPanel IsVisible="{Binding NewEndpointBKind, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:Static vm:RailEndpointKind.EntryPoint}}">
-                                <TextBlock Text="EntryPointType" Width="110" VerticalAlignment="Center" />
-                                <ComboBox ItemsSource="{Binding EntryPointTypes}" SelectedItem="{Binding NewEndpointBEntryType}" />
-                            </DockPanel>
-                        </StackPanel>
+                    <!-- Rail一覧 -->
+                    <Grid ColumnDefinitions="*,80,100,80" Margin="4,2">
+                        <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="1" Text="長さ(m)" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="2" Text="制限速度" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
+                        <TextBlock Grid.Column="3" Text="Role" FontWeight="Bold" TextTrimming="CharacterEllipsis" />
                     </Grid>
 
-                    <Button Content="+Rail追加" Command="{Binding AddRailCommand}" Margin="0,4,0,0" />
-                </StackPanel>
+                    <ListBox ItemsSource="{Binding Rails}"
+                             SelectedItem="{Binding SelectedRail, Mode=TwoWay}"
+                             MaxHeight="240">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate x:DataType="rails:Rail">
+                                <Grid ColumnDefinitions="*,80,100,80">
+                                    <TextBlock Grid.Column="0" Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="1" Text="{Binding LengthM}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="2" Text="{Binding SpeedLimitKph}" TextTrimming="CharacterEllipsis" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Role}" TextTrimming="CharacterEllipsis" />
+                                </Grid>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
 
-                <!-- 選択中Railの削除エラー -->
-                <TextBlock DockPanel.Dock="Top"
-                            Text="{Binding DeleteRailError}"
-                            Foreground="Red"
-                            IsVisible="{Binding HasDeleteRailError}"
-                            Margin="0,0,0,4" />
+                    <!-- 選択中Railの削除エラー -->
+                    <TextBlock Text="{Binding DeleteRailError}"
+                                Foreground="Red" TextWrapping="Wrap"
+                                IsVisible="{Binding HasDeleteRailError}"
+                                Margin="0,4,0,4" />
 
-                <!-- 選択中Rail属性編集（§9.2項目29テンプレート） -->
-                <StackPanel DockPanel.Dock="Bottom" Spacing="4" Margin="0,12,0,0"
-                            IsVisible="{Binding SelectedRail, Converter={x:Static ObjectConverters.IsNotNull}}">
-                    <TextBlock Text="選択中Railの編集" FontWeight="Bold" />
-                    <DockPanel>
-                        <TextBlock Text="名称" Width="120" VerticalAlignment="Center" />
-                        <TextBox Text="{Binding EditName}" />
-                    </DockPanel>
-                    <DockPanel>
-                        <TextBlock Text="長さ(m)" Width="120" VerticalAlignment="Center" />
-                        <NumericUpDown Value="{Binding EditLengthM}" Minimum="0" />
-                    </DockPanel>
-                    <DockPanel>
-                        <TextBlock Text="制限速度(km/h)" Width="120" VerticalAlignment="Center" />
-                        <NumericUpDown Value="{Binding EditSpeedLimitKph}" Minimum="0" />
-                    </DockPanel>
-                    <DockPanel>
-                        <TextBlock Text="Role" Width="120" VerticalAlignment="Center" />
-                        <ComboBox ItemsSource="{Binding RailRoles}" SelectedItem="{Binding EditRole}" />
-                    </DockPanel>
-                    <StackPanel Orientation="Horizontal" Spacing="4">
-                        <Button Content="決定" Command="{Binding SaveSelectedRailCommand}" IsEnabled="{Binding IsDirty}" />
-                        <Button Content="削除" Command="{Binding DeleteSelectedRailCommand}" />
+                    <!-- 選択中Rail属性編集（§9.2項目29テンプレート） -->
+                    <StackPanel Spacing="4" Margin="0,12,0,12"
+                                IsVisible="{Binding SelectedRail, Converter={x:Static ObjectConverters.IsNotNull}}">
+                        <TextBlock Text="選択中Railの編集" FontWeight="Bold" />
+                        <DockPanel>
+                            <TextBlock Text="名称" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <TextBox Text="{Binding EditName}" />
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock Text="長さ(m)" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <NumericUpDown Value="{Binding EditLengthM}" Minimum="0" />
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock Text="制限速度(km/h)" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <NumericUpDown Value="{Binding EditSpeedLimitKph}" Minimum="0" />
+                        </DockPanel>
+                        <DockPanel>
+                            <TextBlock Text="Role" Width="120" VerticalAlignment="Center"
+                                       TextTrimming="CharacterEllipsis" />
+                            <ComboBox ItemsSource="{Binding RailRoles}" SelectedItem="{Binding EditRole}" />
+                        </DockPanel>
+                        <StackPanel Orientation="Horizontal" Spacing="4">
+                            <Button Content="決定" Command="{Binding SaveSelectedRailCommand}" IsEnabled="{Binding IsDirty}" />
+                            <Button Content="削除" Command="{Binding DeleteSelectedRailCommand}" />
+                        </StackPanel>
                     </StackPanel>
+
                 </StackPanel>
-
-                <!-- Rail一覧 -->
-                <Grid DockPanel.Dock="Top" ColumnDefinitions="*,80,100,80" Margin="4,2">
-                    <TextBlock Grid.Column="0" Text="名称" FontWeight="Bold" />
-                    <TextBlock Grid.Column="1" Text="長さ(m)" FontWeight="Bold" />
-                    <TextBlock Grid.Column="2" Text="制限速度" FontWeight="Bold" />
-                    <TextBlock Grid.Column="3" Text="Role" FontWeight="Bold" />
-                </Grid>
-
-                <ListBox ItemsSource="{Binding Rails}"
-                         SelectedItem="{Binding SelectedRail, Mode=TwoWay}">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="rails:Rail">
-                            <Grid ColumnDefinitions="*,80,100,80">
-                                <TextBlock Grid.Column="0" Text="{Binding Name}" />
-                                <TextBlock Grid.Column="1" Text="{Binding LengthM}" />
-                                <TextBlock Grid.Column="2" Text="{Binding SpeedLimitKph}" />
-                                <TextBlock Grid.Column="3" Text="{Binding Role}" />
-                            </Grid>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </DockPanel>
+            </ScrollViewer>
         </Grid>
 
     </DockPanel>

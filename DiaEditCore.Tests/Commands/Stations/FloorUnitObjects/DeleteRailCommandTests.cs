@@ -27,6 +27,7 @@ public sealed class DeleteRailCommandTests
     {
         Id = new PlatformId(id),
         Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+        SecondaryPosition = new Point(10, 10),
         FacingRailIds = facingRailIds.Select(r => new RailId(r)).ToList()
     };
 

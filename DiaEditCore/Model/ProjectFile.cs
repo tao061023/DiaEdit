@@ -45,7 +45,7 @@ public sealed class ProjectFile
     public List<BoundaryPoint> BoundaryPoints { get; set; } = new();
     public List<Switcher> Switchers { get; set; } = new();
     public List<BufferStop> BufferStops { get; set; } = new();
-    public List<Platform> Platforms { get; set; } = new(); // ★v11.38追加：ValidationContext側の追加漏れも合わせて修正
+    public List<Platform> Platforms { get; set; } = new();
     public List<StationPath> StationPaths { get; set; } = new();
 
     // ── 路線網 ──

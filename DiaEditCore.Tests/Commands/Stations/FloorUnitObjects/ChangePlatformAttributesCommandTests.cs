@@ -16,6 +16,7 @@ public sealed class ChangePlatformAttributesCommandTests
     {
         Id = new PlatformId(1),
         Base = new FloorUnitObjectBase { FloorUnitId = new FloorUnitId(1), Position = new Point(0, 0) },
+        SecondaryPosition = new Point(10, 10),
         Name = "旧1番線",
         FacingRailIds = new List<RailId> { new(1) },
         EffectiveLength = 100.0
@@ -47,7 +48,7 @@ public sealed class ChangePlatformAttributesCommandTests
     public void Execute_AppliesAllFields()
     {
         var platform = MakePlatform();
-        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2), new(3) }, 250.0);
+        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2), new(3) }, 250.0, new Point(10, 10));
 
         var command = new ChangePlatformAttributesCommand(platform, newValues, MakeSession());
         command.Execute();
@@ -61,7 +62,7 @@ public sealed class ChangePlatformAttributesCommandTests
     public void Execute_AllowsSettingEffectiveLengthToNull()
     {
         var platform = MakePlatform();
-        var newValues = new PlatformSnapshot("旧1番線", new List<RailId> { new(1) }, null);
+        var newValues = new PlatformSnapshot("旧1番線", new List<RailId> { new(1) }, null, new Point(10, 10));
 
         var command = new ChangePlatformAttributesCommand(platform, newValues, MakeSession());
         command.Execute();
@@ -73,7 +74,7 @@ public sealed class ChangePlatformAttributesCommandTests
     public void Undo_RestoresOriginalValues()
     {
         var platform = MakePlatform();
-        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2), new(3) }, 250.0);
+        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2), new(3) }, 250.0, new Point(10, 10));
 
         var command = new ChangePlatformAttributesCommand(platform, newValues, MakeSession());
         command.Execute();
@@ -91,7 +92,7 @@ public sealed class ChangePlatformAttributesCommandTests
         // そのまま保持せず防御的コピーしていることを確認する（DisplayName Clone()と同種の懸念）。
         var platform = MakePlatform();
         var callerList = new List<RailId> { new(2) };
-        var newValues = new PlatformSnapshot("新1番線", callerList, 250.0);
+        var newValues = new PlatformSnapshot("新1番線", callerList, 250.0, new Point(10, 10));
 
         var command = new ChangePlatformAttributesCommand(platform, newValues, MakeSession());
         command.Execute();
@@ -107,7 +108,7 @@ public sealed class ChangePlatformAttributesCommandTests
         // Restore後にplatform.FacingRailIdsを外部から変更しても、スナップショット自体が
         // 汚染されないこと（Restore側もToList()で防御的コピーしていることの確認）。
         var platform = MakePlatform();
-        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2) }, 250.0);
+        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2) }, 250.0, new Point(10, 10));
 
         var command = new ChangePlatformAttributesCommand(platform, newValues, MakeSession());
         command.Execute();
@@ -123,7 +124,7 @@ public sealed class ChangePlatformAttributesCommandTests
     public void AffectedIds_ContainsOnlySelf_WhenCacheIsEmpty()
     {
         var platform = MakePlatform();
-        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2) }, 250.0);
+        var newValues = new PlatformSnapshot("新1番線", new List<RailId> { new(2) }, 250.0, new Point(10, 10));
 
         var command = new ChangePlatformAttributesCommand(platform, newValues, MakeSession());
 
