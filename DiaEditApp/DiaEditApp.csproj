@@ -29,4 +29,8 @@
     <ProjectReference Include="..\DiaEditCore\DiaEditCore.csproj" />
     <ProjectReference Include="..\DiaEditApp.ViewModels\DiaEditApp.ViewModels.csproj" />
   </ItemGroup>
+  
+  <Target Name="RunDocGen" AfterTargets="Build">
+    <Exec Command="dotnet run --project &quot;$(SolutionDir)DiaEdit.DocGen&quot; -- --project DiaEditApp --src &quot;$(MSBuildProjectDirectory)&quot; --doc &quot;$(SolutionDir)DiaEdit_exe_App_Design_v14_0.md&quot; --manifest &quot;$(SolutionDir)DiaEdit.DocGen/docgen-manifest.json&quot;" />
+  </Target>
 </Project>

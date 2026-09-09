@@ -1,4 +1,5 @@
 <Solution>
+  <Project Path="DiaEdit.DocGen/DiaEdit.DocGen.csproj" />
   <Project Path="DiaEditApp.ViewModels.Tests/DiaEditApp.ViewModels.Tests.csproj" />
   <Project Path="DiaEditApp.ViewModels/DiaEditApp.ViewModels.csproj" />
   <Project Path="DiaEditApp/DiaEditApp.csproj" />
