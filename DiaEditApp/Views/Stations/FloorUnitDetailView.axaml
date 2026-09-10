@@ -95,21 +95,17 @@
                         <Canvas Name="FloorUnitCanvas" Background="Transparent"
                                 Width="{Binding CanvasContentWidth}"
                                 Height="{Binding CanvasContentHeight}">
-
-                            <!-- ▼▼▼ 動作確認用デバッグ表示（原因切り分け後に削除） ▼▼▼ -->
-                            <Rectangle Width="50" Height="50" Fill="Red" Canvas.Left="10" Canvas.Top="10" />
-                            <TextBlock Text="{Binding CanvasRails.Count, StringFormat='CanvasRails: {0}'}"
-                                       Foreground="Yellow" FontSize="20" FontWeight="Bold"
-                                       Canvas.Left="10" Canvas.Top="70" />
-                            <TextBlock Text="{Binding CanvasContentWidth, StringFormat='W: {0}'}"
-                                       Foreground="Yellow" FontSize="20" FontWeight="Bold"
-                                       Canvas.Left="10" Canvas.Top="100" />
-                            <TextBlock Text="{Binding CanvasContentHeight, StringFormat='H: {0}'}"
-                                       Foreground="Yellow" FontSize="20" FontWeight="Bold"
-                                       Canvas.Left="10" Canvas.Top="130" />
-                            <!-- ▲▲▲ 動作確認用デバッグ表示ここまで ▲▲▲ -->
-
-                            <ItemsControl ItemsSource="{Binding CanvasRails}">
+                                <ItemsControl ItemsSource="{Binding CanvasEndpoints}" Margin="0,0,0,12">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:EndpointCanvasShape">
+                                            <TextBlock Foreground="Yellow"
+                                                    Text="{Binding ObjectId, StringFormat='Id={0}'}" />
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            <ItemsControl ItemsSource="{Binding CanvasRails}"
+                                        Width="{Binding CanvasContentWidth}"
+                                        Height="{Binding CanvasContentHeight}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <Canvas />
@@ -127,7 +123,9 @@
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
 
-                            <ItemsControl ItemsSource="{Binding CanvasEndpoints}">
+                            <ItemsControl ItemsSource="{Binding CanvasEndpoints}"
+                                            Width="{Binding CanvasContentWidth}"
+                                            Height="{Binding CanvasContentHeight}">
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate>
                                         <Canvas />
@@ -135,14 +133,21 @@
                                 </ItemsControl.ItemsPanel>
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:EndpointCanvasShape">
+                                        <!-- Canvas.Left/Topは使わない：ItemsControlが既定でItemをContentPresenterに包むため、
+                                            Canvasの直接の子はEllipseではなくContentPresenterとなり、Ellipse側のCanvas.Left/Topは
+                                            一切参照されず全件(0,0)に重なって描画される不具合が本セッションで発覚した。
+                                            RenderTransformはEllipse自身の通常プロパティのため、コンテナに包まれても影響を受けない。 -->
                                         <Ellipse Width="8" Height="8"
-                                                 Canvas.Left="{Binding Position.X, Converter={x:Static conv:FloorUnitCanvasConverters.CenterOffset}}"
-                                                 Canvas.Top="{Binding Position.Y, Converter={x:Static conv:FloorUnitCanvasConverters.CenterOffset}}"
-                                                 Fill="{Binding Kind, Converter={x:Static conv:FloorUnitCanvasConverters.KindToBrush}}" />
+                                                Fill="{Binding Kind, Converter={x:Static conv:FloorUnitCanvasConverters.KindToBrush}}">
+                                            <Ellipse.RenderTransform>
+                                                <TranslateTransform
+                                                    X="{Binding Position.X, Converter={x:Static conv:FloorUnitCanvasConverters.CenterOffset}}"
+                                                    Y="{Binding Position.Y, Converter={x:Static conv:FloorUnitCanvasConverters.CenterOffset}}" />
+                                            </Ellipse.RenderTransform>
+                                        </Ellipse>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
-
                         </Canvas>
                     </Border>
 
@@ -275,7 +280,6 @@
                             <Button Content="削除" Command="{Binding DeleteSelectedRailCommand}" />
                         </StackPanel>
                     </StackPanel>
-
                 </StackPanel>
             </ScrollViewer>
         </Grid>
