@@ -1,382 +1,3 @@
-# DiaEdit.exe 設計書（v14.0）
-
-作成日：2026-07-17
-更新日：2026-09-07
-技術スタック：Visual Studio / C# / .NET / Avalonia（Skia描画）
-
----
-
-## 目次
-
-1. [開発目的](#1-開発目的)
-2. [課題点](#2-課題点)
-3. [搭載する機能](#3-搭載する機能)
-4. [実装状況](#4-実装状況)
-
----
-
-## 1. 開発目的
-
-列車時刻表を快適に作成できるデスクトップアプリケーションを開発する。既存ツールにおける課題（2章）を解消することを目的とする。
-
-**開発体制**：個人開発（単独）。C++/Python経験はあるが、Windows API/UI知識・MVVM経験はゼロの前提で技術選定・解説を行う。
-
-**残したい既存機能**：駅作業（連結・解結・入替など）／運用管理／ダイヤグラム／駅時刻表
-
----
-
-## 2. 課題点
-
-既存ツールが抱える課題と、対応する設計上の解決策を対にして示す。
-
-| # | 課題 | 内容 | 対応する設計（詳細は4章） |
-|---|---|---|---|
-| 1 | 上下方向をまたぐ列車の編集 | 方向別（上り／下り）管理のため、直通・折り返しを伴う1本の列車を単一の存在として表現できない（列車番号が重複） | 列車を`Line`でなく`ServiceRoute`に紐付ける |
-| 2 | 列車追加の手間 | 基準列車のコピー＆ペースト作成が非効率 | `baseTimeTableSet`内の基準列車を選んで複製する方式 |
-| 3 | 交差支障の視認性 | 構内配線図が無く、支障発生箇所が視覚的に分かりにくい | 汎用`ConflictChecker`（駅構内・駅間・番線を統一的に扱う）＋構内配線図の視覚化 |
-| 4 | 所要時分の正確性 | 番線ごとの分岐制限速度が異なり、正確な所要時分の把握が難しい | `StationConnectionSegment`・`Rail`（Role=Track/Normal）に距離・速度制限を保持し動的計算 |
-| 5 | 直通系統の表現 | 路線ごとの列車管理では直通系統（本線＋支線）を表現しづらい | `ServiceRoute`単位での編集画面切り替え |
-| 6 | 乗り換え接続の取りやすさ | 複数路線の乗り換え接続を検討しづらい | 構内配線図上への列車アイコン配置・ホバー表示。`TrainConnectionResolver`による前後列車導出 |
-| 7 | 編成長と番線制限 | 編成長ごとに使用できない番線を検知できない | `EffectiveLengthChecker`によるCarConsistの実車両列長とPlatform/Railの有効長との自動照合（超過時は保存不可） |
-
-**設計上の基本原則**
-
-| 原則 | 内容 |
-|---|---|
-| 単一の正データ over 二重の永続参照 | 導出可能なキャッシュは都度導出し、冗長な相互参照を永続化しない。整合性を走査の利便性より優先する |
-| 構造的予防 over 事後警告 | 不整合を構造として作れない設計を、事後検知＋警告よりも優先する |
-| 複雑なオブジェクトの単純プリミティブへの分解 | 例：シザースクロッシングは複数の単純な`Switcher`に分解する |
-| 破棄・再生成（作り直し） over 自動マイグレーション | トポロジー変更で派生データが無効化される場合は、自動移行せず破棄し再入力を求める |
-
----
-
-## 3. 搭載する機能
-
-### 3.1 幹（主要機能・コア）
-
-| 機能 | 関連データモデル |
-|---|---|
-| 路線網モデルのCRUD | `MainRoute`／`StationConnection`／`StationConnectionSegment` |
-| 駅構内オブジェクトのCRUD | `FloorUnit`とその配下（`Rail`／`BoundaryPoint`／`EntryPoint`／`BufferStop`／`Platform`／`Switcher`） |
-| 運転系統のCRUD | `ServiceRoute` |
-| 列車の追加・編集・削除、時刻入力 | `Train`／`TrainRunSegment`／`StopTime` |
-| 駅時刻表・ダイヤグラムの生成 | 上記全データからの投影（`DisplayContext`） |
-
-### 3.2 枝（補助機能）
-
-| 機能 | 関連データモデル／アルゴリズム |
-|---|---|
-| 基準列車（`baseTimeTableSet`）からの列車追加 | `Train.sourceTrainId` |
-| 番線ベースの所要時分自動計算（動的調整） | `RunTimeCalculator` |
-| 編成長バリデーション（番線ごとの使用可否判定） | `EffectiveLengthChecker` |
-| 交差支障検知 | `ConflictChecker`、`StationPath`の展開・グルーピングを含む |
-
-### 3.3 葉（構成要素・UI/表示）
-
-| 機能 |
-|---|
-| 構内配線図の描画コンポーネント |
-| 配線図上での列車アイコン表示・ホバー情報表示 |
-| ダイヤグラム描画（幹のデータを描画するだけの薄いレイヤー） |
-| 駅作業（連結・解結・入替）UI |
-| 運用管理画面 |
-
-### 3.4 出力機能
-
-既存フォーマットからの移行（インポート）は設計思想の乖離が大きいため見送り、エクスポート機能として以下を追加する。
-
-| 出力 | 形式 |
-|---|---|
-| 駅時刻表・ダイヤグラム・列車時刻表 | PDF（印刷レイアウト） |
-| ダイヤグラム等 | PNG／SVG（ダイヤグラムはSVGの方がベクタとして扱いやすい） |
-| 列車時刻表データ | CSV（外部集計・共有用） |
-
-### 3.5 実装順序
-
-**推奨する実装順序（大分類）**
-
-1. 路線網モデル（`MainRoute`/`StationConnection`/`ServiceRoute`）を最小構成で実装し、既存の方向別管理からの移行が成立するか検証
-2. 駅時刻表・ダイヤグラムの自動生成
-3. 基準列車からの列車追加、番線所要時分計算（枝）
-4. 構内配線図・ホバー情報（葉）
-
-データモデルの組み替えが最もリスクが高いため、最初に着手し早期に検証する。
-
----
-
-## 4. 実装状況
-
-### 4.1 マイルストーン一覧
-
-| # | マイルストーン | 状態 |
-|---|---|---|
-| M0 | 要件・アーキテクチャ確定 | ✅完了 |
-| M1 | コアドメイン層実装（DiaEditCore） | 🟡ほぼ完了（コマンド横展開のみ残） |
-| M2 | Walking Skeleton（駅編集の垂直スライス） | ✅完了・実機確認済み（v13.3、2026-09-02）：M2-1〜M2-6全項目完了 |
-| M3 | MVP：4モードタブの基本編集画面 | ❌未着手（M2完了後） |
-| M4 | 機能拡充（駅時刻表・ダイヤグラム・運用時刻表・構内配線図ポップアップ等） | ❌未着手 |
-| M5 | 非機能対応（ダイヤグラム描画CPU対策、Undo確認ダイアログ等） | ❌未着手 |
-| M6 | テスト・品質保証 | 🟡Core側は継続中。ViewModels/App側は`ChangeNotificationBridgeTests`のみ |
-| M7 | リリース準備（パッケージング、CSV/HTML出力） | ❌未着手 |
-
-
-**実装手順**
-
-M2以降は「**UI実装→問題抽出→設計書修正→実装修正**」のサイクルを基本の開発フローとする。
-
-また、未着手のマイルストーンに初めて着手する場合は、M2を参考にして§4.1.xとして、タスク、実施内容、他タスクへの依存、状態を明確にした表を作成し、セッションごとに確認を怠らないこと。
-
-UI層に実際に触れることで、Core側の設計・実装の抜け漏れ（未実装ケース、逆引きの欠落等）が具体的な形で表面化するため、これを都度にフィードバックし、設計書を先に直してから実装を追従させる進め方に統一する。
-
-このサイクルの中で、DependencyResolverの依存関係グラフ完成作業をUI実装と並行して進める。具体的な優先順位を以下の通り確定する：
-
-1. **Commandは新規登録（Create/Add）系を優先実装する**：汎用コマンドパターン横展開のうち、属性変更・削除より先にCreate系を対象モデルごとに揃える。UI側の「一覧→追加→詳細編集」という導線（マスター・ディテール構成）が、まず新規オブジェクトを作れることを前提とするため。
-2. **逆引きキャッシュ（Index）の要否は都度判断する**：あるオブジェクトが別のオブジェクトを参照する関係が実装過程で見つかるたびに、インデックス棚卸し表（Builder化候補）へ機械的に追加しない。実装するCommand（特にDelete）が実際に参照元チェックを必要とするかどうかを見て、必要になった時点でIndex新設を判断する。ResolveDirectDependents未実装ケース網羅および、未実装Index棚卸しは、この判断基準の下でM2〜M4を通じて順次消化していく運用とする。
-
-（運用メモ・v13.1追記）フェーズ再分類表上のフェーズ表記と、次アクションでの実施タイミングが食い違う場合（早期クローズ可能と判断し前倒しするケース等）は、表側の該当行に「（M2着手前に前倒し可）」のような注記を残し、後から読んだ際に矛盾に見えないようにする。
-
-（運用メモ・v13.6追記）各セッションの終了時、確認済みの実装内容（ビルド成功・テスト成功・実機確認のいずれかが取れたもの）を変更履歴へ追記するのに合わせて、**次アクション**も必ず同一セッション内で更新する。更新を怠ると次回セッション開始時に「どのバージョンの次アクションが実態と合っているか」を変更履歴全体を遡って突き合わせる必要が生じる（v13.4時点の次セッションが前バージョンの未定義事項のクローズを反映しないまま次回セッションに持ち越された事例が実際に発生した）。**次アクション**の更新は**変更履歴追記と対で行う一連の作業と**し、**片方だけを行った状態でセッションを終えないこと**。
-
-（運用メモ・v14.0追記）過去の修正ログや、相互参照をチェックする過程で、章節参照番号に表記ゆれが存在することが判明した。今後、参照を行う部分は`§x.x`のようにし、未定義事項など、章節内にテーブルが存在する場合は、`§x.x項目x`ではなく、疑似的に`§x.x-x`のように表記を行うこと（`§x.x.x`とすると、別の章節番号を参照してしまう恐れがあるため）。
-
----
-
-#### 4.1.1 M2
-
-対象を「駅」とした理由：コマンド3パターン（属性変更・新規登録・削除）が既に実装済みで、UI層に着手すれば即座に配線できる最短経路であったため。
-
-| # | 項目 | 内容 | 依存 | 状態 |
-|---|---|---|---|---|
-| M2-1 | ナビゲーションツリー最小実装 | ツリー構造のうち「駅／駅一覧」ノードのみ先行実装。他カテゴリは空ノードでよい | — | ✅完了・動作確認済み（v13.2） |
-| M2-2 | 駅一覧画面（マスター） | 列構成でテーブル表示。「+駅追加」で`StationCreationWorkflow.CreateStationWithDefaultFloorUnit`呼び出し | M2-1 | ✅完了・動作確認済み（v13.2） |
-| M2-3 | 駅詳細編集画面（ディテール） | `ChangeStationAttributesCommand`／`DeleteStationCommand`を実配線 | M2-2 | ✅完了・動作確認済み（v13.2、並べ替えは見送り） |
-| M2-4 | ChangeNotificationBridgeの実配線 | `AttachedToVisualTree`等のAvaloniaライフサイクルでSubscribe/Unsubscribe。ディスパッチャ本体は`ChangeNotificationBridgeTests`で検証済みのため、UI側の購読タイミングのみが残作業 | M2-3 | ✅完了・動作確認済み（v13.3、実装ではコンストラクタ／`Dispose()`紐付けへ簡略化） |
-| M2-5 | Undo/Redo最小UI | ツールバーボタン＋`CommandInvoker`接続のみ。確認ダイアログ（Undo確認ダイアログ）はM4に後回し | M2-3 | ✅完了・動作確認済み（v13.2） |
-| M2-6 | 保存（Ctrl+S）の最小実装 | dirtyキャッシュ一括フラッシュ→`JsonProjectFileSerializer`呼び出し。保存先パス選択等の周辺UIは最小限でよい | M2-3 | ✅完了・動作確認済み（v13.3、dirtyキャッシュ一括フラッシュは不要と判明）** |
-
-**M2完了の定義**：アプリを起動し、駅を1件追加→名称等を編集→保存→再起動して読み込めることを確認できる状態。
-
-**v13.3進捗**：M2-4（ChangeNotificationBridge本配線）・M2-6（保存機能）を実装・動作確認完了。あわせてCreate系コマンドのRedo参照同一性バグをクローズ。M2完了の定義（起動→駅追加→編集→保存→再起動→読込確認）を実機確認済み。
-
----
-
-### 4.2 次アクション
-
-**v13.14更新（構内配線図キャンバスUI：収束変換Algorithm/Command層の実装完了、テストは未実施）**：構内配線図キャンバスUI実装・端点収束・確定変換ワークフロー未実装のうちAlgorithm層4件・Command層3件（`RailEndpointConvergenceResolver`／`RailEndPointRefChanger`／`DeleteFloorUnitObjectCommand<TId,T>`／`RailEndpointConvergenceWorkflow`／`ChangeSwitcherAttributesCommand`／`RailDeletionWorkflow`）を実装、`SwitcherExpand`ケースの`NotImplementedException`を解消、`ProjectSession.SwitcherIds`追加、既存`DeleteRailCommand`は無改修のまま`RailDeletionWorkflow`（`RailCreationWorkflow`と対称）でラップしてRail削除時の両端点再照合を配線した。ビルド成功確認済み（xUnitテストは未実施）。新規発見事項として、`RailEndpointConvergenceWorkflow.Reconcile`のVanish/Keepケースで消滅する端点のStationPathブロックチェック（`FindBlockingStationPaths`）が呼ばれていない設計上の穴を発見、§9.2項目39として新規記録。
-次回セッションの優先順位を下記へ更新する。
-
-1. **v13.14実装分のテスト実施・実機確認**（次回セッション最優先）：`RailEndpointConvergenceResolver`／`RailEndPointRefChanger`／`DeleteFloorUnitObjectCommand<TId,T>`／`RailEndpointConvergenceWorkflow`／`ChangeSwitcherAttributesCommand`／`RailDeletionWorkflow`のいずれもビルド成功のみでテスト未実施。xUnitテスト作成・実行、可能であれば実機確認を行う
-2. **Vanish/KeepケースのStationPathブロックチェック欠落の対応要否判断**：実際に消滅する端点がStationPath.Waypointsから参照されるケースがあり得るかを検証した上で、対応するかを判断する
-3. **構内配線図キャンバスUI本体：ViewModel/View層の実装**：Algorithm/Command層が揃ったため、キャンバス描画・ドラッグジェスチャ・モード切替・端点編集モーダルの実装に進む。「構内進路編集モード」はボタンのみ配置しStationPathSuggester統合は対象外
-4. **M3（4モードタブの基本編集画面）に着手する**：§4.1のマイルストーン全体像に従う
-5. **保存時Idコンパクションに着手する**：`JsonProjectFileSerializer.Save()`側の設計に入る
-6. DependencyResolver.ResolveDirectDependents`のEntryPointObjectId／MainRouteObjectIdケースでのIndex参照組み込み確認は、M3着手時に別途確認する
-7. EntryPoint.Type変更ポリシー見直しは判断保留のため優先度を下げる。着手前に`EntryPointValidator.cs`／`StationPathValidator.cs`の監査が必要
-8. **FloorUnit並べ替えUI、新設・v13.11**：`ReorderFloorUnitsCommand`（v13.10新設）のViewModel/View配線が未着手。UI操作方式（ドラッグ&ドロップ／↑↓ボタン）は未決定。設計者判断により先延ばし確定、優先度は現時点で低
-9. 汎用カスケード削除機構・`RailSplitter`：いずれも将来構想として記録済み。着手時期は未定
-
-（旧バージョン時点の次アクションは旧バージョンファイルを参照）
-
----
-
-### 4.3 実装における特記実装
-
-各マイルストーンの実装において特記すべき事項についてマイルストーンごとに記載する。
-
-#### 4.3.1 M2 実装確定事項
-
-M2-1（ナビゲーションツリー）・M2-2（駅一覧マスター）・M2-3（駅詳細編集）・M2-5（Undo/Redo最小UI）を実装し、いずれも動作確認済み。実装済みファイルは以下の通り。
-
-**DiaEditApp.ViewModels**：`Navigation/NavigationNodeViewModel.cs`、`MainViewModel.cs`、`Stations/StationListViewModel.cs`、`Stations/StationDetailViewModel.cs`、`Composition/ViewModelServiceCollectionExtensions.cs`
-**DiaEditApp.Views**：`MainWindow.axaml`、`Stations/StationListView.axaml`／`.axaml.cs`、`Stations/StationDetailView.axaml`／`.axaml.cs`
-**DiaEditApp（ルート）**：`Services/AppSettings.cs`、`App.axaml.cs`
-
-**起動時プロジェクト初期化方針**：`ProjectSession.Load()`が従来一度も呼ばれておらず`ProjectSession.Current`が`null`のまま画面遷移するとクラッシュする欠落が本セッションで発覚し対応した。`AppSettings`（`%AppData%\DiaEdit\settings.json`、DiaEditApp.Services層）に`LastProjectFilePath`を保持し、起動時：パスがあれば`JsonProjectFileSerializer.Load(path)`を試行、パスが無い／読込失敗（理由を問わず）の場合は空の新規`ProjectFile`を生成してから`ProjectSession.Load(project)`を呼ぶ。空プロジェクトの`ProjectSettings`既定値は、`ValidationRules`の各閾値を全て`null`（未設定＝当該チェックスキップ、路線ごとの実情に応じてユーザーが後から設定する前提）、`EnableConflictDetection`／`EnableCarLengthCheck`は安全側として`true`、`DiagramBasedTimeSec`は`ProjectSettings`側のデフォルト値（14400＝4:00）をそのまま使用。`AppSettings.LastProjectFilePath`の保存時書き戻しはM2-6実装時に対応。
-
-**DI登録方式の確定（駅系画面ViewModel）**：`StationListViewModel`・`StationDetailViewModel`のデータ取得元解決について3案（A：`IReadOnlyList<Station>`直接注入／B：汎用`IReadOnlyList<T>`ファクトリの型ごと個別登録／C：`ProjectSession`と`CommandInvoker`をそのままコンストラクタ注入）を比較し、**案Cを採用**した。A案はCreate/Delete実行に結局`ProjectSession`/`CommandInvoker`が別途必要になり二重管理になる、B案はopen genericの型解決が曖昧になりやすく構造的予防の原則に反する、という理由による。C案では両者が既にSingleton登録済みのため`services.AddTransient<T>();`のみでファクトリラムダ不要のプレーンなコンストラクタ注入が効く。今後追加する画面ViewModel（路線一覧等）も同じパターンを踏襲する想定。
-
-**駅詳細編集画面の実装範囲確定**：上部（`DisplayName`／`Type`／`OperatingCode`／`TelegraphCode`／`ShowsInStationTimetableOverride`）は編集可能。保存は明示的な「保存」ボタン（`ChangeStationAttributesCommand`を1回だけExecute）で確定し、フィールド変更のたびの自動保存は採らなかった（Undoスタックが不必要に細分化されるため）。**FloorUnitの並べ替え（`DisplayOrder`変更）はM2スコープから明示的に見送り、追加・削除のみ実装した**（対応コマンドは現状未実装であることを本セッションで確認済み。）。`ShowsInStationTimetableOverride`（`bool?`）はUI上`CheckBox`の`IsThreeState`（null/true/false）で表現し、`Station.ResolveShowsInStationTimetable()`の派生値を隣に補助表示する。FloorUnit削除が`DeleteFloorUnitCommand`のコンストラクタ内検査（n≥1制約／直接参照元あり）で拒否された場合、専用ダイアログの仕様がまだ未設計のため暫定的に画面内テキストメッセージで表示している。
-
-**駅一覧⇔駅詳細のナビゲーション設計（新規パターン、今後のマスター・ディテール遷移で踏襲）**：`StationListViewModel`は`event Action<Station>? OpenDetailRequested`を公開し、`OpenDetailCommand`（Viewの`DoubleTapped`から呼ばれる）実行時に発火する。`MainViewModel`は`ShowContentForSelectedNode()`（旧`OnSelectedNodeChanged`本体を分離・再利用可能にしたメソッド）でコンテンツ生成時、それが`StationListViewModel`であれば`OpenDetailRequested`を購読する。遷移先の`StationDetailViewModel`は`Station`というDIコンテナ管理外の実行時パラメータをコンストラクタで受け取るため、`Microsoft.Extensions.DependencyInjection`の`ActivatorUtilities.CreateInstance<T>(sp, station, goBackAction)`を使い、`session`/`invoker`はDIコンテナから解決しつつ`station`と`goBack`コールバックのみ呼び出し側から渡す。「一覧へ戻る」（`GoBackCommand`）は`MainViewModel.ShowContentForSelectedNode`をそのままコールバックとして渡すことで実現し、一覧側の状態を個別に保持する必要をなくしている。
-
-**UI実装上の既知の制約**：`Avalonia.Controls.DataGrid`（別NuGetパッケージ、未導入）は使わず、`ListBox`＋`Grid`による簡易テーブル表示で代替した（駅一覧・FloorUnit一覧とも）。列ソート・列リサイズ等が必要になった時点でパッケージ追加を含めて改めて検討する。またXAMLコメント本文が`-`で終わると`XmlException`になる制約、および実在未確認の型（例：`Avalonia.Controls.Converters.StringConverters`）をXAML内で参照すると当該1ファイルの型解決失敗が原因でプロジェクト全体のXAMLリソース生成タスクが中断し、無関係な`App.axaml`側で「No precompiled XAML found」という誤解を招くエラーになることを確認した。以後、XAML内でのコンバータ等の外部クラス参照は、実在確認ができない場合はViewModel側の計算プロパティに逃がす方針とする。
-
-**Undo/Redoにおけるオブジェクト参照の不整合**：M2-3動作確認中、「駅追加→詳細編集→駅追加前までUndo」という操作列で、詳細編集（`ChangeStationAttributesCommand`）が正しくRedoされないケースを発見した。原因はID採番方式ではなく、より根本的な**Create系コマンドの`Redo()`が毎回新しいオブジェクトインスタンスを生成し直す設計**にある。v13.3にて、CreateStationCommand／CreateRailCommand／CreateFloorUnitCommandのApply()を、生成結果保持プロパティが非nullならAllocateNextIdを呼び直さず既存インスタンスを再利用するパターンへ統一した。UndoableCommand基底にComputeAffectedIdsAfterApplyフックを追加し、Create系コマンドのAffectedIdsをApply完了後に確定・凍結する仕組みを導入することにより、期待されるUndo/Redoの挙動へ修正した。
-
-**詳細画面表示中に対象オブジェクトが消滅した場合の復帰処理（新設・v13.3）**：M2-4実装過程で発見。`StationDetailViewModel`が表示中の`Station`が、Undo（Create系コマンドの取り消し）や他画面からの削除操作によりセッション上のコレクションから除去された場合、画面が編集不能な孤立オブジェクトを表示し続ける問題があった。
-
-対応：`IAffectedByObjectId.OnAffected()`（`ChangeNotificationBridge`経由の通知ハンドラ）内で、対象がまだ`_session.Current.Stations`に含まれるかを確認し、含まれなければ`_goBack()`を呼んで一覧画面へ自動的に戻る。
-
-```csharp
-void IAffectedByObjectId.OnAffected()
-{
-    if (!_session.Current.Stations.Contains(_station))
-    {
-        _goBack();
-        return;
-    }
-    LoadFromStation();
-    ReloadFloorUnits();
-}
-```
-
-`List<T>.Contains`は参照等価性で判定されるため、Redo時の同一インスタンス再利用が前提として効いている。今後Rail等の詳細画面を実装する際も同じパターンを踏襲すること。
-
-**ChangeNotificationBridgeの購読方式（M2-4本体・新設・v13.3）**：
-
-購読対象の使い分け確定：
-- **一覧画面**（`StationListViewModel`）・**MainViewModel**（Undo/Redoボタン判定）：`CommandInvoker`への直接`Subscribe`を維持。理由：一覧は「将来追加される未知のObjectId」を含む全件を監視対象とする必要があり、`ObservedIds`という固定（または都度算出）集合ベースの`ChangeNotificationBridge`とは性質が合わない。discard-and-regenerateの精神を素直に適用する対象として維持する。
-- **詳細画面**（`StationDetailViewModel`）：`ChangeNotificationBridge`＋`IAffectedByObjectId`へ移行。`ObservedIds`は固定集合ではなく、Station自身のObjectId＋現在の配下FloorUnit全件のObjectIdを都度算出する動的プロパティとした（FloorUnit追加直後の新規Idも自動的に監視対象へ含めるため）。
-
-購読タイミングの簡略化（設計意図からの変更点）：M2-4原案では「`AttachedToVisualTree`等のAvaloniaライフサイクルでSubscribe/Unsubscribe」としていたが、実装では`StationDetailViewModel`のコンストラクタ／`Dispose()`に紐付ける形を採用した（`MainViewModel.ShowContentForSelectedNode`が明示的に`(CurrentContent as IDisposable)?.Dispose()`を呼ぶ既存設計と整合するため）。View（.axaml.cs）側のAvaloniaライフサイクルとは連動させていない。M2スコープでは実用上問題ないと判断し、この簡略化を正式な方針とする。
-
-CommandInvoker.Notify()の列挙中変更対策（M2-4実装過程で発見・修正）：`ChangeNotificationBridge.OnChanged`は元々`_subscribers.ToArray()`で列挙中変更に対応済みだったが、`CommandInvoker.Notify()`側は`_observers`を直接foreachしており対策が漏れていた。`OnChanged`内から同期的に`Dispose()`→`Unsubscribe()`が呼ばれる経路（詳細画面の対象消滅→自動的に一覧へ戻る、上記⑧）で`InvalidOperationException`を誘発するため、`ChangeNotificationBridge`と同じ`.ToArray()`スナップショット方式に修正した。
-
-**保存機能（M2-6・新設・v13.3）**：
-
-構成：
-- `IFileDialogService`（`DiaEditApp.ViewModels`、Avalonia非依存の抽象）／`FileDialogService`（`DiaEditApp.Services`、`IStorageProvider`経由の実装）
-- `IAppSettingsService`（`DiaEditApp.ViewModels`、Avalonia非依存の抽象）／`AppSettingsService`（`DiaEditApp.Services`、既存`AppSettings`のラッパー）— 依存方向規約（DiaEditApp.ViewModelsはDiaEditApp.Services/DiaEditApp本体を参照しない）を守るため、具象`AppSettings`を`MainViewModel`へ直接注入せず、インターフェース越しに使う設計とした
-- `MainViewModel.SaveCommand`（`[RelayCommand]`、非同期）：`AppSettings.LastProjectFilePath`があればそのパスへ、無ければ`IFileDialogService.PickSaveProjectFileAsync`でユーザーに選ばせてから`JsonProjectFileSerializer.Save`を呼ぶ。成功時は`LastProjectFilePath`を更新して`AppSettingsService.Save()`。
-
-dirtyキャッシュ一括フラッシュについて：`SaveValidationRunner.ToValidationContext()`は`ProjectFile`のリストから直接`ValidationContext`を構築しており、`ProjectSession`の`TimeTableSetCache`には依存しない。したがって保存フローが`ProjectSession.GetCache()`を明示的に呼んでdirtyフラグを解消しておく必要はないと確認できた。
-
-バリデーション失敗時のUIハンドリング（§4.4.2項目25と同一の論点）：`ProjectFileValidationException.Issues`を`Environment.NewLine`区切りで連結し、`MainViewModel.SaveErrorMessage`へ一括表示する暫定方針を採用（`StationDetailViewModel.DeleteFloorUnitError`と同じ、画面内インラインメッセージのパターンを踏襲）。専用ダイアログ化は本節の暫定方針解消時（§4.4.2項目25クローズ時）にあわせて見直す。
-
-保存先ファイル拡張子：`.dedit`で確定。
-
-**Core層record型のXAMLバインド運用確定（新規発見の重大な設計制約、v13.11）**：FloorUnitDetailView実装中、新設したCore層のrecord型`FloorUnitSummary`（`DiaEditCore.Algorithm.Resolvers`名前空間を想定）をXAML側で`x:DataType`として直接参照したところ、当該名前空間が実在しない誤り（既存の`DiaEditCore.Algorithm.CacheBuilder`等の命名パターンからの類推のみで進め、実在確認を怠ったことが原因。実際は`DiaEditCore.Algorithm`というフラットな名前空間だった）により型解決に失敗し、「1ファイルの型解決失敗がプロジェクト全体のXAML生成を巻き込み、無関係な箇所のバインディングエラーとして表面化する」事象が再発した。
-
-対応：「XAML内でのコンバータ等の外部クラス参照は、実在確認ができない場合はViewModel側の計算プロパティに逃がす」の適用範囲を、**コンバータだけでなくCore層のrecord型（DTO）全般に拡張する**方針を確定。`FloorUnitSummary`は`FloorUnitDetailViewModel`側でフラットなプリミティブ型プロパティ（`SummaryTrackRailCount`等）として再公開し、XAMLからは`FloorUnitSummary`という型名自体を一切参照しない実装に修正した。
-
-運用メモ：Core層に新規の名前空間を導入する際は、既存ファイルのnamespace宣言を実際に確認してから使用すること（類推のみで進めない）。今回の原因はCore層側の命名規則の類推のみで作業を進めたことによる。
-
-### 4.4 未定義事項
-
-実装難易度・依存関係を踏まえて分類する。進捗状況をアイコンで以下のように示す。
-
-| アイコン | 状態 |
-| --- | --- |
-| 🔴 | 未着手 |
-| 🟠 | 方針検討済み |
-| 🟡 | 実装済み・テスト未着手 |
-| ✅ | クローズ・解消済み |
-
-#### 4.4.1 優先度：高 （DiaEditCore.Modelに影響する可能性大）
-
-| # | 進捗 | 項目 | 内容 |
-|---|---|---| --- |
-| 1 | 🟠 | `ResolveDirectDependents`の未実装ケース網羅対応 | StationObjectId／BoundaryPointObjectId等／EntryPointObjectId／BufferStopObjectId／StationConnectionSegmentObjectId／StationPathObjectId／MainRouteObjectId／StationConnectionObjectId。RailObjectIdはv12.20で対応済み、StationObjectIdはv12.24で対応済み（いずれもDependencyResolverのグラフ経由ではなくコマンド内直接走査／専用Indexの組み合わせ、詳細は各バージョンの変更履歴参照）につき対象から除外。BoundaryPoint／EntryPoint／BufferStop／Platform横展開（§9.2項目10）と一体で実装。**v12.29進捗**：「孤立Segment問題」（Station経由はv12.24で対応済み）がEntryPoint・MainRouteの2つにも共通発生することを確認し、新規Builder`EntryPointUsedBySegmentIndexBuilder`／`MainRouteUsedBySegmentIndexBuilder`は設計・実装済み。**v13.1で`TimeTableSetCache.RebuildAll`への配線が完了済みであることを確認**（`EntryPointUsedBySegmentIndex`／`MainRouteUsedBySegmentIndex`ともに構築されている）。ただし`DependencyResolver.ResolveDirectDependents`本体（EntryPointObjectId／MainRouteObjectIdケースでのIndex参照組み込み）が実際に更新済みかは本セッションでは未確認のため、残課題として維持する。またMainRoute←ServiceRoute／StationConnection←ServiceRoute等、他の未実装Index群の棚卸しに着手（設計中）。**v12.31追記**：`StationConnectionObjectId → ServiceRoute`（`ServiceRouteSegment.SelectedStationConnectionId`／`PairedSelectedStationConnectionId`経由）を新規`StationConnectionUsedByServiceRouteIndexBuilder`で実装し、`TimeTableSetCache`／`ProjectSession`に配線済み。棚卸し表からは本項目を削除済み。残課題（BoundaryPoint／EntryPoint／BufferStop／StationPathのWaypoints経由分、MainRouteのServiceRouteSegment・DisplayContext経由分）は引き続き未着手。BoundaryPoint等は§9.2項目10（StationWork CRUD横展開）と一体実装の方針を維持 |
-| 2 | 🔴~🟠 | `TrainOperation`実体のdiscard-and-regenerateロジック本体の実装 | `TrainOperation`をStartOp・DecouplingのCarComposition集合ごとに内部導出される派生データへ位置づけ変更したことに伴い、`OperationNumber`文字列群から`TrainOperationId`への安定的な割当方法（同一番号に常に同一IDを再利用するか、都度採番し直すか）の実装が必要。`RailMerger`と同種の設計判断を要する。discard-and-regenerateのトリガーは「StationWorkのChangeAttributesでStartOpが選択され、OperationNumberが設定されたこと」であり、StationWork系CRUDコマンド実装（§9.2項目10）と不可分のため、同一セッションで着手する方針が確定済み |
-| 3 | 🔴~🟠 |「Train作成＝ID発行のみ、RunSegments編集は汎用コマンドへ」という設計転換の要否 | `ServiceRouteToRunSegmentsResolver`実装セッション中に浮上した論点：現行は「列車追加＝RunSegments/StopTimesの初期構築まで含む一体操作」という前提だが、経路②（基準列車複製）・経路③（新規構築）のいずれも実質的には「RunSegments編集」という共通の下位操作にTrain作成が付随しているだけと捉え直せる。この場合、Train作成コマンド自体は`TrainId`発行と基本属性設定のみの薄い操作とし、RunSegments／StopTimesの決定は新規作成時・既存編集時を問わず共通の「RunSegments編集コマンド」（未設計）が担う設計に転換できる可能性がある。「列車追加の3経路」全体の書き換えを伴うため、着手前に単独セッションで方針を固める必要がある。**v12.28追記**：`RunTimeCalculator.Calculate`の呼び出し元設計（Train編集コマンド側での「DiagramRevision特定→BaseTimeTableSetId取得→対象Train絞り込み→`BaseRunTimeIndexBuilder.Build`呼び出し→ホップごとの`RunTimeHopInput`組み立て」の一連の流れ）は、本項目のクローズ前に先行設計すると結論次第で手戻りが生じるリスクがあるため、本項目のクローズと合わせてTrain編集用`UndoableCommand`実装セッションで着手する方針とした |
-
-#### 4.4.2 優先度：中 （DiaEditCore（Modelを除く）に影響する可能性大）
-
-| # | 進捗 | 項目 | 内容 |
-|---|---|---| --- |
-| 1 | 🟠 | 保存前dirtyキャッシュ一括フラッシュの組み込み位置 | Ctrl+Sハンドラ内・ファイルシリアライズ直前という方針は確定済み。具体的なクラス構成・呼び出し経路は実装着手時に詰める |
-| 2 | 🔴 | `ChangeNotificationBridge`へのViewModel登録・解除タイミング | Avaloniaライフサイクルイベント（AttachedToVisualTree等）のどれをSubscribe/Unsubscribe契機にするか、購読漏れ防止の実装方式、`TimeOfDaySec`等のコンバータ設計は実装着手時に詰める。ディスパッチャ本体の通知ロジックは`ChangeNotificationBridgeTests.cs`（7ケース）で検証済み |
-| 3 | 🔴 | `ReversalResolver`のShunting対応 | 使用Track変更ケース（`RailRole.Shunting`側の判定）は現状スコープ外。必要になった時点で追加対応 |
-| 4 | 🔴 | `BoundaryEntryPointResolver`の出発側取得への拡張 | 到着側のみ返す現行実装のため、`ReversalResolver`が出発側取得ロジックをローカル複製している。両端を返せる拡張の余地あり（優先度低） |
-| 5 | 🟠 | `TrainOperationValidator`の2引数版の誤登録リスク | v11.39でValidatorを明示的登録・DIコンテナ非登録の方針としたため当面のリスクは解消。将来DI経由解決が必要になった際に再確認 |
-| 6 | 🟠 | N=2 Rail自動統合ロジックのUI層残作業 | `RailMerger`純粋関数はv11.42実装完了。エディタ操作からの呼び出しフロー、Dirty化・再生成促しのUI層はUI着手時に詰める |
-| 7 | 🔴 | `AffectedIds`受け取り〜キャッシュ無効化ディスパッチの汎用機構未整備 | `UndoableCommand.Execute()`が返す`AffectedIds`（`IReadOnlySet<ObjectId>`）を受け取り、`ObjectId`種別ごとに`TimeTableSetCache`側の該当インデックス（`StationConnectionIndex`等の軽量Index、`ConflictObjectGroupingCache`等の重量キャッシュ）を無効化・再構築へディスパッチする汎用ルーチンが未実装。現状`InvalidateConflictCache(ObjectId)`という個別メソッドのみ存在。CommandInvoker（呼び出し元）側の設計とあわせて着手する |
-| 8 | 🟠 |  `SplitOriginRef`実在性検証のCross Validator拡張 | `CouplingWork`はRule 9で参照先StopTime実在性を検証済みだが、`SplitOriginRef.OriginStopKey`側には対応するルールが未設定。`StopKeyReferenceIndex`を用いた絞り込みとあわせて追加する |
-| 9 | 🟠~🟡 | 汎用コマンドパターンの新規登録／削除への拡張 | `ChangeStationAttributesCommand`（v12.10）に続き、`CreateStationCommand`／`DeleteStationCommand`（ともにv12.11）でStationにおける新規登録・削除パターンの実装が完了。削除パターンの参照元残存時の扱い（execute時点で拒否）も確定。残作業は他モデルへの横展開（§4.4.2-10と統合） |
-| 10 | 🟠~🟡 | 汎用コマンドパターンの他モデルへの横展開 | Station（v12.10〜v12.11、3パターン完了）、Rail（v12.12〜v12.13、属性変更・新規登録・削除の3パターン完了。ただし属性変更は`Name`／`LengthM`／`SpeedLimitKph`／`Role`の4フィールド限定）に続き、**v13.8でRail端点3種（BoundaryPoint／EntryPoint／BufferStop）の新規登録パターン＋`AttachRailEndpointsCommand`／`RailCreationWorkflow`を実装完了**（Rail作成＝両端点オブジェクト作成と等価という業務理解に基づく。Switcherのみ既存端点接続の別導線として対象外）。Rail残作業：`EndpointA`/`EndpointB`接続変更コマンド（Switcherコマンド実装時にあわせて設計）、`ControlPoints`形状編集コマンド。他モデル（MainRoute、ServiceRoute、Platform、Switcher等）は未着手 |
-| 11 | 🔴 | プロジェクト読込時のID再採番（コンパクション） | セッション中のID採番方針（最大値+1、欠番を詰めない）に対応し、Undoスタックが存在しないプロジェクト読込時に限定して欠番を詰める再採番を行う設計・実装が必要。`JsonProjectFileSerializer`側の読込フロー、または専用コンポーネント（`ProjectIdCompactor`等）としての実装形態は未確定 |
-| 12 | 🔴 | `TrainOperationIndex`の重複プロパティ削除 | `TimeTableSetCache.TrainOperationIndex`は消費者が存在しないため削除する。実消費者は`TrainCrossValidationData.TrainOperationIndex`（型・生成元とも別物）のみ |
-| 13 | 🟠~🟡 | `ConflictObjectGroupingCache`のID単位dirty管理廃止 | `_conflictDirty`／`GetConflictGroup`を撤去し、他のCacheBuilderと同じフルダーティ化＋一括再構築方式に統一する方向。最終確認待ち |
-| 14 | 🔴 | `DepartureByStationTrackIndex`の再計算経路の重複 | `TrackOccupancyProvider`・`TrainOperationCrossValidator`・`TrainOperationUniquenessValidator`が`ProjectSession`経由でなく`DepartureByStationTrackIndexBuilder.Build`を直接呼び都度再計算しており、`ProjectSession`のCacheと理論上不整合になりうる。現時点実害なしと判断し保留 |
-| 15 | 🟠 | 時刻表UI上の`RunTimeCalculationResult`背景色表現 | OuDiaSecond互換（不足＝薄赤、超過＝薄青、未定義＝薄黄）を踏襲する想定。`HopRunTimeOk`／`HopRunTimeUndefined`の型が確定したため、ViewModel/UI層はこの判別共用体をswitchするだけで色分けを機械的に決定できる状態になった（方針「ViewModel/UI層はUndoableCommand設計後」に従い、UI実装自体は引き続き後回し）。なお型は当初想定していたShortfall／Exceeded区分を持たない2ケース構成に確定したため、「不足＝薄赤／超過＝薄青」の色分けはUI層側で`ProposedAdjustment`の差分符号から独自に導出する必要がある点に注意（Algorithm層の型そのものには含まれない） |
-| 16 | 🔴 | `DiagramRevision.BaseRevisionId`（複製元追跡タグ）の削除時参照元チェック要否 | 自己参照フィールドだが、削除系コマンドの参照元チェック対象に含めるべきか未確定（複製元Revisionを削除しても複製先には実害がない可能性がある。`Train.SourceTrainId`の扱いと同種の論点） |
-| 17 | 🟠 | 未実装Index棚卸しの方針確定 | MainRoute←ServiceRoute／StationConnection←ServiceRoute・Train／Train関連4種（TrainType・ServiceRoute・VehicleType・TimeTableSet起点）／CarConsist・CarComposition関連／FloorUnit←VirtualConflictObjectの計13種のBuilder化候補。**v12.31**：このうち`StationConnection←ServiceRoute`（`StationConnectionUsedByServiceRouteIndexBuilder`）を実装完了、残り12種。統合粒度（`TrainReferenceIndexBuilder`のような複合Builderとするか、1 Builder = 1 Indexの既存粒度を優先するか）・着手順（MainRoute関連が有力）が未確定。次回セッション冒頭で確認する6項目は列挙済み |
-| 18 | 🔴 | ループ路線の継ぎ目駅自体（`StationOrder`の`index 0`・`index count-1`自体）での境界判定への未対応 | `BoundaryEntryPointResolver`のIndex範囲検証、および`ReversalResolver.ResolveDirectionReversalStations`のループ（`for i = 1; i < stationOrder.Count - 1`）は、ループ路線の継ぎ目駅そのものでの境界判定に対応していない。`EntryPointSequenceResolver`側にループ対応（`IsLoop`ゲート）を入れたことで、この既存スコープ外事項が相対的に露見した。対応要否・優先度は未決定 |
-| 19 | 🔴 | コマンド実行時拒否・保存時バリデーション失敗のUIハンドリング方針未確定 | `DeleteFloorUnitCommand`等のコンストラクタ内検査による`InvalidOperationException`（n≥1制約・直接参照元残存）、および`JsonProjectFileSerializer.Save`の`ProjectFileValidationException`（保存時バリデーション失敗）について、専用ダイアログ等の共通UIコンポーネントが未定義。現状`StationDetailViewModel.DeleteFloorUnitError`のような画面固有の暫定テキスト表示のみで個別対応している。M2-6（保存機能）着手時に、エラー表示の共通化を含めて方針を確定する |
-| 20 | 🔴~🟠 | 詳細画面の対象消滅ハンドリングの横展開 | 「表示中の対象が外部から消滅したら一覧へ戻る」パターンは、現状StationDetailViewModelのみに実装済み。Rail等、今後実装する他モデルの詳細画面にも同じパターンを横展開する必要がある。コマンド横展開と合わせて、UI層のこのパターンもテンプレート化しておくとよい |
-| 21 | 🟠 | プロジェクトIdコンパクションのタイミング未実装 | §4.4.2-11（v13.4方針確定）と対の論点。当初「コンパクションはロード時のみ」としていたが、保存直後のファイルをメモ帳や他アプリで開く／分析する用途を考慮すると、保存されたファイル上でIdが飛び飛びのままなのは望ましくないと判明。**方針**：コンパクションは`JsonProjectFileSerializer.Save()`内でのみ実施し、書き出し直前に種別ごとの`旧Id→新連番Id`対応表を作ってシリアライズ結果にのみ適用する。ライブなセッション上のオブジェクトのId・Undo/Redoスタック・既存コマンドが保持するインスタンス参照は一切変更しない（discard-and-regenerateの精神通り、ファイル表現はライブモデルから都度導出される派生データという位置づけ）。次回`Load()`時はファイル記載のId（コンパクション済み）をそのまま使い、単調カウンタはロード時の最大Id+1から再開する。実装未着手 |
-| 22 | 🔴 | `EntryPoint.Type`変更ポリシーの見直し | 「EntryPoint.Type変更は削除＋新規作成として扱う（同一IDでの書き換えは実装しない）」の妥当性再検討。DependencyResolverによるdirty通知の仕組みが整った現在では、Type変更をin-place属性変更（ChangeRailAttributesCommand型）に緩和できる可能性があると実装担当より指摘あり。ただし、DependencyResolverが解決するのは「変更時に誰に通知するか」のみであり、「Type変更後も既存のStationPath.Waypoints・StationConnectionSegment構成がType前提のまま意味的に無効化されていないか」という整合性検証は別問題（設計原則「破棄・再生成 over 自動マイグレーション」の趣旨）。判断には`EntryPointValidator.cs`／`StationPathValidator.cs`の実装内容の監査が必要（未実施）。判断保留のまま次アクション候補としては優先度を下げる。**v13.9追記**：`NoneEndpoint`から`BoundaryPoint`/`EntryPoint`/`BufferStop`への種別確定についても、`EntryPoint.Type`変更と同様「削除＋新規作成」パターンを踏襲する想定である旨、v13.9セッションで確認した（実装は未着手）。本項目の判断（in-place変更への緩和可否）とあわせて今後検討する |
-| 23 | 🟠~🟡 | 構内配線図キャンバスUI実装 | FloorUnitDetailViewModelの暫定リストUI（v13.8で実装）をキャンバスベースのRail/Platform/SignalSet配置・選択・属性パネル編集に置き換える。Rail端点クリック→属性タブでの端点種別選択のインタラクション実装を含む。規模が大きいため独立セッションでの着手を推奨。**v13.9更新**：着手前提として、`NoneEndpoint`のデータモデル新設と`RailCreationWorkflow`の生成順序再設計（無効な中間状態を作らない方式への変更）を完了。旧`CreateRailCommand`が生成していた「両端未接続の仮Rail」パターンは撤廃され、Railは生成時点から常に確定済みの端点を持つ。これによりキャンバス上でのドラッグ新規作成（始点→終点を引く操作）を、途中で無効な状態を経由せず1つのUndo単位として自然に実装できる土台が整った。次回セッションではキャンバス本体（グリッドスナップ、ドラッグ操作のUI実装、既存端点クリックでの接続、属性タブ連動）に着手する。**v13.11追記**：ホスティング方式を確定：駅編集モード＝他の詳細編集画面と同一のContentControl置換方式で全画面表示（§7テンプレートの左右分割規約は適用しない例外）、列車時刻表編集モード＝ドッキング領域内の5番目のドキュメント種別として追加。**v13.13：詳細設計を確定（実装は次回セッション）**。3モード制（閲覧／線路・端点・ホーム編集／構内進路編集、モード切替はキーバインド非依存のツールバーボタンでも可能）を採用。「線路・端点・ホーム編集モード」の操作系：単純ドラッグ＝端点座標変更（RailControlPoints追加は将来スコープ）、Ctrl+ドラッグ＝新規Rail作成、Shift+ドラッグ＝範囲選択（単クリック＝個別選択、複数選択後の一括操作は将来対応）。**収束変換ルール（新規確定）**：ドラッグの結果、ある座標に収束したRail参照数のみで対象種別が一意に決まる（N=1：EntryPoint/BufferStopのままユーザーが明示的に種別選択、既存フロー据置／N=2：BoundaryPoint／N=3,4：Switcher（既存Switcherの拡張時は`Mechanism`/`ValidRoutes`をクリアし再設定要求）／N≧5：エラー「任意の点を参照するRailの数は4以下である必要があります」でロールバック）。BoundaryPoint/Switcherへの変換確認はモーダルで、キャンセル時は操作前へ完全ロールバック（1ドラッグ＝1Undo単位、モーダル確定までを含む）。**カスケード削除は導入延期**：収束変換によって既存EntryPoint/BoundaryPoint/BufferStopが暗黙に消滅する場合、関連StationPathが存在すればブロックしてエラー表示（既存Delete系と同じ「参照があれば拒否」方針を踏襲）。汎用カスケード削除機構は§4.4.2-26（将来構想）へ切り出し。端点ダブルクリック→編集モーダル（共通1コンポーネント、NoneEndpointは種別選択→§4.4.2-24ワークフロー、確定済み端点はName/Type編集＋削除の差分判定Save、Switcherのみ追加でPort関連設定＝`Mechanism`/`ValidRoutes`編集を有効化）。Rail/Platformは常設サイドパネルでの単クリック選択編集（Railは`EndpointA`/`EndpointB`除く4フィールドのみ）。今回セッションのスコープは「閲覧モード」＋「線路・端点・ホーム編集モード」（Switcher・SignalSetの独立配置は対象外、Switcherは収束変換経由でのみ生成）。「構内進路編集モード」はボタンのみ配置しプレースホルダーとし、本体（StationPathSuggester統合）は次々回以降。**v13.14：Algorithm層・Command層の実装完了（ViewModel/View層は次回）**。 |
-| 24 | 🟠~🟡| 端点収束・確定変換ワークフロー未実装 | キャンバスUIで「点だけ置いた後に属性タブで種別を確定する」フロー（`NoneEndpoint`削除＋`BoundaryPoint`/`EntryPoint`/`BufferStop`いずれかの新規作成＋Rail側`EndpointA`/`EndpointB`参照の差し替え）に加え、（**v13.13でスコープ拡大**：）ドラッグ操作によりRail端点が同一座標に収束した際のBoundaryPoint/Switcher変換も本項目に統合。後者は既存`RailMerger`（N=2のRail統合、収束点の端点情報ごと破棄する別実装）とは異なる新規ワークフローで、収束点に新規BoundaryPoint/Switcherを作成し、収束した各Railの端点参照をそこへ張り替える。Switcher新規作成時のPortIndex機械採番（座標・角度に依存せず、収束したRailを`Rail.Id`昇順で0〜N-1に採番する案を暫定提示、実装担当最終確認待ち）、および既存Switcher拡張時のPort追加ロジックの実装も含む。**v13.14：Algorithm層・Command層を実装完了**。新規4ファイル：`RailEndpointConvergenceResolver`（収束検出`FindConvergingEndpoints`・分類`Classify`・Switcher Port機械採番`AssignSwitcherPorts`・StationPathブロックチェック`FindBlockingStationPaths`の純粋関数群）、`RailEndPointRefChanger`（複数Rail端点の参照一括張替えコマンド、`ChangeRailAttributesCommand`のスコープは拡張せず別クラスとして分離）、`DeleteFloorUnitObjectCommand<TId,T>`（`CreateFloorUnitObjectCommand<TId,T>`と対称な汎用無条件削除、参照チェックは呼び出し元が事前完了させる前提）、`RailEndpointConvergenceWorkflow`（現在の収束状態と分類結果を比較し、不一致の場合のみ変換ステップ列を組み立てる`Reconcile`。Converge（新規Rail作成・既存端点への接続）とDiverge（Rail削除）を単一ロジックに統合、N=0＝Vanish（削除対象Rail自身のみが参照していた孤立端点は削除）を新規ケースとして追加）。加えて`ChangeSwitcherAttributesCommand`（PortCount／Mechanism／ValidRoutesの3フィールド、`SwitcherExpand`ケースの前提として新設）・`RailDeletionWorkflow`（既存`DeleteRailCommand`を無改修のまま1ステップ目として呼び出し、削除後の両端点座標で`FindConvergingEndpoints`→`Reconcile`を実行する`RailCreationWorkflow`と対称なラッパー、`ProjectSession.SwitcherIds`を新規追加）を実装。ビルド成功確認済み（xUnitテストは次回）。**新規発見（§4.4.2-28）**：`Reconcile`のVanish/Keepケースでは`FindBlockingStationPaths`によるStationPathブロックチェックが呼ばれておらず（BoundaryPoint/SwitcherNew/SwitcherExpandケースのみ`AddDeleteStepsForVanishingEndpoints`経由で呼ばれる）、Rail削除により消滅する端点がStationPathから参照されているケースを検知できない可能性がある。次回セッションで対応要否を判断する。キャンバスUI本体（§4.4.2-23）のViewModel/View層は次回セッション |
-| 25 | 🔴~🟠 | FloorUnit並べ替えUI未配線 | `ReorderFloorUnitsCommand`（v13.10新設）のViewModel/View配線が未着手。駅詳細画面のFloorUnit一覧に並べ替え操作（ドラッグ&ドロップ／↑↓ボタン等）が一切実装されていない。v13.2時点でM2スコープから見送られた状態が継続しているだけで新規の不具合ではないことをv13.11セッションで確認済み。UI操作方式は未決定のまま、実装担当の判断により優先度を下げて起票 |
-| 26 | 🔴~🟠 | 汎用カスケード削除機構（将来構想） | 項目33の収束変換設計セッション中に浮上。現行の全Delete系コマンドは「参照元が残っていればブロックしてエラー表示」方針（構造的防止の一環）だが、実装担当より「影響するオブジェクトを道連れに削除する複合コマンド」の提案があった。**方針**：全データモデルに対応するUI・機能が揃ってから着手する将来構想として記録し、現時点では既存のブロック方式を維持する（収束変換ワークフローでも同様にブロック方式を採用）。着手時は影響範囲が大きい（「既存Delete commands再監査」と同様、型ごとに「安全に道連れ削除してよい関係」と「ブロックすべき関係」の判断基準の精査が必要）ため、単独セッションでの設計から始めること |
-| 27 | 🔴~🟠 | `RailSplitter`（`RailMerger`と対をなす分離機構、将来構想） | 収束変換設計セッション中に実装担当より提案。動作機序：元の収束点1点の`Base`をコピーし、ユーザーが操作しない側の端点へ値を継承、非操作側の残存Rail端点数から新Typeを決定（N=2→BoundaryPoint等、収束ルールを逆から適用）。ユーザーが操作した側は単純な`NoneEndpoint`を新規発行する。これが無い間は、既にBoundaryPoint/Switcherとして収束済みの端点はドラッグ操作自体を無効化する（掴めない・移動不可）という制約で対応する。将来スコープ、設計のみ記録・実装は未着手 |
-| 28 | 🔴 | `RailEndpointConvergenceWorkflow.Reconcile`のVanish/KeepケースでStationPathブロックチェック欠落 | `RailDeletionWorkflow`実装過程で新規発見。`FindBlockingStationPaths`（消滅する端点がStationPath.Waypointsから参照されていないかのチェック）は、BoundaryPoint／SwitcherNew／SwitcherExpandケースの`AddDeleteStepsForVanishingEndpoints`経由でのみ呼ばれており、Vanish（N=0、Rail削除により孤立化した端点の削除）・Keep（N=1への縮退、旧BoundaryPoint/SwitcherからNoneEndpointへの差し戻し時の旧端点削除）の両ケースでは呼ばれていない。Rail削除によって消滅する端点が実際にStationPathから参照されているケースがあり得るかを検証した上で、対応要否を判断する必要がある。実装は未着手 |
-
-#### 4.4.3 優先度：低／保留（将来構想／スコープ外）
-
-| # | 項目 | 内容 |
-|---|---|---|
-| 1 | `TrainOperation.operationNumber`の時系列的な再利用 | 自社線内の運用番号を他社直通で変更後、自社線復帰時に再利用する等の時系列的再割当てはスコープ外。一意性制約は「同一TimeTableSet内で常に一意」のみ |
-| 2 | `TrainOperationChainResolver`のDecoupling/Coupling経路テストカバレッジ空白 | `TryFollowDecoupling`／`TryFollowCoupling`を経由する経路のテストケースが未実装。実装はコンパイル・既存テストの通過という意味では健全だが、新規分岐自体はテストの裏付けがない |
-| 3 | `current.StopTimes`辞書列挙順序への暗黙依存 | `TryFollowDecoupling`／`TryFollowCoupling`は`Dictionary<StopKey, StopTime>`を`foreach`で列挙しており、複数のDecoupling/Coupling該当StopKeyが同一Train内に存在する場合の処理順序が言語仕様上保証されない。`StopKeySequenceBuilder.BuildVisitedStopKeys`同様、時系列順の明示的リストで走査すべき |
-| 4 | `StationWorkValidator.ValidateCoupling`の`PartnerTrainId`実在チェックの参照範囲 | `ValidationContext.Trains`が「保存対象TimeTableSet単位」か「プロジェクト全体」かは`SaveValidationRunner`側の`ValidationContext`構築ロジック未確認のため要検証 |
-| 5 | `IValidationIssue`のエラーコード一般化 | 現状`Message`（string）と`Severity`のみを持ち、検証失敗の種別を機械的に判別する手段がない（`StationConnectionSegmentOverlapCrossValidatorTests`等、テスト側で`Assert.Contains`による文字列マッチングに頼らざるを得ない）。将来的にエラーコード（enum等）や構造化された対象ID一覧をIssueに持たせる設計に拡張する余地がある。優先度低・スコープ外 |
-| 6 | `StationConnectionSegment.BaseRunTimeSec`削除に伴う既存プロジェクトファイルの読込互換性 | 既存JSON保存ファイルに`BaseRunTimeSec`フィールドが残っている場合、無視して読み飛ばすか`SchemaVersion`更新で明示的に非対応とするかは別途検討する。優先度低・スコープ外 |
-
-## 5. プロジェクトディレクトリ構造
-
-| 項目 | 確定内容 |
-|---|---|
-| IDE | Visual Studio（.NET開発ワークロード）＋Avalonia for Visual Studio拡張 |
-| ビルドシステム | `dotnet` CLI＋`.sln`/`.csproj`（MSBuild） |
-| ライセンス | Avalonia・関連ライブラリはMIT。個人開発・非商用・フリーライセンス公開前提でライセンス費用なし |
-
-
-```
-DiaEdit/
-├ DiaEdit.sln                          # トップレベル。全プロジェクトを束ねるのみ
-|
-├ DiaEditCore/
-│   ├ DiaEditCore.csproj                # Avalonia非依存の純粋な.NETクラスライブラリ
-│   └ (Model/ Algorithm/ Serialization/ ChangeNotification/ の各フォルダ。)
-├ DiaEditCore.Tests/
-│   ├ DiaEditCore.Tests.csproj          # DiaEditCoreのみを参照（Avalonia非依存でテスト可能）
-│   └ (Algorithm群を中心にユニットテスト)
-|
-├ DiaEditApp.ViewModels/
-│   ├ DiaEditApp.ViewModels.csproj      # Avalonia非依存。DiaEditCoreをプロジェクト参照
-│   └ (ChangeNotificationBridge・画面ごとのViewModel・Composition/ の各フォルダ)
-├ DiaEditApp.ViewModels.Tests/
-│   ├ DiaEditApp.ViewModels.Tests.csproj # DiaEditApp.ViewModelsのみを参照
-│   └ (ViewModelのコマンド実行・OnAffected()経由の変更通知を中心にユニットテスト)
-|
-└ DiaEditApp/
-    ├ DiaEditApp.csproj                 # Avalonia参照。DiaEditCore・DiaEditApp.ViewModelsをプロジェクト参照
-    ├ Views/                            # .axaml（Avalonia XAML）
-    ├ Rendering/                        # 
-    ├ Services/                         # Avalonia依存のサービス実装（ファイルダイアログ等）
-    └ Composition/                      # App.axaml.cs起動時のDI登録
-```
-
-**テスト・静的解析方針**
-
-| 項目 | 内容 |
-|---|---|
-| テストフレームワーク | xUnit（Apache-2.0）。`DiaEditCore`・`DiaEditApp.ViewModels`はAvalonia非依存でCI高速化。View層の見た目テストは対象外（必要時にAvalonia.Headlessを検討） |
-| MVVM・DIパッケージ | `CommunityToolkit.Mvvm`（NuGet）／`Microsoft.Extensions.DependencyInjection`（NuGet） |
-| 依存取得方法 | NuGet（`dotnet add package`）。個人開発規模のため追加のパッケージ管理ツールは導入しない |
-| 静的解析設定 | `.editorconfig`で`dotnet_diagnostic.CS8509.severity = error`（switch式網羅性チェックのエラー化）。プロジェクト初期設定時に必ず組み込む |
-| ID型・値型規約 | 全エンティティID型は`readonly record struct`。Undo/Redoスナップショット等の不変性が必要な箇所は`record`で統一 |
-
-`ViewModel→Core Library`の変更通知は`DependencyResolver`の`affectedIds`をそのままトリガーとして流用する。
-
-**依存の要点**
-
-- `DiaEditApp.ViewModels` は `DiaEditCore` を参照しており、`ChangeNotificationBridge` と `ProjectFile` などのコア型を利用する。
-- `Composition` は `AddDiaEditCore()` で `CommandInvoker`と`ProjectSession` を Singleton 登録し、コア機能の起点を提供する。
-- `Session` の `ProjectSession` が、`CommandInvoker` と `TimeTableSetCache` を管理し、検証と再計算のライフサイクルを統制する。
-- `Model` は、`ProjectFile`、駅・路線・列車・時刻表などの中核ドメインを定義し、他の全モジュールの入力・出力の基盤になる。
-- `Algorithm` は `Model` を入力にして経路・競合・時刻計算などの解決を行う。
-- `Serialization` は `Model` を JSON に保存／読み込みし、各種検証と組み合わせてプロジェクト整合性を担保する。
-- `ChangeNotification` は、`CommandInvoker` からの更新通知を `ProjectSession` / ViewModel 側へ伝えるためのインターフェースとして機能する。
-
-**依存関係の方向性**
-
-- 方向は「上位レイヤーが下位レイヤーに依存する」形。
-- 実際には `Algorithm`, `Commands`, `Serialization`, `Session` などが `Model` に依存しており、`Session` が全体の orchestration を担当している。
-- `ViewModels` はコアの公開 API を利用するクライアントとして位置づけられる。
-
 <!-- DOCGEN:CHAPTER DiaEditCore -->
 ## 6. DiaEditCore
 
@@ -779,51 +400,114 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 
 駅種別
 
+> Standard：停車場。在線検知の境界となる。
+> Halt：停留場。在線検知の境界とならない。
+> SignalStation：信号場。在線検知の境界となる。単なる路線分岐点やスイッチバック施設など、客扱いを行わない運行拠点が該当。
+> Depot：車両基地。在線検知の境界となる。駅から車両基地までの間は一つの路線として登録する。
+
 | Value | 説明 |
 |---|---|
-| Standard | 停車場。在線検知の境界となる。 |
-| Halt | 停留場。在線検知の境界とならない。 |
-| SignalStation | 信号場。在線検知の境界となる。 |
-| Depot | 車両基地。在線検知の境界となる。 |
+| Standard |  |
+| Halt |  |
+| SignalStation |  |
+| Depot |  |
 
 #### 6.1.4 Stations/FloorUnitObjects
 
-**ID型一覧**：`BoundaryPointEndpointRef`, `BoundaryPointWaypoint`, `BufferStopEndpointRef`, `BufferStopWaypoint`, `EntryPointEndpointRef`, `EntryPointWaypoint`, `NoneEndpointRef`, `SwitcherWaypoint`
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.BoundaryPoint` (class)
+
+閉塞境界点を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `BoundaryPointId` | 閉塞境界点識別子 |
+| Base | `FloorUnitObjectBase` | 駅階層識別子と座標情報を保持する複合フィールド |
+| Name | `string` (既定値 `""`) | 閉塞境界点の名称 |
 
 ---
 
-#### `DiaEditCore.Model.Stations.FloorUnitObjects.BoundaryPoint` (class)
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.BoundaryPointEndpointRef` (record)
+
+レール端点の「閉塞境界点」を参照する型
 
 | Field | Type |
 |---|---|
 | Id | `BoundaryPointId` |
-| Base | `FloorUnitObjectBase` |
-| Name | `string` (既定値 `""`) |
+
+---
+
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.BoundaryPointWaypoint` (record)
+
+レール端点の「閉塞境界点」を参照する型
+
+| Field | Type |
+|---|---|
+| Id | `BoundaryPointId` |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.BufferStop` (class)
 
+車止めを表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `BufferStopId` | 車止め識別子 |
+| Base | `FloorUnitObjectBase` | 駅階層識別子と座標情報を保持する複合フィールド |
+| Name | `string` (既定値 `""`) | 車止めの名称 |
+
+---
+
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.BufferStopEndpointRef` (record)
+
+レール端点の「車止め」を参照する型
+
 | Field | Type |
 |---|---|
 | Id | `BufferStopId` |
-| Base | `FloorUnitObjectBase` |
-| Name | `string` (既定値 `""`) |
+
+---
+
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.BufferStopWaypoint` (record)
+
+レール端点の「車止め」を参照する型
+
+| Field | Type |
+|---|---|
+| Id | `BufferStopId` |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.EntryPoint` (class)
 
+駅境界点を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `EntryPointId` | 駅境界点識別子 |
+| Base | `FloorUnitObjectBase` | 駅階層識別子と座標情報を保持する複合フィールド |
+| Name | `string` (既定値 `""`) | 駅境界点の名称 |
+| Type | `EntryPointType` | 駅境界点種別 |
+
+---
+
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.EntryPointEndpointRef` (record)
+
+レール端点の「駅境界点」を参照する型
+
 | Field | Type |
 |---|---|
 | Id | `EntryPointId` |
-| Base | `FloorUnitObjectBase` |
-| Name | `string` (既定値 `""`) |
-| Type | `EntryPointType` |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.EntryPointType` (enum)
+
+駅境界点種別
+
+> Arrival：進入専用
+> Departure：進出専用
+> Both：双方向対応。単線や双単線、三複線などに用いる。
 
 | Value | 説明 |
 |---|---|
@@ -833,51 +517,110 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 
 ---
 
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.EntryPointWaypoint` (record)
+
+レール端点の「駅境界点」を参照する型
+
+| Field | Type |
+|---|---|
+| Id | `EntryPointId` |
+
+---
+
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.FloorObjectRefExtensions` (class)
 
 ---
 
 ##### `public static ObjectId? ToObjectId(this RailEndpointRef r)`
 
+RailEndpointRef を対応する ObjectId に変換する。
+
+**Parameters**
+
+- `r`: 変換対象となる RailEndpointRef。
+
+**Returns**
+対応する ObjectId。未知型の場合は例外、null の場合は null。
+
+**Remarks**
+RailEndpointRef は abstract かつ非 sealed のため、既知の派生型のみを変換対象とする。
+未知の派生型が渡された場合は例外を送出する。
+null は変換不能として null を返す。
+
 ---
 
 ##### `public static ObjectId ToObjectId(this StationPathWaypoint w)`
+
+StationPathWaypoint を対応する ObjectId に変換する。
+
+**Parameters**
+
+- `w`: 変換対象となる StationPathWaypoint。
+
+**Returns**
+対応する ObjectId。null の場合は例外。
+
+**Remarks**
+StationPathWaypoint も abstract・非 sealed のため、既知の派生型のみを変換対象とする。
+null は許容されず、必ず例外を送出する。
+未知の派生型が渡された場合も例外を送出する。
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.FloorUnitObjectBase` (class)
 
-| Field | Type |
-|---|---|
-| FloorUnitId | `FloorUnitId` |
-| Position | `Point` |
+駅階層を識別する FloorUnitId と、平面上の座標を保持する基本オブジェクト。
+
+| Field | Type | 説明 |
+|---|---|---|
+| FloorUnitId | `FloorUnitId` | 駅階層を識別する ID。 |
+| Position | `Point` | 駅階層内での座標 (X, Y)。 |
+
+> 本クラスは駅構内オブジェクトの基底情報として利用される。
+> FloorUnitId と Position は必須であり、null を許容しない。
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.NoneEndpoint` (class)
 
+Rail作成時における端点オブジェクトの種別決定前の仮種別
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `NoneEndpointId` | 仮種別識別子 |
+| Base | `FloorUnitObjectBase` | 駅階層識別子と座標情報を保持する複合フィールド |
+| Name | `string` (既定値 `""`) | 仮種別の名称 |
+
+---
+
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.NoneEndpointRef` (record)
+
+レール端点の「仮種別」を参照する型
+
 | Field | Type |
 |---|---|
 | Id | `NoneEndpointId` |
-| Base | `FloorUnitObjectBase` |
-| Name | `string` (既定値 `""`) |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.Platform` (class)
 
-| Field | Type |
-|---|---|
-| Id | `PlatformId` |
-| Base | `FloorUnitObjectBase` |
-| SecondaryPosition | `Point` |
-| Name | `string` (既定値 `""`) |
-| FacingRailIds | `List<RailId>` (既定値 `new()`) |
-| EffectiveLength | `double?` |
+駅のプラットホームを表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `PlatformId` | プラットホーム識別子 |
+| Base | `FloorUnitObjectBase` | 駅階層識別子と座標情報を保持する複合フィールド。ドラッグ始端。 |
+| SecondaryPosition | `Point` | ドラッグ終端。 |
+| Name | `string` (既定値 `""`) | ホームの名称 |
+| FacingRailIds | `List<RailId>` (既定値 `new()`) | 当ホームで客扱いを行う番線リスト |
+| EffectiveLength | `double?` | ホーム有効長 |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.PortPair` (record struct)
+
+構成可能な進路をPort対で表現する
 
 | Field | Type |
 |---|---|
@@ -888,32 +631,49 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.Rail` (class)
 
-| Field | Type |
-|---|---|
-| Id | `RailId` |
-| Name | `string` (既定値 `""`) |
-| LengthM | `double` |
-| SpeedLimitKph | `double` |
-| Role | `RailRole` |
-| EndpointA | `RailEndpointRef` |
-| EndpointB | `RailEndpointRef` |
-| ControlPoints | `List<RailControlPoint>` (既定値 `new()`) |
+レールを表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `RailId` | レール識別子 |
+| Name | `string` (既定値 `""`) | レール名称 |
+| LengthM | `double` | レール長 |
+| SpeedLimitKph | `double` | 制限速度 |
+| Role | `RailRole` | レール種別 |
+| EndpointA | `RailEndpointRef` | レール端点の参照先A |
+| EndpointB | `RailEndpointRef` | レール端点の参照先B |
+| ControlPoints | `List<RailControlPoint>` (既定値 `new()`) | Rail描画用の中間制御点 |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.RailControlPoint` (class)
 
-| Field | Type |
-|---|---|
-| Point | `Point` |
+Rail描画用の中間制御点。
+
+| Field | Type | 説明 |
+|---|---|---|
+| Point | `Point` | 制御点座標 |
+
+> 現時点では意味のないフィールド。将来的にRail端点に依存せずに折れ線や曲線を表現するために仮導入している。
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.RailEndpointRef` (record)
 
+Rail端点を参照するための抽象基底型
+
+> 非 sealed のため派生型が増える可能性がある。
+> 利用側では型の網羅性を保証できない点に注意すること。
+
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.RailRole` (enum)
+
+レール種別
+
+> Normal：本線など
+> Track：番線。客扱いの有無にかかわらず、（オブジェクトとしての）駅を走行する中継地点として登録しなければならない。
+> Shunting：引き上げ線、留置線。入替作業を行うための場所として登録する。
 
 | Value | 説明 |
 |---|---|
@@ -925,19 +685,29 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.StationPath` (class)
 
-| Field | Type |
-|---|---|
-| Id | `StationPathId` |
-| FloorUnitId | `FloorUnitId` |
-| Name | `string` |
-| Direction | `StationPathDirection` |
-| Waypoints | `List<StationPathWaypoint>` |
-| AdjustmentSec | `int` (既定値 `0`) |
-| ManualConflictObjectIds | `List<VirtualConflictObjectId>` (既定値 `new()`) |
+構内進路を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `StationPathId` | 構内進路識別子 |
+| FloorUnitId | `FloorUnitId` | 所属する駅階層の識別子 |
+| Name | `string` | 構内進路の名称 |
+| Direction | `StationPathDirection` | 構内進路の方向種別 |
+| Waypoints | `List<StationPathWaypoint>` | 構内進路を構成するRail端点配列 |
+| AdjustmentSec | `int` (既定値 `0`) | 停車時の構内進路の通過に必要な時間。通過時には用いない。 |
+| ManualConflictObjectIds | `List<VirtualConflictObjectId>` (既定値 `new()`) | 所属する仮想支障グループ識別子 |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.StationPathDirection` (enum)
+
+構内進路の方向種別
+
+> Arrival：到着用
+> Departure：出発用
+> Shunting：入替作業用
+> 単線等で進行方向が固定されている場合があり、EntryPointの種別から解決することが不可能なため、有向としている。
+> Shuntingの向きは移動元、移動先から判定する。詳しくはを参照。
 
 | Value | 説明 |
 |---|---|
@@ -949,36 +719,52 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.StationPathWaypoint` (record)
 
+進路オブジェクトでRail端点を参照するための抽象基底型
+
+> とは異なり、StationPathとして参照する、
+> もしくはStationPathの自動検出の判定に利用する端点種別のみに派生型を限定している。
+> 自動検出についてはを参照。
+
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.SwitchMechanism` (class)
 
-| Field | Type |
-|---|---|
-| RootPortIndex | `int` |
-| NormalPortIndex | `int` |
-| ReversePortIndex | `int` |
+片開き、両開き分岐器の分岐構造を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| RootPortIndex | `int` | 基底側。構成可能な2つの進路の配列で共通のRailが該当する。 |
+| NormalPortIndex | `int` | 正位側 |
+| ReversePortIndex | `int` | 反位側 |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.Switcher` (class)
 
-| Field | Type |
-|---|---|
-| Id | `SwitcherId` |
-| Base | `FloorUnitObjectBase` |
-| PortCount | `int` |
-| Mechanism | `SwitchMechanism?` |
-| ValidRoutes | `List<PortPair>` (既定値 `new()`) |
+分岐器を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `SwitcherId` | 分岐器識別子 |
+| Base | `FloorUnitObjectBase` | 駅階層識別子と座標情報を保持する複合フィールド |
+| PortCount | `int` | 収束するRailの数。 |
+| Mechanism | `SwitchMechanism?` | PortCount == 3 の場合に利用。
+片開き、両開き分岐器の分岐構造を表現する。 |
+| ValidRoutes | `List<PortPair>` (既定値 `new()`) | PortCount == 4 の場合に利用。
+要素数は 2 &lt;= かつ &lt;= 4 |
 
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.SwitcherEndpointRef` (record)
 
+レール端点の「分岐器」を参照する型
+
 | Field | Type |
 |---|---|
 | Id | `SwitcherId` |
 | PortIndex | `int` |
+
+> PortIndexはSwitcher接続時のみ意味を持つため、Switcher用派生型にのみ持たせる（構造的防止）
 
 ---
 
@@ -989,6 +775,8 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 ##### `public static IReadOnlySet<PortPair> GetTraversablePairs(this Switcher switcher)`
 
 Switcherの構造（mechanism / validRoutes）から、通行可能なPortペアの集合を都度計算する。
+
+**Remarks**
 永続化はしない派生値。N=3はroot-normal・root-reverseの2組、N=4はvalidRoutesそのもの。
 PortIndexの割り当て順序に業務的意味を持たせないため、各ペアはPortA&lt;=PortBに正規化する。
 
@@ -996,15 +784,40 @@ PortIndexの割り当て順序に業務的意味を持たせないため、各�
 
 ##### `public static PortPair Normalize(int a, int b)`
 
+PortPairのPortA&lt;=PortB正規化。
+
+**Parameters**
+
+- `a`: 
+- `b`: 
+
+**Returns**
+
+---
+
+#### `DiaEditCore.Model.Stations.FloorUnitObjects.SwitcherWaypoint` (record)
+
+レール端点の「分岐器」を参照する型
+
+| Field | Type |
+|---|---|
+| Id | `SwitcherId` |
+
+> PortIndexはRailのためのフィールドであるから持たない。
+
 ---
 
 #### `DiaEditCore.Model.Stations.FloorUnitObjects.VirtualConflictObject` (class)
 
-| Field | Type |
-|---|---|
-| Id | `VirtualConflictObjectId` |
-| FloorUnitId | `FloorUnitId` |
-| Name | `string` (既定値 `""`) |
+用の仮想グループオブジェクト
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `VirtualConflictObjectId` | 仮想支障グループ識別子 |
+| FloorUnitId | `FloorUnitId` | 所属する駅階層の識別子 |
+| Name | `string` (既定値 `""`) | 仮想支障グループ名 |
+
+> 信号システム、建築限界など、グラフ構造から導出できない支障をグループ化する。
 
 #### 6.1.5 TimeTable
 
@@ -3538,40 +3351,59 @@ DependencyResolver側のPlatformObjectIdケースを更新するだけで本コ�
 
 #### `DiaEditCore.Commands.Stations.FloorUnitObjects.DeleteRailCommand` (class)
 
-「削除（Delete）」パターンのRail向け実装。
-v12.18で判明した不備の修正：旧実装（v12.13）はDependencyResolverのObjectIdグラフ
-（RailObjectId => []）のみをチェックしていたが、Railへの逆参照3経路は
-いずれもObjectIdグラフの外側にある生のRailId参照であり、一度もチェックされていなかった：
-1. Platform.FacingRailIds（List&lt;RailId&gt;）
-2. TemporaryRestriction.Target is RestrictionTarget.Rail
-3. Train.StopTimes[...].TrackRailId（RailId?）
-これら3経路は、TemporaryRestrictionBySegmentIndexBuilderのコメントで明言した方針
-（「Rail起点の逆引き消費者はDeleteRailCommandのみであり、Rail削除時のチェックは
-対象コレクションを直接1回線形走査すれば足りる規模のため、専用インデックス化は見送る」）
-に従い、専用キャッシュを設けずコンストラクタ内で直接走査する。
-DependencyResolverのObjectIdグラフチェックも引き続き実施する（将来Railへの
-ObjectId経由の逆参照を持つモデルが追加された場合に自動的に効くようにするため）。
-v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
-（§9.1項目5、構造的防止の方針）。Platform／TemporaryRestriction／Trainの3コレクションは
-TimeTableSetCacheが管理する対象ではない（ProjectFileの生データ）ため、引き続き
-呼び出し側から個別に受け取る（ProjectSessionはこれらのコレクション自体を集約管理しない。
-5.14.2節：ProjectSessionの責務はTimeTableSetCacheのライフサイクル管理に限定）。
+Railを削除するコマンド。
+
+> 以下のいずれかに該当する場合、削除を拒否する（例外送出、コレクション状態は変化しない）：
+> DependencyResolverのObjectIdグラフ上で、他オブジェクトから直接参照されている場合
+> Platform.FacingRailIdsから参照されている場合
+> TemporaryRestriction.Target（RestrictionTarget.Rail）から参照されている場合
+> Train.StopTimes[...].TrackRailIdから参照されている場合
+> AffectedIds（変更通知対象）には、削除対象Rail自身に加え、その所属FloorUnitのObjectIdも
+> 含まれる。
 
 ---
 
 ##### `public DeleteRailCommand(List<Rail> rails, Rail railToDelete, ProjectSession session, IReadOnlyList<Platform> allPlatforms, IReadOnlyList<TemporaryRestriction> allRestrictions, IReadOnlyList<Train> allTrains)`
 
+**Parameters**
+
+- `rails`: 削除対象を保持するRailコレクション（Undo/Redoの対象コレクション）。
+- `railToDelete`: 削除対象のRail。
+- `session`: 依存関係チェック・変更通知範囲の算出に使うプロジェクトセッション。
+- `allPlatforms`: FacingRailIds参照チェック対象の全Platform。
+- `allRestrictions`: Target参照チェック対象の全TemporaryRestriction。
+- `allTrains`: StopTime.TrackRailId参照チェック対象の全Train。
+
 ---
 
 ##### `protected override Rail CaptureSnapshot(List<Rail> target)`
+
+削除対象のスナップショット（Undo復元用）を取得する。
+
+**Parameters**
+
+- `target`: 対象コレクション。
 
 ---
 
 ##### `protected override void Apply(List<Rail> target)`
 
+対象コレクションからRailを取り除く。
+
+**Parameters**
+
+- `target`: 対象コレクション。
+
 ---
 
 ##### `protected override void Restore(List<Rail> target, Rail snapshot)`
+
+Undo時、削除したRailを対象コレクションへ復元する。
+
+**Parameters**
+
+- `target`: 対象コレクション。
+- `snapshot`: 復元するRailのスナップショット。
 
 ---
 
@@ -4933,7 +4765,3 @@ FloorUnitDetailView（キャンバス、§4.2.3・§4.4.2-23ステージ1）専�
 ##### `public StationListView()`
 
 <!-- DOCGEN:CHAPTER END DiaEditApp -->
-
----
-
-## 9. 変更履歴

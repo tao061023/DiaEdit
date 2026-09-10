@@ -3,29 +3,15 @@ namespace DiaEditCore.Model.Stations;
 /// <summary>
 /// 駅種別
 /// </summary>
-public enum StationType {
-    /// <summary>
-    /// 停車場。在線検知の境界となる。
-    /// </summary>
-    Standard,
-    /// <summary>
-    /// 停留場。在線検知の境界とならない。
-    /// </summary>
-    Halt,
-    /// <summary>
-    /// 信号場。在線検知の境界となる。
-    /// </summary>
-    /// <remarks>
-    /// 駅でない路線分岐点や、スイッチバック専用施設が該当。
-    /// </remarks>
-    SignalStation,
-    /// <summary>
-    /// 車両基地。在線検知の境界となる。
-    /// </summary>
-    /// <remarks>
-    /// 駅から車両基地までの間は一つの路線として登録する。
-    /// </remarks>
-    Depot }
+/// <remarks>
+/// <list type="bullet">
+/// <item><description><c>Standard</c>：停車場。在線検知の境界となる。</description></item>
+/// <item><description><c>Halt</c>：停留場。在線検知の境界とならない。</description></item>
+/// <item><description><c>SignalStation</c>：信号場。在線検知の境界となる。単なる路線分岐点やスイッチバック施設など、客扱いを行わない運行拠点が該当。</description></item>
+/// <item><description><c>Depot</c>：車両基地。在線検知の境界となる。駅から車両基地までの間は一つの路線として登録する。</description></item>
+/// </list>
+/// </remarks>
+public enum StationType { Standard, Halt, SignalStation, Depot }
 
 /// <summary>
 /// 駅や信号場、車両基地を表現する

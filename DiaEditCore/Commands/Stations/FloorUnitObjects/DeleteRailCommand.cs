@@ -1,6 +1,7 @@
 namespace DiaEditCore.Commands.Stations.FloorUnitObjects;
 
 using DiaEditCore.Algorithm.Dependency;
+using DiaEditCore.Algorithm.Stations;
 using DiaEditCore.Model;
 using DiaEditCore.Model.Stations.FloorUnitObjects;
 using DiaEditCore.Model.TimeTable;
@@ -8,33 +9,29 @@ using DiaEditCore.Model.TimeTable.Trains;
 using DiaEditCore.Session;
 
 /// <summary>
-/// 「削除（Delete）」パターンのRail向け実装。
-///
-/// v12.18で判明した不備の修正：旧実装（v12.13）はDependencyResolverのObjectIdグラフ
-/// （RailObjectId => []）のみをチェックしていたが、Railへの逆参照3経路は
-/// いずれもObjectIdグラフの外側にある生のRailId参照であり、一度もチェックされていなかった：
-///   1. Platform.FacingRailIds（List&lt;RailId&gt;）
-///   2. TemporaryRestriction.Target is RestrictionTarget.Rail
-///   3. Train.StopTimes[...].TrackRailId（RailId?）
-///
-/// これら3経路は、TemporaryRestrictionBySegmentIndexBuilderのコメントで明言した方針
-/// （「Rail起点の逆引き消費者はDeleteRailCommandのみであり、Rail削除時のチェックは
-/// 対象コレクションを直接1回線形走査すれば足りる規模のため、専用インデックス化は見送る」）
-/// に従い、専用キャッシュを設けずコンストラクタ内で直接走査する。
-///
-/// DependencyResolverのObjectIdグラフチェックも引き続き実施する（将来Railへの
-/// ObjectId経由の逆参照を持つモデルが追加された場合に自動的に効くようにするため）。
-///
-/// v12.21：コンストラクタ引数をTimeTableSetCache cache → ProjectSession sessionへ移行
-/// （§9.1項目5、構造的防止の方針）。Platform／TemporaryRestriction／Trainの3コレクションは
-/// TimeTableSetCacheが管理する対象ではない（ProjectFileの生データ）ため、引き続き
-/// 呼び出し側から個別に受け取る（ProjectSessionはこれらのコレクション自体を集約管理しない。
-/// 5.14.2節：ProjectSessionの責務はTimeTableSetCacheのライフサイクル管理に限定）。
+/// Railを削除するコマンド。
 /// </summary>
+/// <remarks>
+/// 以下のいずれかに該当する場合、削除を拒否する（例外送出、コレクション状態は変化しない）：
+/// <list type="bullet">
+/// <item>DependencyResolverのObjectIdグラフ上で、他オブジェクトから直接参照されている場合</item>
+/// <item>Platform.FacingRailIdsから参照されている場合</item>
+/// <item>TemporaryRestriction.Target（RestrictionTarget.Rail）から参照されている場合</item>
+/// <item>Train.StopTimes[...].TrackRailIdから参照されている場合</item>
+/// </list>
+/// AffectedIds（変更通知対象）には、削除対象Rail自身に加え、その所属FloorUnitのObjectIdも
+/// 含まれる。
+/// </remarks>
 public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
 {
     private readonly Rail _railToDelete;
 
+    /// <param name="rails">削除対象を保持するRailコレクション（Undo/Redoの対象コレクション）。</param>
+    /// <param name="railToDelete">削除対象のRail。</param>
+    /// <param name="session">依存関係チェック・変更通知範囲の算出に使うプロジェクトセッション。</param>
+    /// <param name="allPlatforms">FacingRailIds参照チェック対象の全Platform。</param>
+    /// <param name="allRestrictions">Target参照チェック対象の全TemporaryRestriction。</param>
+    /// <param name="allTrains">StopTime.TrackRailId参照チェック対象の全Train。</param>
     public DeleteRailCommand(
         List<Rail> rails,
         Rail railToDelete,
@@ -46,7 +43,7 @@ public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
     {
         var cache = session.GetCache();
 
-        // 1. ObjectIdグラフ経由の直接参照チェック（現状は常に空だが、将来のモデル追加に備えて維持）
+        // 1. ObjectIdグラフ経由の直接参照チェック
         var directDependents = DependencyResolver
             .ResolveDirectDependents(new RailObjectId(railToDelete.Id), cache)
             .ToList();
@@ -98,20 +95,53 @@ public sealed class DeleteRailCommand : UndoableCommand<List<Rail>, Rail>
         _railToDelete = railToDelete;
     }
 
+    /// <summary>
+    /// 削除実行前の状態を基に、変更通知対象のObjectId集合を算出する。
+    /// </summary>
+    /// <remarks>
+    /// 戻り値には削除対象Rail自身に加え、その所属FloorUnitのObjectIdが含まれる。
+    /// 所属FloorUnitはEndpointA側を優先して解決し、解決できない場合のみEndpointB側を試みる。
+    /// </remarks>
+    /// <param name="rail">削除対象のRail。</param>
+    /// <param name="session">所属FloorUnit解決・依存関係波及の算出に使うプロジェクトセッション。</param>
     private static IReadOnlySet<ObjectId> BuildAffectedIds(Rail rail, ProjectSession session)
     {
         var cache = session.GetCache();
-        return DependencyResolver.ResolveAffected(
-            new HashSet<ObjectId> { new RailObjectId(rail.Id) }, cache);
+
+        var changedIds = new HashSet<ObjectId> { new RailObjectId(rail.Id) };
+
+        var floorUnitId =
+            RailFloorUnitLookup.ResolveFloorUnitId(
+                rail.EndpointA,
+                session.Current.NoneEndpoints, session.Current.BoundaryPoints,
+                session.Current.EntryPoints, session.Current.BufferStops, session.Current.Switchers)
+            ?? RailFloorUnitLookup.ResolveFloorUnitId(
+                rail.EndpointB,
+                session.Current.NoneEndpoints, session.Current.BoundaryPoints,
+                session.Current.EntryPoints, session.Current.BufferStops, session.Current.Switchers);
+
+        if (floorUnitId is { } id)
+        {
+            changedIds.Add(new FloorUnitObjectId(id));
+        }
+
+        return DependencyResolver.ResolveAffected(changedIds, cache);
     }
 
+    /// <summary>削除対象のスナップショット（Undo復元用）を取得する。</summary>
+    /// <param name="target">対象コレクション。</param>
     protected override Rail CaptureSnapshot(List<Rail> target) => _railToDelete;
 
+    /// <summary>対象コレクションからRailを取り除く。</summary>
+    /// <param name="target">対象コレクション。</param>
     protected override void Apply(List<Rail> target)
     {
         target.Remove(_railToDelete);
     }
 
+    /// <summary>Undo時、削除したRailを対象コレクションへ復元する。</summary>
+    /// <param name="target">対象コレクション。</param>
+    /// <param name="snapshot">復元するRailのスナップショット。</param>
     protected override void Restore(List<Rail> target, Rail snapshot)
     {
         target.Add(snapshot);
