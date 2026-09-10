@@ -7,11 +7,8 @@ namespace DiaEditCore.Model.TimeTable;
 public record MainRouteRange(MainRouteId MainRouteId, int FromIndex, int ToIndex);
 
 /// <summary>
-/// ダイヤグラム・駅時刻表の表示対象を定義する（5.15節）。
+/// ダイヤグラム・駅時刻表の表示対象を定義する。
 /// 「路線系統」を基準に表示範囲を定義し、そこにServiceRouteに属するTrainを投影する。
-/// stationOrderはこのMainRouteRangesから導出される表示用キャッシュであり、
-/// ここには持たせない（Algorithm層のresolveDisplayContextStationOrder＋
-/// TimeTableSetCache.stationOrderByDisplayContextIdで扱う。6章参照）。
 /// </summary>
 public record DisplayContext(
     DisplayContextId Id,

@@ -2,101 +2,233 @@ namespace DiaEditCore.Model.TimeTable.Trains;
 
 using DiaEditCore.Model;
 
+/// <summary>
+/// 駅作業種別
+/// </summary>
+/// <remarks>
+/// <list type="bullet">
+/// <item><description><c>None</c>なし。通常の停車・通過が該当。</description></item>
+/// <item><description><c>PrevTrain</c>前列車接続</description></item>
+/// <item><description><c>StartOp</c>出区</description></item>
+/// <item><description><c>EndOp</c>入区</description></item>
+/// <item><description><c>Shunting</c>入換</description></item>
+/// <item><description><c>NextTrain</c>次列車接続</description></item>
+/// <item><description><c>Coupling</c>増結・併合</description></item>
+/// <item><description><c>Decoupling</c>解結・分割</description></item>
+/// </list>
+/// </remarks>
 public enum StationWorkType
 {
     None, PrevTrain, StartOp, EndOp, Shunting, NextTrain, Coupling, Decoupling
 }
 
+/// <summary>
+/// 次列車接続種別
+/// </summary>
+/// <remarks>
+/// <list type="bullet">
+/// <item><description><c>Other</c>別列車</description></item>
+/// <item><description><c>TypeChange</c>列車種別変更</description></item>
+/// <item><description><c>InfoChange</c>列車情報変更</description></item>
+/// <item><description><c>SameTrain</c>同列車扱い</description></item>
+/// <item><description><c>Coupling</c>増結・併合</description></item>
+/// </list>
+/// </remarks>
 public enum NextTrainType
 {
-    Other, TypeChange, InfoChange, SameTrain,
-    Coupling, // 次に発車する列車が本Trainの一部として併合される関係（Conflict除外の判定キー。6.5節ConflictFilter参照）
+    Other, TypeChange, InfoChange, SameTrain, Coupling,
 }
 
-// StartOp専用：出区時点のconsistSequence内1要素。
+/// <summary>
+/// StartOp専用：出区編成単位を表す（1編成ずつ登録する）
+/// </summary>
 public sealed class StartOpCarSlot
 {
+    /// <summary>
+    /// 編成位置
+    /// </summary>
     public required int Position { get; set; }
+    /// <summary>
+    /// 使用編成の識別子
+    /// </summary>
     public required CarCompositionId CarCompositionId { get; set; }
+    /// <summary>
+    /// 運用番号
+    /// </summary>
     public required string OperationNumber { get; set; }
 }
 
-// vNEXT改訂：Coupling/Decoupling共通で使っていた CutGroup（GroupIndexフラット配列）を廃止し、
-// front/rear 2バケット構造（DecouplingWork）と参照型（CouplingWork）に分離した。
-// 理由（セッション議事）：
-//   - 実例調査の結果、分割は必ず「前グループ／後グループ」の2分割にしかならないことが判明した
-//     （3グループ以上の同時分割は発生しない）ため、N分割を許容する型は構造的に過大だった。
-//   - Couplingは「自編成へ相手Train 1本をまるごと連結する」運用のみが確認されており、
-//     相手編成の一部だけを連結する運用は存在しない（運用フロー側で「先に解結してから連結する」
-//     ことで対応するため、データモデル側で部分連結を表現する必要がない）。
-//   - 相手Trainの中身（CarCompositionId一覧）は CarConsistResolver.ResolveConsistAt で
-//     相手Train側を再帰的に解決すれば都度導出できるため、Coupling側は「相手Trainへの参照」の
-//     みを持てば足りる（discard-and-regenerate原則。CutGroup.TrainId廃止時と同じ理屈）。
-
-// Decoupling専用：分割後の1グループ分の要素。
+/// <summary>
+/// Decoupling専用：分割後1グループ分の要素
+/// </summary>
 public sealed class CutGroupEntry
 {
+    /// <summary>
+    /// 編成の識別子
+    /// </summary>
     public required CarCompositionId CarCompositionId { get; set; }
+    /// <summary>
+    /// 運用番号
+    /// </summary>
     public required string OperationNumber { get; set; }
 }
 
+/// <summary>
+/// 解結・分割作業を表す
+/// </summary>
+/// <remarks>
+/// OperationIdフィールドは意図的に持たない：合流するCarCompositionの運用番号は
+/// 合流前の値をそのまま保持するため（CarCompositionに紐づく属性であり、Couplingでは変化しない）。
+/// </remarks>
 public sealed class DecouplingWork
 {
-    // 分割前の走行方向に対する前側／後側。両方とも最低1件必須（Rule 8）。
-    // front/rear間でCarCompositionIdの重複は不可（Rule 7、同一編成が両側に属することは物理的に不可能）。
+    /// <summary>
+    /// 分割後の前側のグループ
+    /// </summary>
+    /// <remarks>
+    /// 分割前の走行方向に対する前側。最低1件必須。
+    /// front/rear間でCarCompositionIdの重複は不可。
+    /// </remarks>
     public required List<CutGroupEntry> FrontGroup { get; set; }
+    /// <summary>
+    /// 分割後の後ろ側のグループ
+    /// </summary>
+    /// <remarks>
+    /// 分割前の走行方向に対する後ろ側。最低1件必須。
+    /// </remarks>
     public required List<CutGroupEntry> RearGroup { get; set; }
 
-    // false = front側が基準（自Trainがそのまま継続）。true = rear側が基準。
-    // 継続側でないほうが SplitOriginRef 経由の新Trainとして生まれる。
+    /// <summary>
+    /// 分割後、編成グループの継承対象をどちらにするか決定するフラグ
+    /// </summary>
+    /// <remarks>
+    /// false = front側が基準（自Trainがそのまま継続）。<br/>
+    /// true = rear側が基準。
+    /// 継続側でないほうが SplitOriginRef 経由の新Trainとして生まれる。
+    /// </remarks>
     public bool IsRearBase { get; set; } = false;
 }
 
+/// <summary>
+/// NextTrain.Coupling専用：相手Trainへの参照型
+/// </summary>
 public sealed class CouplingWork
 {
-    // 連結される相手Train・その時点のStopKey（相手編成の中身はResolveConsistAtで都度導出、非保存）。
+    /// <summary>
+    /// 連結する（しに行く）相手Trainの識別子
+    /// </summary>
     public required TrainId PartnerTrainId { get; set; }
+    /// <summary>
+    /// 連結する（しに行く）相手TrainのStopKey
+    /// </summary>
     public required StopKey PartnerStopKey { get; set; }
 
-    // false = 自編成の後ろに連結。true = 自編成の前に連結。
+    /// <summary>
+    /// 編成の連結位置
+    /// </summary>
+    /// <remarks>
+    /// 相手編成の駅到着前の進行方向に準ずる。<br/>
+    /// false = 相手編成の後ろに連結。true = 相手編成の前に連結。
+    /// </remarks>
     public bool AttachToFront { get; set; } = false;
 
-    // OperationIdフィールドは意図的に持たない：合流するCarCompositionの運用番号は
-    // 合流前の値をそのまま保持するため（CarCompositionに紐づく属性であり、Couplingでは変化しない）。
 }
 
-// PrevTrain専用：直前Trainから引き継いだCarCompositionのうち運用を変更するものだけの差分リスト。
-// 省略時（＝該当CarCompositionIdがリストに現れない場合）＝全Composition継承。
+/// <summary>
+/// PrevTrain専用：直前Trainから引き継いだCarCompositionのうち運用を変更するものだけの差分リスト。
+/// </summary>
+/// <remarks>
+/// 省略時（＝該当CarCompositionIdがリストに現れない場合）＝全Composition継承。
+/// </remarks>
 public sealed class PrevTrainOperationOverride
 {
+    /// <summary>
+    /// 編成の識別子
+    /// </summary>
     public required CarCompositionId CarCompositionId { get; set; }
+    /// <summary>
+    /// 新規運用番号
+    /// </summary>
     public required string NewOpNumber { get; set; }
 }
 
-// 分割で生じた新Train側が、自身の起点を示す。
-// GroupIndexは持たない：どちらのグループ（front/rear）を引き継いだかはDecouplingWork.IsRearBaseを
-// 直読みすれば一意に決まるため、SplitGroupAssignmentResolverによる推定（旧two-pointer方式）は不要になった。
+/// <summary>
+/// Decouplingで生じたTrain専用：自身の起点を示す
+/// </summary>
+/// <remarks>
+/// GroupIndexは持たない：どちらのグループ（front/rear）を引き継いだかはDecouplingWork.IsRearBaseを
+/// 直読みすれば一意に決まるため。
+/// </remarks>
 public sealed class SplitOriginRef
 {
+    /// <summary>
+    /// 分割元のTrainの識別子
+    /// </summary>
     public required TrainId OriginTrainId { get; set; }
+    /// <summary>
+    /// 分割元のTrainのStopKey
+    /// </summary>
     public required StopKey OriginStopKey { get; set; }
 }
 
+/// <summary>
+/// 駅作業を表す
+/// </summary>
 public sealed class StationWork
 {
+    /// <summary>
+    /// 駅作業種別
+    /// </summary>
     public required StationWorkType Type { get; set; }
 
-    public List<StartOpCarSlot> StartOpConsist { get; set; } = new();               // StartOpのみ
-    public List<PrevTrainOperationOverride> PrevTrainOperationOverrides { get; set; } = new(); // PrevTrainのみ
+    /// <summary>
+    /// StartOp専用：出区編成リスト
+    /// </summary>
+    public List<StartOpCarSlot> StartOpConsist { get; set; } = new();
 
-    // vNEXT改訂：CutGroups（List<CutGroup>）を廃止し、Type別に排他のDecouplingDetail/CouplingDetailへ分離。
-    public DecouplingWork? DecouplingDetail { get; set; }   // Decouplingのみ
-    public CouplingWork? CouplingDetail { get; set; }       // Couplingのみ
+    /// <summary>
+    /// PrevTrain専用：運用番号更新リスト
+    /// </summary>
+    public List<PrevTrainOperationOverride> PrevTrainOperationOverrides { get; set; } = new();
 
-    public SplitOriginRef? SplitOrigin { get; set; }       // 分割由来の新Train先頭StopTimeが持つ（PrevTrainのみ）
-    public NextTrainType? NextTrainType { get; set; }      // NextTrainのみ
-    public StationPathId? StationPathId { get; set; }      // Shunting等
+    /// <summary>
+    /// Decoupling専用：解結・分割作業を表す
+    /// </summary>
+    public DecouplingWork? DecouplingDetail { get; set; }
+    
+    /// <summary>
+    /// Coupling専用：相手Trainへの参照型
+    /// </summary>
+    public CouplingWork? CouplingDetail { get; set; }
 
+    /// <summary>
+    /// Decouplingで生じたTrain専用（PrevTrain）：自身の起点を示す
+    /// </summary>
+    public SplitOriginRef? SplitOrigin { get; set; }
+
+    /// <summary>
+    /// 次列車接続種別
+    /// </summary>
+    public NextTrainType? NextTrainType { get; set; }
+
+    /// <summary>
+    /// 入替作業で利用する構内進路の識別子
+    /// </summary>
+    public StationPathId? StationPathId { get; set; }
+
+    /// <summary>
+    /// 作業開始時刻
+    /// </summary>
+    /// <remarks>
+    /// -1 は未設定。
+    /// </remarks>
     public int StartOpSeconds { get; set; } = -1;
+
+    /// <summary>
+    /// 作業終了時刻
+    /// </summary>
+    /// <remarks>
+    /// -1 は未設定。
+    /// </remarks>
     public int EndOpSeconds { get; set; } = -1;
 }

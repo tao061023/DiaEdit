@@ -2,21 +2,21 @@ namespace DiaEditCore.Model.TimeTable.Trains;
 
 /// <summary>
 /// Train.RunSegmentsから、訪問順に対応するStopKey列を導出する唯一の生成点。 <br/>
-/// StopKey.VisitCountは「駅ごとのローカルな訪問回数」であり、この規約に従ってStopKeyを
-/// 生成できるのはこのクラスのみとする。 <br/>
-///
 /// 用途：
-///   1. StopTimes書き込み側（RunSegments編集コマンド）が、新規追加・リキー時のキーを
-///      本メソッドの戻り値から取得する
-///   2. StopTimes読み出し側（CarConsistResolver等）が、訪問順にStopKeyを辿るために使う
+/// <list type="bullet">
+/// <item>StopTimes書き込み側（RunSegments編集コマンド）が、新規追加・リキー時のキーを本メソッドの戻り値から取得する</item>
+/// <item> StopTimes読み出し側（CarConsistResolver等）が、訪問順にStopKeyを辿るために使う</item>
+/// </list>
 /// </summary>
 public static class StopKeySequenceBuilder
 {
     /// <summary>
     /// train.RunSegmentsが定める訪問順（先頭駅→各RunSegmentのToStationId）に対応する
-    /// StopKey列を、訪問順のまま返す。戻り値のインデックスiは「経路上でi番目の停車」を
-    /// 意味するが、各StopKey自体のVisitCountは駅ごとのローカルカウンタである点に注意。
+    /// StopKey列を、訪問順のまま返す。
     /// </summary>
+    /// <remarks>
+    /// 戻り値のインデックスiは「経路上でi番目の停車」を意味するが、各StopKey自体のVisitCountは駅ごとのローカルカウンタである点に注意。
+    /// </remarks>
     public static List<StopKey> BuildVisitedStopKeys(Train train)
     {
         var stations = new List<StationId>();
