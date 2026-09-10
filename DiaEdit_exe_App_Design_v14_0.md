@@ -9,21 +9,35 @@
 
 #### `DiaEditCore.Model.DisplayName` (class)
 
-| Field | Type |
-|---|---|
-| Name | `string` |
-| Abbreviation | `string?` |
-| Translations | `Dictionary<string, string>` (既定値 `new()`) |
+多言語対応、および略称を保持するための共通型
+
+| Field | Type | 説明 |
+|---|---|---|
+| Name | `string` | 正式名称 |
+| Abbreviation | `string?` | 略称 |
+| Translations | `Dictionary<string, string>` (既定値 `new()`) | BCP47言語コード＋訳語 |
 
 ---
 
 ##### `public string Resolve(string localeCode)`
+
+localCodeに紐づくNameまたはAbbreviationを引き当てる
+
+**Parameters**
+
+- `localeCode`: 言語コード
+
+**Returns**
+localeCodeに紐づく値がある場合：v
+localeCodeに紐づく値がない場合：Name
 
 ---
 
 ##### `public DisplayName Clone()`
 
 Name/Abbreviation/Translationsをディープコピーした新しいDisplayNameを返す。
+
+**Remarks**
 DisplayNameは参照型（class）かつTranslationsがミュータブルなDictionaryのため、
 スナップショット保持（UndoableCommand等）で外部参照を残さないために使う。
 
@@ -31,12 +45,7 @@ DisplayNameは参照型（class）かつTranslationsがミュータブルなDict
 
 ##### `public bool Equals(DisplayName? other)`
 
-値等価の実装（§9.2項目31：Save時差分判定のため新設）。DisplayNameは参照型だが、
-スナップショット比較（変更なしなら保存操作自体を無効化する）用途では内容の一致を
-見る必要があるため、Translationsも含め中身で比較する。
-StationSnapshot（record）はメンバの既定比較にEqualityComparer&lt;DisplayName&gt;.Defaultを
-使うため、これが未実装だと参照比較にフォールバックし、Clone()由来の別インスタンス同士は
-常に不一致と判定されてしまう（§9.2項目31実装時に実機で確認された不具合の原因）。
+値等価の実装。参照型であるDisplayNameをスナップショット比較に対応させる。
 
 ---
 
@@ -51,52 +60,45 @@ StationSnapshot（record）はメンバの既定比較にEqualityComparer&lt;Dis
 #### `DiaEditCore.Model.IIntId` (interface)
 
 int一つだけを値として持つID型に実装させる共通インターフェース。
-JSONシリアライズ時、ネストしたオブジェクトではなく素朴なintとして書き出すための
-IntIdJsonConverterFactory（Serialization層）が、リフレクションを使わずこのインターフェース
-経由でValueを読み書きするために使う。
 
 | Field | Type |
 |---|---|
 | Value | `int` |
 
+> JSONシリアライズ時、ネストしたオブジェクトではなく素朴なintとして書き出すための
+> IntIdJsonConverterFactory（Serialization層）が、リフレクションを使わずこのインターフェース
+> 経由でValueを読み書きするために使う。
+
 ---
 
 #### `DiaEditCore.Model.ObjectId` (record)
 
+ObjectIdは、ID型をラップして、オブジェクトの種類を区別するための型。
+
 ---
 
 #### `DiaEditCore.Model.Point` (record struct)
+
+座標点を保持する共通基底型
 
 | Field | Type |
 |---|---|
 | X | `int` |
 | Y | `int` |
 
+> intである理由は座標をグリッドで管理することが共通事項であるため。
+
 ---
 
 #### `DiaEditCore.Model.ProjectFile` (class)
 
 1プロジェクト1JSON方針における保存ファイルのルート集約オブジェクト。
-設計方針（v11.38確定）：
-- SchemaVersion：将来の保存形式変更に備え、先頭にスキーマバージョンを持たせる。
-読込時に対応できないバージョンなら明示的にエラーとする（JsonProjectFileSerializer側で実施）。
-- 所有構造ではなくフラットなコレクション（論点H①、ValidationContextと同型）：
-Model層のオブジェクト間関係の大半はグラフ構造（forward-reference・共有参照・多対多）であり、
-きれいな木構造を持つのはStation→FloorUnit程度に限られる。ProjectFile用に別の集約構造
-（マッピング変換コード）を新設すると、Model層（5章）と二重管理になり保守コストと
-データ破損リスクが増える。「読みやすさ」はJSON整形出力＋プロパティ宣言順序で確保する。
-- プロパティ順序は推奨実装順序（下流→上流の依存順）に揃える。
-ValidationContextとの違い：
-- ValidationContextは「検証に必要な参照の寄せ集め」であり、IReadOnlyList＋init専用。
-- ProjectFileは「保存・読込の実体」であり、List＋setterを持つ（読込後にUIから編集されるため）。
-- ProjectFile → ValidationContextへの変換は JsonProjectFileSerializer 側の
-ToValidationContext() 拡張メソッドで行う（1箇所に集約し、フィールド追加時の対応漏れを防ぐ）。
 
 | Field | Type | 説明 |
 |---|---|---|
-| SchemaVersion | `int` (既定値 `1`) | 保存形式のスキーマバージョン。現バージョンは1。
+| SchemaVersion | `int` (既定値 `1`) | 保存形式のスキーマバージョン。
 読込時にJsonProjectFileSerializerが未対応バージョンを検知した場合は例外を送出する。 |
-| ProjectSettings | `ProjectSettings` |  |
+| ProjectSettings | `ProjectSettings` | プロジェクト設定 |
 | Stations | `List<Station>` (既定値 `new()`) |  |
 | FloorUnits | `List<FloorUnit>` (既定値 `new()`) |  |
 | Rails | `List<Rail>` (既定値 `new()`) |  |
@@ -127,6 +129,9 @@ ToValidationContext() 拡張メソッドで行う（1箇所に集約し、フィ
 
 #### `DiaEditCore.Model.ProjectSettings` (record)
 
+プロジェクト設定。
+1プロジェクト1JSON方針における保存ファイルのルート集約オブジェクトProjectFileの一部として保持される。
+
 | Field | Type |
 |---|---|
 | ValidationRules | `ValidationRules` |
@@ -137,12 +142,6 @@ ToValidationContext() 拡張メソッドで行う（1箇所に集約し、フィ
 #### `DiaEditCore.Model.TimeOfDaySec` (record struct)
 
 時刻の内部表現。当日0:00を基準とした経過秒数（int）として保持する。
-0〜86399: 当日 0:00〜23:59:59
-86400以上: 24時以降の深夜帯表記（25:30 → 91800）をそのまま扱える
-負値: 前日からの継続列車・日跨ぎダイヤの基準ズレ（例: -300 = 前日23:55）を表現できる
-比較・演算規約（絶対時刻基準への正規化で統一）：
-値自体が既にTimeTableSetの基準日0時からの経過秒数として定義されているため、
-追加の正規化ロジックなしに単純なint比較・減算で完結する。
 
 | Field | Type |
 |---|---|
@@ -155,6 +154,8 @@ ToValidationContext() 拡張メソッドで行う（1箇所に集約し、フィ
 ---
 
 #### `DiaEditCore.Model.TimeTableSetCache` (class)
+
+時刻表セットに関するキャッシュを保持する。
 
 | Field | Type |
 |---|---|
@@ -197,7 +198,6 @@ ToValidationContext() 拡張メソッドで行う（1箇所に集約し、フィ
 #### `DiaEditCore.Model.ValidationRules` (record)
 
 保存時バリデーションの有効/無効・閾値を保持する。
-プロジェクト単位（路線の特性によって適正値が変わるため）で設定可能とする。
 ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警告要否を判断する。
 
 | Field | Type |
@@ -214,39 +214,50 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 
 #### `DiaEditCore.Model.Cars.Car` (class)
 
-| Field | Type |
-|---|---|
-| Id | `CarId` |
-| CarType | `string` |
-| Placeholder | `int` (既定値 `0`) |
-| IsPower | `bool` |
-| LengthM | `double` |
+組成単位を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `CarId` | 組成単位識別子 |
+| CarType | `string` | 車両種別 |
+| Placeholder | `int` (既定値 `0`) | 編成番号で置換する数字。Placeholder+編成番号で表現。 |
+| IsPower | `bool` | 動力車フラグ |
+| LengthM | `double` | 組成単位ごとの実長 |
 
 ---
 
 #### `DiaEditCore.Model.Cars.CarComposition` (class)
 
-| Field | Type |
-|---|---|
-| Id | `CarCompositionId` |
-| Name | `string` |
-| Identifier | `int` |
-| CarConsistId | `CarConsistId` |
+編成を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `CarCompositionId` | 編成識別子 |
+| Name | `string` | 編成名 |
+| Identifier | `int` | 編成番号 |
+| CarConsistId | `CarConsistId` | 利用する組成済み編成の識別子 |
 
 ---
 
 #### `DiaEditCore.Model.Cars.CarConsist` (class)
 
-| Field | Type |
-|---|---|
-| Id | `CarConsistId` |
-| VehicleTypeId | `VehicleTypeId` |
-| Type | `CarConsistType` |
-| Cars | `List<CarRef>` |
+組成済み編成を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `CarConsistId` | 組成済み編成識別子 |
+| VehicleTypeId | `VehicleTypeId` | 車両形式の識別子 |
+| Type | `CarConsistType` | 組成タイプ |
+| Cars | `List<CarRef>` | 編成の組成配列 |
 
 ---
 
 #### `DiaEditCore.Model.Cars.CarConsistType` (enum)
+
+組成タイプ
+
+> Basic；基本編成
+> Attached：付属編成
 
 | Value | 説明 |
 |---|---|
@@ -257,61 +268,75 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 
 #### `DiaEditCore.Model.Cars.CarRef` (class)
 
-| Field | Type |
-|---|---|
-| CarId | `CarId` |
-| Position | `int` |
+組成単位参照型
+
+| Field | Type | 説明 |
+|---|---|---|
+| CarId | `CarId` | 組成単位識別子 |
+| Position | `int` | 組成位置 |
 
 ---
 
 #### `DiaEditCore.Model.Cars.VehicleType` (class)
 
-| Field | Type |
-|---|---|
-| Id | `VehicleTypeId` |
-| Name | `string` |
-| MaxSpeedKph | `double` |
+車両形式を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `VehicleTypeId` | 車両形式識別子 |
+| Name | `string` | 車両形式名 |
+| MaxSpeedKph | `double` | 設計最高速度 |
 
 #### 6.1.2 Routes
 
 #### `DiaEditCore.Model.Routes.MainRoute` (class)
 
-| Field | Type |
-|---|---|
-| Id | `MainRouteId` |
-| Name | `DisplayName` |
-| StationOrder | `List<StationId>` |
-| IsLoop | `bool` (既定値 `false`) |
-| DirectionReversalStations | `List<StationId>` (既定値 `new()`) |
-| StationDisplayNameOverrides | `Dictionary<StationId, DisplayName>` (既定値 `new()`) |
+分岐を持たない1本の駅順経路
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `MainRouteId` | 路線識別子 |
+| Name | `DisplayName` | 路線名称 |
+| StationOrder | `List<StationId>` | 駅の順序付き配列（分岐なし） |
+| IsLoop | `bool` (既定値 `false`) | 環状線フラグ |
+| DirectionReversalStations | `List<StationId>` (既定値 `new()`) | 進行方向が変わる（スイッチバックが発生する）駅リスト |
+| StationDisplayNameOverrides | `Dictionary<StationId, DisplayName>` (既定値 `new()`) | 路線固有の駅名を持つ場合の駅名保持フィールド |
+
+> 現実での、「路線」が該当する。（UI上では路線と表示する）
 
 ---
 
 #### `DiaEditCore.Model.Routes.ServiceRoute` (class)
 
-| Field | Type |
-|---|---|
-| Id | `ServiceRouteId` |
-| Name | `DisplayName` |
-| IsAutoGenerated | `bool` |
-| Segments | `List<ServiceRouteSegment>` |
+運転系統を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `ServiceRouteId` | 運転系統識別子 |
+| Name | `DisplayName` | 運転系統名 |
+| IsAutoGenerated | `bool` | 自動生成フラグ |
+| Segments | `List<ServiceRouteSegment>` | 運転系統を構成する路線と区間情報 |
+
+> 福北ゆたか線（筑豊本線、篠栗線、鹿児島本線）やJR神戸線・JR京都線・JR琵琶湖線（東海道本線）など、愛称や直通系統を表現する。
 
 ---
 
 #### `DiaEditCore.Model.Routes.ServiceRouteSegment` (class)
 
-| Field | Type |
-|---|---|
-| MainRouteId | `MainRouteId` |
-| FromStationIndex | `int` |
-| ToStationIndex | `int` |
-| IsUnidirectional | `bool` (既定値 `false`) |
-| PairedMainRouteId | `MainRouteId?` |
-| PairedFromStationIndex | `int?` |
-| PairedToStationIndex | `int?` |
-| ReversesAtBoundary | `bool` (既定値 `false`) |
-| SelectedStationConnectionId | `StationConnectionId?` |
-| PairedSelectedStationConnectionId | `StationConnectionId?` |
+運転系統を構成する路線の区間
+
+| Field | Type | 説明 |
+|---|---|---|
+| MainRouteId | `MainRouteId` | 対象の路線の識別子 |
+| FromStationIndex | `int` | 路線の区間の始点 |
+| ToStationIndex | `int` | 路線の区間の終点 |
+| IsUnidirectional | `bool` (既定値 `false`) | 片方向専用区間フラグ |
+| PairedMainRouteId | `MainRouteId?` | IsUnidirectional == true の場合に指定する、対となる路線の識別子 |
+| PairedFromStationIndex | `int?` | 対となる路線の区間の始点 |
+| PairedToStationIndex | `int?` | 対となる路線の区間の終点 |
+| ReversesAtBoundary | `bool` (既定値 `false`) | 路線の区間の終点で次の路線に移る際にスイッチバックが発生するか |
+| SelectedStationConnectionId | `StationConnectionId?` | 複々線等でStationConnection候補が複数存在する区間のみ必須（候補1件なら省略可、自動選択） |
+| PairedSelectedStationConnectionId | `StationConnectionId?` | 対となる路線で、複々線等でStationConnection候補が複数存在する区間のみ必須（候補1件なら省略可、自動選択） |
 
 ---
 
@@ -325,17 +350,24 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 
 #### `DiaEditCore.Model.Routes.StationConnection` (class)
 
-| Field | Type |
-|---|---|
-| Id | `StationConnectionId` |
-| Name | `string` (既定値 `""`) |
-| MainRouteId | `MainRouteId` |
-| Direction | `StationConnectionDirection` |
-| Segments | `List<StationConnectionSegmentId>` |
+走行経路を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `StationConnectionId` | 走行経路識別子 |
+| Name | `string` (既定値 `""`) | 走行経路名称 |
+| MainRouteId | `MainRouteId` | 所属する路線の識別子 |
+| Direction | `StationConnectionDirection` | 走行経路の向き |
+| Segments | `List<StationConnectionSegmentId>` | 経路を構成する駅間物理区間のリスト |
 
 ---
 
 #### `DiaEditCore.Model.Routes.StationConnectionDirection` (enum)
+
+走行経路の向き
+
+> Up上り方向
+> Down下り方向
 
 | Value | 説明 |
 |---|---|
@@ -346,16 +378,20 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 
 #### `DiaEditCore.Model.Routes.StationConnectionSegment` (class)
 
-| Field | Type |
-|---|---|
-| Id | `StationConnectionSegmentId` |
-| StationIdA | `StationId` |
-| StationIdB | `StationId` |
-| EntryPointIdA | `EntryPointId` |
-| EntryPointIdB | `EntryPointId` |
-| MainRouteId | `MainRouteId` |
-| LengthM | `double` |
-| SpeedLimitKph | `double` |
+駅と駅を接続する最小単位
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `StationConnectionSegmentId` | 駅間物理区間識別子 |
+| StationIdA | `StationId` | 区間を形成する駅A |
+| StationIdB | `StationId` | 区間を形成する駅B |
+| EntryPointIdA | `EntryPointId` | 駅Aの駅境界点識別子 |
+| EntryPointIdB | `EntryPointId` | 駅Bの駅境界点識別子 |
+| MainRouteId | `MainRouteId` | 所属する路線の識別子 |
+| LengthM | `double` | 区間長 |
+| SpeedLimitKph | `double` | 区間の営業最高速度 |
+
+> 線路単位で管理する
 
 #### 6.1.3 Stations
 
@@ -385,6 +421,8 @@ ConflictChecker・RunTimeCalculator等のAlgorithm層はこれを参照して警
 | TelegraphCode | `string` (既定値 `""`) | 電報略号 |
 | ShowsInStationTimetableOverride | `bool?` | 駅時刻表の対象判別用フラグ |
 
+> 制約：Stationを参照する`FloorUnit`が1件以上存在
+
 ---
 
 ##### `public bool ResolveShowsInStationTimetable()`
@@ -404,6 +442,7 @@ Standard, HaltならTrue、SignalStation, DepotならFalse
 > Halt：停留場。在線検知の境界とならない。
 > SignalStation：信号場。在線検知の境界となる。単なる路線分岐点やスイッチバック施設など、客扱いを行わない運行拠点が該当。
 > Depot：車両基地。在線検知の境界となる。駅から車両基地までの間は一つの路線として登録する。
+> Halt駅にはSwitcher・BoundaryPointの配置を許可しない
 
 | Value | 説明 |
 |---|---|
@@ -823,6 +862,8 @@ PortPairのPortA&lt;=PortB正規化。
 
 #### `DiaEditCore.Model.TimeTable.DateRange` (record struct)
 
+規制期間を表現する
+
 | Field | Type |
 |---|---|
 | Start | `DateTime` |
@@ -832,21 +873,20 @@ PortPairのPortA&lt;=PortB正規化。
 
 #### `DiaEditCore.Model.TimeTable.DiagramRevision` (class)
 
-| Field | Type |
-|---|---|
-| Id | `DiagramRevisionId` |
-| BaseRevisionId | `DiagramRevisionId?` |
-| TimeTableSetIds | `List<TimeTableSetId>` (既定値 `new()`) |
+ダイヤ改正1回分のまとまりを表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `DiagramRevisionId` | ダイヤ改正識別子 |
+| BaseRevisionId | `DiagramRevisionId?` | 複製元追跡タグ |
+| TimeTableSetIds | `List<TimeTableSetId>` (既定値 `new()`) | 所属する時刻表セットの識別子 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.DisplayContext` (record)
 
-ダイヤグラム・駅時刻表の表示対象を定義する（5.15節）。
+ダイヤグラム・駅時刻表の表示対象を定義する。
 「路線系統」を基準に表示範囲を定義し、そこにServiceRouteに属するTrainを投影する。
-stationOrderはこのMainRouteRangesから導出される表示用キャッシュであり、
-ここには持たせない（Algorithm層のresolveDisplayContextStationOrder＋
-TimeTableSetCache.stationOrderByDisplayContextIdで扱う。6章参照）。
 
 | Field | Type |
 |---|---|
@@ -871,6 +911,8 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 
 #### `DiaEditCore.Model.TimeTable.Rail` (record)
 
+規制対象がレールの場合
+
 | Field | Type |
 |---|---|
 | RailId | `RailId` |
@@ -879,9 +921,13 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 
 #### `DiaEditCore.Model.TimeTable.RestrictionTarget` (record)
 
+規制対象を表現する
+
 ---
 
 #### `DiaEditCore.Model.TimeTable.Segment` (record)
+
+規制対象が駅間の場合
 
 | Field | Type |
 |---|---|
@@ -890,6 +936,8 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 ---
 
 #### `DiaEditCore.Model.TimeTable.TemporaryRestriction` (record)
+
+工事や災害等による規制、時間帯・列車種別・車両形式などの制約を表現する
 
 | Field | Type |
 |---|---|
@@ -900,48 +948,68 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 | DateRange | `DateRange` |
 | Note | `string` |
 
+> 実装の優先度は低。
+
 ---
 
 #### `DiaEditCore.Model.TimeTable.TimeTableSet` (class)
 
-| Field | Type |
-|---|---|
-| Id | `TimeTableSetId` |
-| Name | `string` |
-| TrainIds | `List<TrainId>` (既定値 `new()`) |
+時刻表セットを表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `TimeTableSetId` | 時刻表セット識別子 |
+| Name | `string` | 時刻表名 |
+| TrainIds | `List<TrainId>` (既定値 `new()`) | 所属する列車リスト（表示順） |
 
 #### 6.1.6 TimeTable/Trains
 
 #### `DiaEditCore.Model.TimeTable.Trains.CouplingWork` (class)
 
-| Field | Type |
-|---|---|
-| PartnerTrainId | `TrainId` |
-| PartnerStopKey | `StopKey` |
-| AttachToFront | `bool` (既定値 `false`) |
+NextTrain.Coupling専用：相手Trainへの参照型
+
+| Field | Type | 説明 |
+|---|---|---|
+| PartnerTrainId | `TrainId` | 連結する（しに行く）相手Trainの識別子 |
+| PartnerStopKey | `StopKey` | 連結する（しに行く）相手TrainのStopKey |
+| AttachToFront | `bool` (既定値 `false`) | 編成の連結位置 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.CutGroupEntry` (class)
 
-| Field | Type |
-|---|---|
-| CarCompositionId | `CarCompositionId` |
-| OperationNumber | `string` |
+Decoupling専用：分割後1グループ分の要素
+
+| Field | Type | 説明 |
+|---|---|---|
+| CarCompositionId | `CarCompositionId` | 編成の識別子 |
+| OperationNumber | `string` | 運用番号 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.DecouplingWork` (class)
 
-| Field | Type |
-|---|---|
-| FrontGroup | `List<CutGroupEntry>` |
-| RearGroup | `List<CutGroupEntry>` |
-| IsRearBase | `bool` (既定値 `false`) |
+解結・分割作業を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| FrontGroup | `List<CutGroupEntry>` | 分割後の前側のグループ |
+| RearGroup | `List<CutGroupEntry>` | 分割後の後ろ側のグループ |
+| IsRearBase | `bool` (既定値 `false`) | 分割後、編成グループの継承対象をどちらにするか決定するフラグ |
+
+> OperationIdフィールドは意図的に持たない：合流するCarCompositionの運用番号は
+> 合流前の値をそのまま保持するため（CarCompositionに紐づく属性であり、Couplingでは変化しない）。
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.LineStyle` (enum)
+
+ダイヤグラム線の種類
+
+> 具体的な値はUI（ダイヤグラム）実装時に確定
+> Solid：実線
+> Dashed：破線
+> Dotted：点線
 
 | Value | 説明 |
 |---|---|
@@ -952,6 +1020,14 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.NextTrainType` (enum)
+
+次列車接続種別
+
+> Other別列車
+> TypeChange列車種別変更
+> InfoChange列車情報変更
+> SameTrain同列車扱い
+> Coupling増結・併合
 
 | Value | 説明 |
 |---|---|
@@ -965,50 +1041,74 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 
 #### `DiaEditCore.Model.TimeTable.Trains.PrevTrainOperationOverride` (class)
 
-| Field | Type |
-|---|---|
-| CarCompositionId | `CarCompositionId` |
-| NewOpNumber | `string` |
+PrevTrain専用：直前Trainから引き継いだCarCompositionのうち運用を変更するものだけの差分リスト。
+
+| Field | Type | 説明 |
+|---|---|---|
+| CarCompositionId | `CarCompositionId` | 編成の識別子 |
+| NewOpNumber | `string` | 新規運用番号 |
+
+> 省略時（＝該当CarCompositionIdがリストに現れない場合）＝全Composition継承。
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.SplitOriginRef` (class)
 
-| Field | Type |
-|---|---|
-| OriginTrainId | `TrainId` |
-| OriginStopKey | `StopKey` |
+Decouplingで生じたTrain専用：自身の起点を示す
+
+| Field | Type | 説明 |
+|---|---|---|
+| OriginTrainId | `TrainId` | 分割元のTrainの識別子 |
+| OriginStopKey | `StopKey` | 分割元のTrainのStopKey |
+
+> GroupIndexは持たない：どちらのグループ（front/rear）を引き継いだかはDecouplingWork.IsRearBaseを
+> 直読みすれば一意に決まるため。
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.StartOpCarSlot` (class)
 
-| Field | Type |
-|---|---|
-| Position | `int` |
-| CarCompositionId | `CarCompositionId` |
-| OperationNumber | `string` |
+StartOp専用：出区編成単位を表す（1編成ずつ登録する）
+
+| Field | Type | 説明 |
+|---|---|---|
+| Position | `int` | 編成位置 |
+| CarCompositionId | `CarCompositionId` | 使用編成の識別子 |
+| OperationNumber | `string` | 運用番号 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.StationWork` (class)
 
-| Field | Type |
-|---|---|
-| Type | `StationWorkType` |
-| StartOpConsist | `List<StartOpCarSlot>` (既定値 `new()`) |
-| PrevTrainOperationOverrides | `List<PrevTrainOperationOverride>` (既定値 `new()`) |
-| DecouplingDetail | `DecouplingWork?` |
-| CouplingDetail | `CouplingWork?` |
-| SplitOrigin | `SplitOriginRef?` |
-| NextTrainType | `NextTrainType?` |
-| StationPathId | `StationPathId?` |
-| StartOpSeconds | `int` (既定値 `-1`) |
-| EndOpSeconds | `int` (既定値 `-1`) |
+駅作業を表す
+
+| Field | Type | 説明 |
+|---|---|---|
+| Type | `StationWorkType` | 駅作業種別 |
+| StartOpConsist | `List<StartOpCarSlot>` (既定値 `new()`) | StartOp専用：出区編成リスト |
+| PrevTrainOperationOverrides | `List<PrevTrainOperationOverride>` (既定値 `new()`) | PrevTrain専用：運用番号更新リスト |
+| DecouplingDetail | `DecouplingWork?` | Decoupling専用：解結・分割作業を表す |
+| CouplingDetail | `CouplingWork?` | Coupling専用：相手Trainへの参照型 |
+| SplitOrigin | `SplitOriginRef?` | Decouplingで生じたTrain専用（PrevTrain）：自身の起点を示す |
+| NextTrainType | `NextTrainType?` | 次列車接続種別 |
+| StationPathId | `StationPathId?` | 入替作業で利用する構内進路の識別子 |
+| StartOpSeconds | `int` (既定値 `-1`) | 作業開始時刻 |
+| EndOpSeconds | `int` (既定値 `-1`) | 作業終了時刻 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.StationWorkType` (enum)
+
+駅作業種別
+
+> Noneなし。通常の停車・通過が該当。
+> PrevTrain前列車接続
+> StartOp出区
+> EndOp入区
+> Shunting入換
+> NextTrain次列車接続
+> Coupling増結・併合
+> Decoupling解結・分割
 
 | Value | 説明 |
 |---|---|
@@ -1026,17 +1126,14 @@ DisplayContextが対象とする区間。MainRouteから生成するのが基本
 #### `DiaEditCore.Model.TimeTable.Trains.StopKey` (record struct)
 
 Trainの停車を一意に識別するキー。
-VisitCount：Train自身のRunSegmentsが定める訪問順において、同一StationIdへの訪問が
-何回目か（0-indexed）。列車全体の通し位置ではなく、駅ごとのローカルなカウンタである。
-環状線・デルタ線折返しによる同一駅への複数回訪問を区別するために存在する。
-生成は必ずStopKeySequenceBuilderを経由すること。VisitCountを手計算してnew StopKey(...)を
-直接構築しないこと（RunSegments編集によりVisitCountは変わりうるため、複数箇所で
-独自に算出すると規約の乖離が再発する）。
 
 | Field | Type |
 |---|---|
 | StationId | `StationId` |
 | VisitCount | `int` |
+
+> 生成は必ずStopKeySequenceBuilderを経由すること。VisitCountを手計算してnew StopKey(...)を直接構築しないこと。
+> readonly record structなのでDictionaryキーとして構造的等価性がそのまま使える
 
 ---
 
@@ -1063,92 +1160,98 @@ VisitCount：Train自身のRunSegmentsが定める訪問順において、同一
 #### `DiaEditCore.Model.TimeTable.Trains.StopKeySequenceBuilder` (class)
 
 Train.RunSegmentsから、訪問順に対応するStopKey列を導出する唯一の生成点。
-StopKey.VisitCountは「駅ごとのローカルな訪問回数」であり、この規約に従ってStopKeyを
-生成できるのはこのクラスのみとする。
 用途：
-1. StopTimes書き込み側（RunSegments編集コマンド）が、新規追加・リキー時のキーを
-本メソッドの戻り値から取得する
-2. StopTimes読み出し側（CarConsistResolver等）が、訪問順にStopKeyを辿るために使う
+StopTimes書き込み側（RunSegments編集コマンド）が、新規追加・リキー時のキーを本メソッドの戻り値から取得する
+StopTimes読み出し側（CarConsistResolver等）が、訪問順にStopKeyを辿るために使う
 
 ---
 
 ##### `public static List<StopKey> BuildVisitedStopKeys(Train train)`
 
 train.RunSegmentsが定める訪問順（先頭駅→各RunSegmentのToStationId）に対応する
-StopKey列を、訪問順のまま返す。戻り値のインデックスiは「経路上でi番目の停車」を
-意味するが、各StopKey自体のVisitCountは駅ごとのローカルカウンタである点に注意。
+StopKey列を、訪問順のまま返す。
+
+**Remarks**
+戻り値のインデックスiは「経路上でi番目の停車」を意味するが、各StopKey自体のVisitCountは駅ごとのローカルカウンタである点に注意。
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.StopTime` (class)
 
-| Field | Type |
-|---|---|
-| ArrivalSeconds | `int` (既定値 `-1`) |
-| DepartureSeconds | `int` (既定値 `-1`) |
-| IsStop | `bool` (既定値 `false`) |
-| TrackRailId | `RailId?` |
-| Works | `List<StationWork>` (既定値 `new()`) |
+駅の停車情報を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| ArrivalSeconds | `int` (既定値 `-1`) | 到着時刻 |
+| DepartureSeconds | `int` (既定値 `-1`) | 発車時刻 |
+| IsStop | `bool` (既定値 `false`) | 停車フラグ |
+| TrackRailId | `RailId?` | 客扱い、使用する番線 |
+| Works | `List<StationWork>` (既定値 `new()`) | このStopTimeで発生する駅作業 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.Train` (class)
 
+列車の運行を表現する
+
 | Field | Type | 説明 |
 |---|---|---|
-| Id | `TrainId` |  |
-| TimeTableSetId | `TimeTableSetId` |  |
-| TrainNumber | `string` |  |
-| ServiceNumber | `int?` |  |
-| ServiceRouteId | `ServiceRouteId` |  |
-| TrainTypeId | `TrainTypeId` |  |
-| TrainTypeName | `DisplayName` |  |
-| Nickname | `DisplayName` |  |
-| DefaultVehicleTypeId | `VehicleTypeId?` |  |
-| SourceTrainId | `TrainId?` |  |
-| Revision | `int` (既定値 `0`) |  |
-| SourceRevisionAtCopy | `int?` |  |
-| RunSegments | `List<TrainRunSegment>` (既定値 `new()`) |  |
-| StopTimes | `IReadOnlyDictionary<StopKey, StopTime>` | 停車情報の読み取り専用ビュー。StopKeyの追加・削除・差し替えは外部から不可能
-（StopKeySequenceBuilderを経由しない直接new StopKey(...)の挿入を型で防ぐ、§9.2項目9）。
-StopTimeインスタンス自体のフィールド（ArrivalSeconds等）はこのスコープの対象外で、
-依然として可変（将来の停車時刻編集コマンド設計時に別途検討）。 |
+| Id | `TrainId` | 列車識別子 |
+| TimeTableSetId | `TimeTableSetId` | 所属する時刻表セットの識別子 |
+| TrainNumber | `string` | 列車番号 |
+| ServiceNumber | `int?` | 号数 |
+| ServiceRouteId | `ServiceRouteId` | 走行する運転系統の識別子 |
+| TrainTypeId | `TrainTypeId` | 列車種別の識別子 |
+| TrainTypeName | `DisplayName` | 列車種別名 |
+| Nickname | `DisplayName` | 愛称 |
+| DefaultVehicleTypeId | `VehicleTypeId?` | 基準となる列車形式の識別子 |
+| SourceTrainId | `TrainId?` | コピー元の列車識別子 |
+| Revision | `int` (既定値 `0`) | 編集回数 |
+| SourceRevisionAtCopy | `int?` | コピー時のコピー元列車の編集回数 |
+| RunSegments | `List<TrainRunSegment>` (既定値 `new()`) | 列車の走行実績 |
+| StopTimes | `IReadOnlyDictionary<StopKey, StopTime>` | 停車情報の読み取り専用ビュー。StopKeyの追加・削除・差し替えは外部から不可能 |
 | StopTimesInternal | `Dictionary<StopKey, StopTime>` | StopTimes辞書への書き込み専用ルート。DiaEditCoreアセンブリ内
 （SyncRunSegmentsToTrainCommand等の正規コマンド、およびテストのフィクスチャ構築）からのみ
 使用すること。ViewModel/UI層（別アセンブリ）からは参照できない。 |
-| IsProvisional | `bool` (既定値 `false`) |  |
+| IsProvisional | `bool` (既定値 `false`) | 仮列車フラグ |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.TrainOperation` (class)
 
-| Field | Type |
-|---|---|
-| Id | `TrainOperationId` |
-| OperationNumber | `string` |
+列車運用を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `TrainOperationId` | 列車運用識別子 |
+| OperationNumber | `string` | 列車運用番号 |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.TrainRunSegment` (class)
 
-| Field | Type |
-|---|---|
-| FromStationId | `StationId` |
-| ToStationId | `StationId` |
-| StationConnectionId | `StationConnectionId` |
-| IsOverriddenFromTemplate | `bool` (既定値 `false`) |
+駅間ごとのStationConnection使用実績
+
+| Field | Type | 説明 |
+|---|---|---|
+| FromStationId | `StationId` |  |
+| ToStationId | `StationId` |  |
+| StationConnectionId | `StationConnectionId` |  |
+| IsOverriddenFromTemplate | `bool` (既定値 `false`) | 基準列車の値からの変更有無（UI表示用） |
 
 ---
 
 #### `DiaEditCore.Model.TimeTable.Trains.TrainType` (class)
 
-| Field | Type |
-|---|---|
-| Id | `TrainTypeId` |
-| Name | `DisplayName` |
-| DiagramColor | `string` |
-| DiagramLineStyle | `LineStyle` |
-| SortOrder | `int` |
+列車種別を表現する
+
+| Field | Type | 説明 |
+|---|---|---|
+| Id | `TrainTypeId` | 列車種別識別子 |
+| Name | `DisplayName` | 列車種別名 |
+| DiagramColor | `string` | ダイヤグラム線色 |
+| DiagramLineStyle | `LineStyle` | ダイヤグラム線種 |
+| SortOrder | `int` | 同じ種別がServiceRouteをまたいで複数存在しても色・線種・並び順を統一 |
 
 ### 6.2 Algorithm
 
@@ -2569,12 +2672,10 @@ v12.29対応：EntryPointSequenceCache.Buildの系統(ii)化に伴い、allMainR
 
 #### `DiaEditCore.Session.IdAllocator` (class)
 
-モデル種別ごとの単調カウンタ方式Id採番器（§9.2項目27）。
+モデル種別ごとの単調カウンタ方式Id採番器。
 Undo・削除の有無に関わらず、一度発行したIdは同一セッション内で二度と発行しない。
-これにより、Undo後の再作成で異なるインスタンスが同じIdを持ち参照が衝突するリスクを排除する。
-ProjectSession.Load()時にモデル種別ごとに1つ生成し、既存の最大Id+1から開始する
-（保存ファイル上のIdコンパクション：§9.2項目30とは独立。コンパクションは
-JsonProjectFileSerializer.Save()内でのみ行い、本Allocatorのライブな状態には影響させない）。
+
+> ProjectSession.Load()時にモデル種別ごとに1つ生成し、既存の最大Id+1から開始する
 
 ---
 
@@ -2590,11 +2691,7 @@ JsonProjectFileSerializer.Save()内でのみ行い、本Allocatorのライブな
 
 読込中のProjectFileとその派生キャッシュ(TimeTableSetCache)のライフサイクルを一元管理する。
 CommandInvokerからのICacheChangeObserver通知を受けてキャッシュをdirty化し、
-次にキャッシュへアクセスする直前に遅延再構築する（discard-and-regenerateの原則、§8.2項目1）。
-構造的防止の方針：生のTimeTableSetCacheを各Commandのコンストラクタへ
-直接渡す現行シグネチャは、呼び出し側がRebuildを忘れても静的に検知できないため廃止する。
-各Commandは本クラスを受け取り、GetCache()経由でのみキャッシュへアクセスする形に統一する。
-Composition層での登録単位：Singleton（CommandInvoker・ChangeNotificationBridgeと同じライフタイム）。
+次にキャッシュへアクセスする直前に遅延再構築する。
 
 | Field | Type |
 |---|---|
