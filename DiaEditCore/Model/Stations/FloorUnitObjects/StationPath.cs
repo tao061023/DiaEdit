@@ -86,6 +86,9 @@ public sealed class StationPath
     /// <summary>
     /// 構内進路の名称
     /// </summary>
+    /// <remarks>
+    /// 同一FloorUnitId内で一意
+    /// </remarks>
     public required string Name { get; set; }
     /// <summary>
     /// 構内進路の方向種別
@@ -97,11 +100,14 @@ public sealed class StationPath
     /// <remarks>
     /// 制約：
     /// <list type="bullet">
+    /// <item>WayPointsは最低1件（Halt駅単一EPパターンのみ1件、他は通常2件以上）</item>
     /// <item>Waypoints[0]はEntryPoint/BoundaryPointのいずれか</item>
     /// <item>Waypoints[last]も同様</item>
     /// <item>中間要素はSwitcher/BoundaryPointのいずれか</item>
     /// <item>隣接Waypoint間を直接結ぶRailが存在すること</item>
     /// <item>同一参照先が2回以上出現してはならない（ループ排除）</item>
+    /// <item>Track各端部（BoundaryPoint以外）は、到達可能なArrivalEP/DepartureEPが1つ以上StationPathとして存在すること</item>
+    /// <item>Waypoints各要素の参照先オブジェクトのFloorUnitIdが、StationPath.FloorUnitIdと一致する</item>
     /// </list>
     /// </remarks>
     public required List<StationPathWaypoint> Waypoints { get; set; }

@@ -18,7 +18,8 @@ public sealed class FloorUnit
     /// 駅階層名称
     /// </summary>
     /// <remarks>
-    /// 空文字列許容。自動採番は行わない。
+    /// 現況：空文字列許容。自動採番は行わない。<br/>
+    /// 修正案：空文字列禁止。同一Station内で一意。
     /// </remarks>
     public string Name { get; set; } = "";
     /// <summary>

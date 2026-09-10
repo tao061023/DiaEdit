@@ -77,12 +77,16 @@ public sealed class Rail
     /// レール名称
     /// </summary>
     /// <remarks>
-    /// RailRole==Trackの場合、非空文字列かつ一意（保存時検証）
+    /// RailRole==Trackの場合、非空文字列かつ一意（保存時検証）<br/>
+    /// RailRole!=Trackの場合、非空文字列は一意
     /// </remarks>
     public string Name { get; set; } = "";
     /// <summary>
     /// レール長
     /// </summary>
+    /// <remarks>
+    /// 自動算出は行わない
+    /// </remarks>
     public required double LengthM { get; set; }
     /// <summary>
     /// 制限速度
