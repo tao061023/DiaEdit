@@ -3,20 +3,44 @@ namespace DiaEditCore.Model;
 using System;
 using System.Linq;
 
+/// <summary>
+/// 多言語対応、および略称を保持するための共通型
+/// </summary>
 public sealed class DisplayName : IEquatable<DisplayName>
 {
+    /// <summary>
+    /// 正式名称
+    /// </summary>
     public required string Name { get; set; }
+    /// <summary>
+    /// 略称
+    /// </summary>
     public string? Abbreviation { get; set; }
+    /// <summary>
+    /// BCP47言語コード＋訳語
+    /// </summary>
     public Dictionary<string, string> Translations { get; set; } = new();
 
+    /// <summary>
+    /// localCodeに紐づくNameまたはAbbreviationを引き当てる
+    /// </summary>
+    /// <param name="localeCode">言語コード</param>
+    /// <returns>
+    /// <list type="bullet">
+    /// <item><description><c>localeCodeに紐づく値がある場合</c>：v</description></item>
+    /// <item><description><c>localeCodeに紐づく値がない場合</c>：Name</description></item>
+    /// </list>
+    /// </returns>
     public string Resolve(string localeCode)
         => Translations.TryGetValue(localeCode, out var v) ? v : Name;
 
     /// <summary>
     /// Name/Abbreviation/Translationsをディープコピーした新しいDisplayNameを返す。
+    /// </summary>
+    /// <remarks>
     /// DisplayNameは参照型（class）かつTranslationsがミュータブルなDictionaryのため、
     /// スナップショット保持（UndoableCommand等）で外部参照を残さないために使う。
-    /// </summary>
+    /// </remarks>
     public DisplayName Clone() => new()
     {
         Name = Name,
@@ -25,12 +49,7 @@ public sealed class DisplayName : IEquatable<DisplayName>
     };
 
     /// <summary>
-    /// 値等価の実装（§9.2項目31：Save時差分判定のため新設）。DisplayNameは参照型だが、
-    /// スナップショット比較（変更なしなら保存操作自体を無効化する）用途では内容の一致を
-    /// 見る必要があるため、Translationsも含め中身で比較する。
-    /// StationSnapshot（record）はメンバの既定比較にEqualityComparer&lt;DisplayName&gt;.Defaultを
-    /// 使うため、これが未実装だと参照比較にフォールバックし、Clone()由来の別インスタンス同士は
-    /// 常に不一致と判定されてしまう（§9.2項目31実装時に実機で確認された不具合の原因）。
+    /// 値等価の実装。参照型であるDisplayNameをスナップショット比較に対応させる。
     /// </summary>
     public bool Equals(DisplayName? other)
     {

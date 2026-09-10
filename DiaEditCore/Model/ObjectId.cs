@@ -1,5 +1,8 @@
 namespace DiaEditCore.Model;
 
+/// <summary>
+/// ObjectIdは、ID型をラップして、オブジェクトの種類を区別するための型。
+/// </summary>
 public abstract record ObjectId;
 
 public sealed record StationObjectId(StationId Id) : ObjectId;
