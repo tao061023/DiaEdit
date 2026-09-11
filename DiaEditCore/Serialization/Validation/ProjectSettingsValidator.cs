@@ -3,14 +3,7 @@ namespace DiaEditCore.Serialization.Validation;
 using DiaEditCore.Model;
 
 /// <summary>
-/// ProjectSettings.ValidationRulesの値域を検証する（5.16節）。
-///
-/// スコープ：
-///   - 各int?フィールド（MinDwellTimeSec/MinHeadwaySec/MinTurnaroundSec/
-///     TrackEntryMarginSec/TrackPassMarginSec）は、値がある場合0以上であること
-///
-/// スコープ外：
-///   - フィールド間の相関チェック（例：MinTurnaroundSecとTrackEntryMarginSecの大小関係）は行わない
+/// ProjectSettings.ValidationRulesの値域を検証する。
 /// </summary>
 public sealed class ProjectSettingsValidator : IValidator<ProjectSettings>
 {

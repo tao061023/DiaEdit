@@ -15,7 +15,8 @@ public sealed record PropertyDocModel(
     string Type,
     string Name,
     string? DefaultValue,
-    string? Summary);
+    string? Summary,
+    string? Remarks);   // ← 追加：プロパティ単位の使用制約・検証ルールを保持する
 
 public sealed record MemberDocModel(
     string Kind, // "method" / "constructor"（"property" は廃止、Propertiesへ移動）

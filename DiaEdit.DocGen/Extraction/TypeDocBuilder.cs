@@ -68,7 +68,8 @@ public static class TypeDocBuilder
                             Type: p.Type.ToString(),
                             Name: p.Identifier.ToString(),
                             DefaultValue: p.Initializer?.Value.ToString(),
-                            Summary: doc.Summary));
+                            Summary: doc.Summary,
+                            Remarks: doc.Remarks));   // ← 追加：以前は破棄されていた
                         break;
 
                     case MethodDeclarationSyntax m:

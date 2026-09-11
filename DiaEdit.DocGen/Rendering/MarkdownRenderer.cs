@@ -29,8 +29,8 @@ public static class MarkdownRenderer
         // 通常クラス/recordのプロパティ一覧（Station.cs のようなPOCO向け）
         if (type.Properties.Count > 0)
         {
-            var hasAnySummary = type.Properties.Any(p => p.Summary is not null);
-            if (hasAnySummary)
+            var hasAnyDescription = type.Properties.Any(p => p.Summary is not null || p.Remarks is not null);
+            if (hasAnyDescription)
             {
                 lines.Add("| Field | Type | 説明 |");
                 lines.Add("|---|---|---|");
@@ -39,7 +39,7 @@ public static class MarkdownRenderer
                     var typeCell = p.DefaultValue is null
                         ? $"`{p.Type}`"
                         : $"`{p.Type}` (既定値 `{p.DefaultValue}`)";
-                    lines.Add($"| {p.Name} | {typeCell} | {p.Summary ?? ""} |");
+                    lines.Add($"| {p.Name} | {typeCell} | {BuildPropertyDescriptionCell(p.Summary, p.Remarks)} |");
                 }
             }
             else
@@ -116,4 +116,20 @@ public static class MarkdownRenderer
 
         return string.Join("\n", lines);
     }
+
+    // プロパティ用の説明セルを組み立てる。SummaryとRemarksを両方持つ場合は区切って両方載せる。
+    private static string BuildPropertyDescriptionCell(string? summary, string? remarks)
+    {
+        var parts = new List<string>();
+        if (!string.IsNullOrEmpty(summary))
+            parts.Add(SanitizeForTableCell(summary));
+        if (!string.IsNullOrEmpty(remarks))
+            parts.Add($"**制約/備考：** {SanitizeForTableCell(remarks)}");
+        return string.Join("<br><br>", parts);
+    }
+
+    // テーブルセル内に生の改行や "|" が入るとMarkdownテーブル構文が壊れるため、
+    // 改行は<br>に、パイプはエスケープに変換する（Switcher.Mechanism等、複数行Summaryで既に発生していた問題の修正を兼ねる）。
+    private static string SanitizeForTableCell(string text) =>
+        text.Replace("|", "\\|").Replace("\n", "<br>");
 }

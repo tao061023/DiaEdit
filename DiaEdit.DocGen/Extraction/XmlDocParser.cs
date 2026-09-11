@@ -59,20 +59,50 @@ public static class XmlDocParser
                     foreach (var token in text.TextTokens)
                         sb.Append(token.ToString());
                     break;
+
                 case XmlEmptyElementSyntax empty when empty.Name.ToString() == "br":
                     sb.Append('\n');
                     break;
+
+                case XmlEmptyElementSyntax empty:
+                    // <see cref="..."/> や <paramref name="..."/> 等の自己終了タグ。
+                    // 参照先テキストが取れればそれを、取れなければ何も追記しない（黙って無視）。
+                    var emptyRefText = TryGetReferenceText(empty.Name.ToString(), empty.Attributes);
+                    if (emptyRefText is not null)
+                        sb.Append(emptyRefText);
+                    break;
+
                 case XmlElementSyntax nested:
-                    // <see cref="..."/> 等がネストされている場合、参照先の型名だけ拾う
-                    var nestedCref = nested.StartTag.Attributes
-                        .OfType<XmlCrefAttributeSyntax>().FirstOrDefault();
-                    sb.Append(nestedCref is not null
-                        ? nestedCref.Cref.ToString()
-                        : GetInnerText(nested));
+                    // <see cref="...">テキスト</see> のように開始・終了タグを持つ形。
+                    // cref参照が取れればそれを優先、無ければ内部テキストを再帰的に拾う。
+                    var nestedRefText = TryGetReferenceText(
+                        nested.StartTag.Name.ToString(), nested.StartTag.Attributes);
+                    sb.Append(nestedRefText ?? GetInnerText(nested));
                     break;
             }
         }
         return sb.ToString();
+    }
+
+    // <see cref="X"/> / <seealso cref="X"/> → "X"
+    // <paramref name="x"/> / <typeparamref name="x"/> → "x"
+    // 上記以外のタグ名は対象外（null を返し、既存の再帰/無視にフォールバック）
+    private static string? TryGetReferenceText(
+        string tagName, SyntaxList<XmlAttributeSyntax> attributes)
+    {
+        if (tagName is "see" or "seealso")
+        {
+            var cref = attributes.OfType<XmlCrefAttributeSyntax>().FirstOrDefault();
+            return cref?.Cref.ToString();
+        }
+
+        if (tagName is "paramref" or "typeparamref")
+        {
+            var name = attributes.OfType<XmlNameAttributeSyntax>().FirstOrDefault();
+            return name?.Identifier.ToString();
+        }
+
+        return null;
     }
 
     private static string NormalizeWhitespace(string s)

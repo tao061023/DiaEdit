@@ -13,26 +13,22 @@ public interface IUndoableCommand
 }
 
 /// <summary>
-/// 6.11節：Undo/Redo可能なコマンドの基底型。
-///
-/// 確定した設計方針（v11.39、Composition層セッション）：
-///   - 論点M：スナップショット方式を採用。Execute()前に対象オブジェクトの状態をまるごと複製し、
-///     Undo()はその複製を書き戻すだけにする（逆操作を個別に書く方式は採用しない）。
-///     「複製元＝正」という単純な構造にすることで、コマンドの種類が増えても事故が起きにくい。
-///   - 論点N：AffectedIds（影響を受けるObjectIdの集合）は、DependencyResolver（§6.11、未実装）
-///     による自動計算ではなく、コマンド実装者がコンストラクタで手動列挙する。将来
-///     DependencyResolverができた場合も、この基底型のシグネチャは変えずに済む
-///     （具象コマンド側でAffectedIdsの構築ロジックだけ差し替えればよい）。
-///   - 論点O：Execute()/Undo()はaffectedIdsを返すだけの薄い型とし、ICacheChangeObserverへの
-///     通知責務は持たない（単体テストでObserverのモックが常に必要になることを避けるため）。
-///     通知はCommandInvoker（呼び出し元）が担う。
-///
+/// Undo/Redo可能なコマンドの基底型。
+/// </summary>
+/// <remarks>
+/// スナップショット方式を採用。Execute()前に対象オブジェクトの状態をまるごと複製し、
+/// Undo()はその複製を書き戻すだけにする（逆操作を個別に書く方式は採用しない）。
+/// AffectedIds（影響を受けるObjectIdの集合）は、DependencyResolver による自動計算ではなく、
+/// コマンド実装者がコンストラクタで手動列挙する。将来 DependencyResolverができた場合も、
+/// この基底型のシグネチャは変えずに済む（具象コマンド側でAffectedIdsの構築ロジックだけ差し替えればよい）。
+/// Execute()/Undo()はaffectedIdsを返すだけの薄い型とし、ICacheChangeObserverへの
+/// 通知責務は持たない。通知はCommandInvoker（呼び出し元）が担う。
 /// 型引数：
 ///   TTarget   ：このコマンドが変更する対象オブジェクトの型（例：Train、StationConnection）。
 ///   TSnapshot ：TTargetの状態を複製したスナップショットの型。
 ///               不変な値（record等）にして、CaptureSnapshot後にTargetを変更してもスナップショット
 ///               自体が影響を受けないようにすること（参照をそのまま持ち回すと複製の意味が無くなる）。
-/// </summary>
+/// </remarks>
 public abstract class UndoableCommand<TTarget, TSnapshot> : IUndoableCommand
 {
     private TSnapshot? _before;
