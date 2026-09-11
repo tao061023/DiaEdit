@@ -276,4 +276,28 @@ public static class RailEndpointConvergenceResolver
             .Select(sp => sp.Id)
             .ToList();
     }
+    /// <summary>
+    /// 指定ObjectIdを現在参照している(RailId, RailEnd, RailEndpointRef)の組を、全Railを走査して列挙する。
+    /// </summary>
+    /// <param name="objectId">参照元を探す対象のObjectId。</param>
+    /// <param name="rails">走査対象の全Rail。</param>
+    /// <returns><paramref name="objectId"/>を参照しているRail端点の一覧。0件の場合は空リスト。</returns>
+    /// <remarks>
+    /// 専用逆引きIndexは持たず線形走査する（DeleteRailCommandの3経路チェックと同じ判断基準）。
+    /// ドラッグによる端点移動（合流あり分岐）で、移動対象自身を新座標側の収束集合へ
+    /// 加えるために使う。
+    /// </remarks>
+    public static IReadOnlyList<RailEndpointLocation> FindRailsReferencing(
+        ObjectId objectId, IReadOnlyList<Rail> rails)
+    {
+        var result = new List<RailEndpointLocation>();
+        foreach (var rail in rails)
+        {
+            if (rail.EndpointA.ToObjectId()?.Equals(objectId) == true)
+                result.Add(new RailEndpointLocation(rail.Id, RailEnd.A, rail.EndpointA));
+            if (rail.EndpointB.ToObjectId()?.Equals(objectId) == true)
+                result.Add(new RailEndpointLocation(rail.Id, RailEnd.B, rail.EndpointB));
+        }
+        return result;
+    }
 }

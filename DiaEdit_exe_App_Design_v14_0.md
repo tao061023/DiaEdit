@@ -2031,6 +2031,25 @@ NoneEndpointがWaypointsへ現れることは構造的にない。
 
 ---
 
+##### `public static IReadOnlyList<RailEndpointLocation> FindRailsReferencing(ObjectId objectId, IReadOnlyList<Rail> rails)`
+
+指定ObjectIdを現在参照している(RailId, RailEnd, RailEndpointRef)の組を、全Railを走査して列挙する。
+
+**Parameters**
+
+- `objectId`: 参照元を探す対象のObjectId。
+- `rails`: 走査対象の全Rail。
+
+**Returns**
+objectIdを参照しているRail端点の一覧。0件の場合は空リスト。
+
+**Remarks**
+専用逆引きIndexは持たず線形走査する（DeleteRailCommandの3経路チェックと同じ判断基準）。
+ドラッグによる端点移動（合流あり分岐）で、移動対象自身を新座標側の収束集合へ
+加えるために使う。
+
+---
+
 #### `DiaEditCore.Algorithm.Stations.FloorUnitObjects.RailEndpointLocation` (record struct)
 
 収束点に集まっているRail端点1件を表す値。
@@ -3495,6 +3514,42 @@ Undo時、削除したRailを対象コレクションへ復元する。
 
 ---
 
+#### `DiaEditCore.Commands.Stations.FloorUnitObjects.EndpointDragWorkflow` (class)
+
+端点ドラッグ（基本フロー：移動対象を参照する全Railが追従する方式）の入口ワークフロー。
+
+> 「端点選択→Rail個別選択→部分デタッチ移動」（選択的デタッチフロー）は対象外（今回スコープ外、
+> Tao様確認済み）。共有端点をドラッグした場合、それを参照する全Railが常に追従する。
+
+---
+
+##### `public static IUndoableCommand? ResolveMove(ObjectId movedObjectId, Point oldPosition, Point newPosition, FloorUnitId floorUnitId, ProjectSession session, List<Rail> rails, List<NoneEndpoint> noneEndpoints, IdAllocator<NoneEndpointId> noneEndpointIds, List<BoundaryPoint> boundaryPoints, IdAllocator<BoundaryPointId> boundaryPointIds, List<EntryPoint> entryPoints, List<BufferStop> bufferStops, List<Switcher> switchers, IdAllocator<SwitcherId> switcherIds, List<StationPath> stationPaths)`
+
+端点オブジェクトのドラッグ移動を解決し、発行すべきコマンドを返す。
+
+**Parameters**
+
+- `movedObjectId`: ドラッグ対象の端点オブジェクトId。
+- `oldPosition`: ドラッグ開始時の座標。
+- `newPosition`: ドロップ時の座標。
+- `floorUnitId`: 対象が属するFloorUnitId（合流時、新規作成する端点オブジェクトに使う）。
+- `session`: AffectedIds算出に使うプロジェクトセッション。
+- `rails`: 全Rail。
+- `noneEndpoints`: 現在のNoneEndpointコレクション。
+- `noneEndpointIds`: NoneEndpoint用のId採番器。
+- `boundaryPoints`: 現在のBoundaryPointコレクション。
+- `boundaryPointIds`: BoundaryPoint用のId採番器。
+- `entryPoints`: 現在のEntryPointコレクション。
+- `bufferStops`: 現在のBufferStopコレクション。
+- `switchers`: 現在のSwitcherコレクション。
+- `switcherIds`: Switcher用のId採番器。
+- `stationPaths`: StationPathブロックチェック対象の全StationPath。
+
+**Returns**
+発行すべきコマンド。oldPositionとnewPositionが一致する場合はnull（無操作）。
+
+---
+
 #### `DiaEditCore.Commands.Stations.FloorUnitObjects.EntryPointCreationSpec` (record)
 
 | Field | Type |
@@ -3503,6 +3558,58 @@ Undo時、削除したRailを対象コレクションへ復元する。
 | Position | `Point` |
 | Type | `EntryPointType` |
 | Name | `string` |
+
+---
+
+#### `DiaEditCore.Commands.Stations.FloorUnitObjects.MoveFloorUnitObjectPositionCommand` (class)
+
+FloorUnitObjectBase.Positionのみを変更する、端点オブジェクト共通の「移動」パターン実装。
+
+> NoneEndpoint／BoundaryPoint／EntryPoint／BufferStop／Switcherはいずれも座標情報が
+> Base.Positionのみであるため、CreateFloorUnitObjectCommand&lt;TId,T&gt;と同じ発想で
+> 型ごとの個別クラスを持たず本コマンドを直接使う。
+> 対象オブジェクトを参照する全Railは、RailEndpointRefがId経由で対象を指す設計上、
+> 本コマンドがBase.Positionを書き換えるだけで自動的に新座標へ追従する。RailEndpointRef自体の
+> 張替え（RailEndPointRefChanger）は不要かつ対象外。
+> 適用条件（呼び出し元の責務、本コマンドは検証しない）：移動先座標に他の端点オブジェクトの
+> 収束が既に存在する場合は本コマンドではなくRailEndpointConvergenceWorkflow.Reconcile経由の
+> 変換ステップ一式を使うこと。本コマンドは「合流を伴わない単純移動」専用。
+
+---
+
+##### `public MoveFloorUnitObjectPositionCommand(T target, Func<T, FloorUnitObjectBase> baseAccessor, Point newPosition, IReadOnlySet<ObjectId> affectedIds)`
+
+**Parameters**
+
+- `target`: 移動対象のオブジェクトインスタンス。
+- `baseAccessor`: 対象からFloorUnitObjectBaseを取り出すアクセサ（型ごとにBaseプロパティを渡す）。
+- `newPosition`: 移動後の座標。
+- `affectedIds`: 呼び出し元が事前に確定させたAffectedIds。
+
+---
+
+##### `protected override Point CaptureSnapshot(T target)`
+
+**Parameters**
+
+- `target`: 移動対象のオブジェクトインスタンス。
+
+---
+
+##### `protected override void Apply(T target)`
+
+**Parameters**
+
+- `target`: 移動対象のオブジェクトインスタンス。
+
+---
+
+##### `protected override void Restore(T target, Point snapshot)`
+
+**Parameters**
+
+- `target`: 移動対象のオブジェクトインスタンス。
+- `snapshot`: 移動前の座標。
 
 ---
 
@@ -4591,6 +4698,8 @@ UI設計書§4.2.3「構内配線図ポップアップ」のキャンバス実�
 | DeleteRailError | `string?` |  |
 | HasDeleteRailError | `bool` |  |
 | ObservedIds | `IReadOnlySet<ObjectId>` | StationDetailViewModel.ObservedIdsと同じ設計。FloorUnit自身に加え、現在このFloorUnitに<br>属する（端点経由で導出される）Rail群のIdを都度算出する。 |
+| EndpointDragError | `string?` |  |
+| HasEndpointDragError | `bool` |  |
 
 > FloorUnit詳細画面＝Rail（線路）管理画面と位置づける（Tao様確認済み、v13.7セッション）。
 > FloorUnit自身のName編集は本画面の責務外（StationDetailViewModel側で行う）。
@@ -4618,6 +4727,53 @@ UI設計書§4.2.3「構内配線図ポップアップ」のキャンバス実�
 ##### `public void SelectRailFromCanvas(Rail rail)`
 
 キャンバス上でRailの図形がクリックされた際、Viewのコードビハインドから呼ばれる。
+
+---
+
+##### `public bool TryStartEndpointDrag(ObjectId objectId, CanvasPoint pointerPosition)`
+
+キャンバス上で端点図形がPointerPressedされた際、Viewのコードビハインドから呼ばれる。
+線路・端点・ホーム編集モード以外では開始しない（閲覧モードは選択・ドラッグとも対象外のまま）。
+
+**Parameters**
+
+- `objectId`: ドラッグ開始対象の端点ObjectId。
+- `pointerPosition`: 押下時のキャンバス内ポインタ座標。
+
+**Returns**
+ドラッグを開始した場合true。View側はこれを見てPointerCaptureの要否を判断する。
+
+---
+
+##### `public void UpdateEndpointDrag(CanvasPoint pointerPosition)`
+
+ドラッグ中、ポインタ移動のたびにViewから呼ばれる。モデルは一切変更せず、
+キャンバス表示（プレビュー）のみをポインタ移動量に追従させる。
+
+**Parameters**
+
+- `pointerPosition`: 現在のキャンバス内ポインタ座標。
+
+---
+
+##### `public void EndEndpointDrag(CanvasPoint pointerPosition)`
+
+ドラッグ終了（PointerReleased）時、プレビュー座標をモデル座標へ逆変換し、
+EndpointDragWorkflow.ResolveMoveを介してコマンドを発行する。
+
+**Parameters**
+
+- `pointerPosition`: ドロップ時のキャンバス内ポインタ座標。
+
+**Remarks**
+無操作（移動量ゼロ）・失敗（StationPathブロック等）のいずれの場合も、finally句の
+ReloadCanvasShapes()によりプレビューを実際のモデル状態へ確実に戻す。
+
+---
+
+##### `public void CancelEndpointDrag()`
+
+PointerCaptureLost等でドラッグが中断された場合、プレビューを破棄する。
 
 ---
 

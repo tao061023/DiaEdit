@@ -110,6 +110,11 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
     /// 別々に管理しているため、Border側のサイズを変える場合はこちらも合わせて調整すること。
     /// </summary>
     private const double CanvasDisplayExtent = 280;
+    // ドラッグ終了時、キャンバス表示座標→モデル座標への逆変換に使う
+    // （ReloadCanvasShapesが計算した直近のスケール変換パラメータを保持する）。
+    private double _canvasScale = 1.0;
+    private int _canvasMinX;
+    private int _canvasMinY;
 
     /// <summary>
     /// 内側Canvas（XAML）のWidth/Heightに束縛する、スケール変換後の実サイズ（画面ピクセル単位）。
@@ -278,6 +283,9 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
         {
             CanvasContentWidth = CanvasMargin * 2;
             CanvasContentHeight = CanvasMargin * 2;
+            _canvasScale = 1.0;
+            _canvasMinX = 0;
+            _canvasMinY = 0;
             return;
         }
 
@@ -301,6 +309,9 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
             _ => Math.Min(CanvasDisplayExtent / rangeX, CanvasDisplayExtent / rangeY),
         };
 
+        _canvasScale = scale;
+        _canvasMinX = minX;
+        _canvasMinY = minY;
         CanvasContentWidth = rangeX * scale + CanvasMargin * 2;
         CanvasContentHeight = rangeY * scale + CanvasMargin * 2;
 
@@ -392,6 +403,136 @@ public sealed partial class FloorUnitDetailViewModel : ViewModelBase, IAffectedB
 
     /// <summary>キャンバス上でRailの図形がクリックされた際、Viewのコードビハインドから呼ばれる。</summary>
     public void SelectRailFromCanvas(Rail rail) => SelectedRail = rail;
+
+    // ---- 端点ドラッグ（ステージ2：基本フロー＝共有Rail全件追従のみ。選択的デタッチは対象外） ----
+
+    private ObjectId? _draggingObjectId;
+    private CanvasPoint _dragPointerStart;
+    private CanvasPoint _dragShapeStart;
+
+    [ObservableProperty]
+    public partial string? EndpointDragError { get; set; }
+    public bool HasEndpointDragError => !string.IsNullOrEmpty(EndpointDragError);
+    partial void OnEndpointDragErrorChanged(string? value) => OnPropertyChanged(nameof(HasEndpointDragError));
+
+    /// <summary>
+    /// キャンバス上で端点図形がPointerPressedされた際、Viewのコードビハインドから呼ばれる。
+    /// 線路・端点・ホーム編集モード以外では開始しない（閲覧モードは選択・ドラッグとも対象外のまま）。
+    /// </summary>
+    /// <param name="objectId">ドラッグ開始対象の端点ObjectId。</param>
+    /// <param name="pointerPosition">押下時のキャンバス内ポインタ座標。</param>
+    /// <returns>ドラッグを開始した場合true。View側はこれを見てPointerCaptureの要否を判断する。</returns>
+    public bool TryStartEndpointDrag(ObjectId objectId, CanvasPoint pointerPosition)
+    {
+        if (!IsEditableMode) return false;
+
+        var shape = CanvasEndpoints.FirstOrDefault(s => s.ObjectId.Equals(objectId));
+        if (shape is null) return false;
+
+        _draggingObjectId = objectId;
+        _dragPointerStart = pointerPosition;
+        _dragShapeStart = shape.Position;
+        return true;
+    }
+
+    /// <summary>
+    /// ドラッグ中、ポインタ移動のたびにViewから呼ばれる。モデルは一切変更せず、
+    /// キャンバス表示（プレビュー）のみをポインタ移動量に追従させる。
+    /// </summary>
+    /// <param name="pointerPosition">現在のキャンバス内ポインタ座標。</param>
+    public void UpdateEndpointDrag(CanvasPoint pointerPosition)
+    {
+        if (_draggingObjectId is not { } id) return;
+        ApplyEndpointPreviewPosition(id, ComputePreviewPosition(pointerPosition));
+    }
+
+    private CanvasPoint ComputePreviewPosition(CanvasPoint pointerPosition) => new(
+        _dragShapeStart.X + (pointerPosition.X - _dragPointerStart.X),
+        _dragShapeStart.Y + (pointerPosition.Y - _dragPointerStart.Y));
+
+    /// <summary>
+    /// ドラッグ中の端点図形・接続Rail端のキャンバス表示位置を、コミット前のプレビューとして
+    /// 差し替える（discard-and-regenerateとは別に、ドラッグ中のみの一時的な表示更新）。
+    /// </summary>
+    private void ApplyEndpointPreviewPosition(ObjectId id, CanvasPoint previewPos)
+    {
+        var epIndex = CanvasEndpoints.ToList().FindIndex(s => s.ObjectId.Equals(id));
+        if (epIndex >= 0)
+        {
+            CanvasEndpoints[epIndex] = CanvasEndpoints[epIndex] with { Position = previewPos };
+        }
+
+        for (var i = 0; i < CanvasRails.Count; i++)
+        {
+            var shape = CanvasRails[i];
+            if (shape.Rail.EndpointA.ToObjectId()?.Equals(id) == true)
+                CanvasRails[i] = shape with { A = previewPos };
+            else if (shape.Rail.EndpointB.ToObjectId()?.Equals(id) == true)
+                CanvasRails[i] = shape with { B = previewPos };
+        }
+    }
+
+    /// <summary>
+    /// ドラッグ終了（PointerReleased）時、プレビュー座標をモデル座標へ逆変換し、
+    /// EndpointDragWorkflow.ResolveMoveを介してコマンドを発行する。
+    /// </summary>
+    /// <param name="pointerPosition">ドロップ時のキャンバス内ポインタ座標。</param>
+    /// <remarks>
+    /// 無操作（移動量ゼロ）・失敗（StationPathブロック等）のいずれの場合も、finally句の
+    /// ReloadCanvasShapes()によりプレビューを実際のモデル状態へ確実に戻す。
+    /// </remarks>
+    public void EndEndpointDrag(CanvasPoint pointerPosition)
+    {
+        if (_draggingObjectId is not { } id) return;
+
+        EndpointDragError = null;
+        try
+        {
+            var previewPos = ComputePreviewPosition(pointerPosition);
+            var newModelPosition = ToModelPosition(previewPos);
+            var oldModelPosition = ToModelPosition(_dragShapeStart);
+
+            var command = EndpointDragWorkflow.ResolveMove(
+                id, oldModelPosition, newModelPosition, _floorUnit.Id, _session,
+                _session.Current.Rails,
+                _session.Current.NoneEndpoints, _session.NoneEndpointIds,
+                _session.Current.BoundaryPoints, _session.BoundaryPointIds,
+                _session.Current.EntryPoints,
+                _session.Current.BufferStops,
+                _session.Current.Switchers, _session.SwitcherIds,
+                _session.Current.StationPaths);
+
+            if (command is not null)
+            {
+                _invoker.Execute(command); // OnAffected経由でReloadCanvasShapes()される
+            }
+        }
+        catch (InvalidOperationException ex)
+        {
+            EndpointDragError = ex.Message;
+        }
+        finally
+        {
+            _draggingObjectId = null;
+            ReloadCanvasShapes(); // 無操作／失敗時のプレビューをモデルの実状態へ戻す
+        }
+    }
+
+    /// <summary>PointerCaptureLost等でドラッグが中断された場合、プレビューを破棄する。</summary>
+    public void CancelEndpointDrag()
+    {
+        if (_draggingObjectId is null) return;
+        _draggingObjectId = null;
+        ReloadCanvasShapes();
+    }
+
+    /// <summary>
+    /// キャンバス表示座標を、直近のReloadCanvasShapesが記録した変換パラメータで
+    /// モデル座標（int）へ逆変換する。四捨五入によりグリッドへスナップする。
+    /// </summary>
+    private Point ToModelPosition(CanvasPoint canvasPoint) => new(
+        (int)Math.Round((canvasPoint.X - CanvasMargin) / _canvasScale + _canvasMinX),
+        (int)Math.Round((canvasPoint.Y - CanvasMargin) / _canvasScale + _canvasMinY));
 
     [RelayCommand]
     private void SetViewMode() => Mode = CanvasMode.View;
